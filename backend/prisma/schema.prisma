@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  phoneNumber  String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String?   @map("full_name")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  timifyReservations TimifyReservation[]
+  bookings Booking[]
+  loyaltyState LoyaltyState?
+  loyaltyRedemptionTokens LoyaltyRedemptionToken[]
+  loyaltyRedemptions LoyaltyRedemption[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @map("token_hash")
+  revokedAt  DateTime? @map("revoked_at")
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+model TimifyReservation {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  branchId            String    @map("branch_id")
+  serviceId           String    @map("service_id")
+  resourceId          String?   @map("resource_id")
+  reservedDate        String    @map("reserved_date")
+  reservedTime        String    @map("reserved_time")
+  timifyReservationId String    @map("timify_reservation_id")
+  timifySecret        String    @map("timify_secret")
+  expiresAt           DateTime  @map("expires_at")
+  usedAt              DateTime? @map("used_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([timifyReservationId])
+  @@map("timify_reservations")
+}
+
+model Booking {
+  id                 String   @id @default(uuid())
+  userId             String   @map("user_id")
+  branchId           String   @map("branch_id")
+  serviceId          String   @map("service_id")
+  resourceId         String?  @map("resource_id")
+  startDateTime      DateTime @map("start_date_time")
+  timifyAppointmentId String? @map("timify_appointment_id")
+  status             String   @default("CONFIRMED")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([branchId])
+  @@index([startDateTime])
+  @@index([userId, startDateTime])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BranchCache {
+  id        String   @id
+  name      String
+  address   String?
+  city      String?
+  country   String?
+  timezone  String?
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("branch_cache")
+}
+
+model LoyaltyState {
+  userId    String   @id @map("user_id")
+  stamps    Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_states")
+}
+
+model LoyaltyRedemptionToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt, usedAt])
+  @@map("loyalty_redemption_tokens")
+}
+
+model LoyaltyRedemption {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  redeemedAt    DateTime @default(now()) @map("redeemed_at")
+  previousStamps Int    @map("previous_stamps")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([redeemedAt])
+  @@map("loyalty_redemptions")
+}
+
+model Offer {
+  id          String    @id @default(uuid())
+  title       String
+  description String    @db.Text
+  imageUrl    String?   @map("image_url")
+  validFrom   DateTime? @map("valid_from")
+  validTo     DateTime? @map("valid_to")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([validFrom])
+  @@index([validTo])
+  @@map("offers")
+}
+
+model Salon {
+  id           String    @id @default(uuid())
+  name         String
+  city         String
+  address      String
+  description  String    @db.Text
+  openingHours String    @map("opening_hours")
+  images       String[]
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  barbers BarberSalon[]
+
+  @@index([isActive])
+  @@map("salons")
+}
+
+model Barber {
+  id              String       @id @default(uuid())
+  firstName       String       @map("first_name")
+  lastName        String       @map("last_name")
+  bio             String       @db.Text
+  experienceYears Int?         @map("experience_years")
+  interests       String[]
+  images          String[]
+  isActive        Boolean      @default(true) @map("is_active")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  salons BarberSalon[]
+
+  @@index([isActive])
+  @@map("barbers")
+}
+
+model BarberSalon {
+  barberId String  @map("barber_id")
+  salonId  String  @map("salon_id")
+  barber   Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  salon    Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, salonId])
+  @@map("barber_salons")
+}

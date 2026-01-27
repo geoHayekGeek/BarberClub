@@ -1,0 +1,22 @@
+/// Application configuration
+/// Supports API_BASE_URL via --dart-define
+class AppConfig {
+  AppConfig._();
+  
+  static const String _defaultApiBaseUrl = 'http://10.0.2.2:3000';
+  
+  /// API base URL from --dart-define or default
+  static String get apiBaseUrl {
+    const String fromDefine = String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: _defaultApiBaseUrl,
+    );
+    return fromDefine;
+  }
+  
+  /// API timeout in milliseconds
+  static const int apiTimeoutMs = 30000;
+  
+  /// Refresh token endpoint path
+  static const String refreshTokenPath = '/api/v1/auth/refresh';
+}
