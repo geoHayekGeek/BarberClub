@@ -35,6 +35,7 @@ npm install
 ```bash
 cp .env.example .env
 ```
+On Windows (cmd), use `copy .env.example .env` instead.
 
 4. Edit `.env` and configure all required variables (see Environment Setup below).
 
@@ -49,9 +50,12 @@ To create the same database schema as this project using Prisma:
 
 1. **Create a PostgreSQL database** (e.g. `barber_club`) and set `DATABASE_URL` in `.env` (see [Environment Setup](#environment-setup) and [Local PostgreSQL Setup](#local-postgresql-setup-using-pgadmin)).
 
-2. **run migrations:**
+2. **Run migrations:**
 ```bash
-# Edit .env: set DATABASE_URL, JWT_SECRET, CORS_ORIGINS
+cd backend
+npm install
+cp .env.example .env
+# Edit .env: set DATABASE_URL, JWT_SECRET, CORS_ORIGINS. On Windows (cmd): use copy instead of cp.
 npm run prisma:generate
 npm run prisma:migrate
 ```
@@ -85,6 +89,12 @@ LOG_LEVEL=info
 
 FRONTEND_URL=http://localhost:5173
 
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
+
 TIMIFY_BASE_URL=https://api.timify.com/v1
 TIMIFY_REGION=EUROPE
 TIMIFY_COMPANY_IDS=
@@ -96,6 +106,8 @@ LOYALTY_QR_TTL_SECONDS=120
 
 ENABLE_LOCAL_CANCEL=false
 BOOKING_CANCEL_CUTOFF_MINUTES=60
+
+ADMIN_SECRET=change-me-in-production
 ```
 
 ### Required Variables
@@ -116,11 +128,23 @@ BOOKING_CANCEL_CUTOFF_MINUTES=60
 - `FRONTEND_URL`: Frontend URL for CORS and email links (default: `http://localhost:5173`)
 - `TIMIFY_BASE_URL`: TIMIFY API base URL (default: `https://api.timify.com/v1`)
 - `TIMIFY_REGION`: TIMIFY region (`EUROPE`, `US`, or `ASIA`, default: `EUROPE`)
-- `ADMIN_SECRET`: Secret string for admin endpoints authentication (required in production, see [ADMIN.md](./ADMIN.md))
 - `TIMIFY_COMPANY_IDS`: Optional comma-separated list of allowed branch company IDs
 - `TIMIFY_TIMEOUT_MS`: TIMIFY request timeout in milliseconds (default: `10000`)
 - `TIMIFY_MAX_RETRIES`: Maximum retries for TIMIFY requests (default: `2`)
 - `LOYALTY_TARGET`: Number of stamps required for a reward (default: `10`)
+- `LOYALTY_QR_TTL_SECONDS`: QR code expiration in seconds (default: `120`)
+- `ENABLE_LOCAL_CANCEL`: Allow users to cancel bookings via API (`true`/`false`, default: `false`)
+- `BOOKING_CANCEL_CUTOFF_MINUTES`: Minutes before start time within which cancellation is disallowed (default: `60`)
+- `ADMIN_SECRET`: Secret for admin endpoints (required in production; see [ADMIN.md](./ADMIN.md)). Must be changed from default in production.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: Optional. When all set, password-reset emails are sent via SMTP. Otherwise, in development a dev provider stores emails in-memory (see [Email / Password Reset](#email--password-reset)).
+
+### Email / Password Reset
+
+The **forgot-password** and **reset-password** flows send an email with a reset link.
+
+- **Development without SMTP**: If `SMTP_*` are not set, the app uses an in-memory dev provider. Emails are not sent; you can view them at `GET /api/v1/dev/emails` (see [Development](#development) endpoints).
+- **Development or production with SMTP**: Set all of `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. Password-reset emails are sent via SMTP.
+- **Production without SMTP**: Forgot-password will fail when sending the email. Configure SMTP for production if you use password reset.
 
 ## Local PostgreSQL Setup (using pgAdmin)
 
@@ -180,21 +204,14 @@ After setting up the database:
 npm run prisma:migrate
 ```
 
-This will:
-- Create the migration files
-- Apply migrations to your database
-- Generate the Prisma client
+This will apply all migrations in `prisma/migrations/` to your database and ensure the Prisma client is generated. (Use `npx prisma migrate deploy` in production or CI to apply migrations without creating new ones.)
 
 **Note:** If you encounter database lock timeout errors:
 - Close Prisma Studio and any other database connections
 - Wait 10-15 seconds and try again
-- Or see `MIGRATION_TROUBLESHOOTING.md` for manual SQL script
+- As a last resort, run the SQL from the relevant migration files in `prisma/migrations/` manually
 
-**Important:** After adding new features (like booking), you must run migrations again to create new tables:
-```bash
-npm run prisma:migrate
-```
-This will create the `timify_reservations` and `bookings` tables for the booking feature.
+**Important:** When you add new migrations (e.g. after schema changes), run `npm run prisma:migrate` again to apply them.
 
 2. (Optional) Open Prisma Studio to view your database:
 ```bash
@@ -248,6 +265,12 @@ Run tests with coverage:
 npm test:coverage
 ```
 
+Lint:
+```bash
+npm run lint
+npm run lint:fix
+```
+
 ## Project Structure
 
 ```
@@ -261,16 +284,24 @@ backend/
 │   │   ├── index.ts
 │   │   ├── auth.ts
 │   │   ├── booking.ts
+│   │   ├── bookings.ts
 │   │   ├── loyalty.ts
-│   │   └── dev.ts
+│   │   ├── offers.ts
+│   │   ├── salons.ts
+│   │   ├── barbers.ts
+│   │   ├── dev.ts
+│   │   └── admin.ts
 │   ├── middleware/            # Express middleware
 │   │   ├── auth.ts
+│   │   ├── adminAuth.ts
+│   │   ├── rateLimit.ts
 │   │   ├── errorHandler.ts
 │   │   ├── notFoundHandler.ts
 │   │   └── validate.ts
 │   ├── modules/               # Business logic modules
 │   │   ├── auth/
 │   │   │   ├── service.ts
+│   │   │   ├── passwordResetService.ts
 │   │   │   ├── validation.ts
 │   │   │   └── utils/
 │   │   ├── booking/
@@ -278,6 +309,15 @@ backend/
 │   │   │   └── validation.ts
 │   │   ├── loyalty/
 │   │   │   └── service.ts
+│   │   ├── offers/
+│   │   │   ├── service.ts
+│   │   │   └── validation.ts
+│   │   ├── salons/
+│   │   │   ├── service.ts
+│   │   │   └── validation.ts
+│   │   ├── barbers/
+│   │   │   ├── service.ts
+│   │   │   └── validation.ts
 │   │   ├── timify/
 │   │   │   ├── timifyClient.ts
 │   │   │   ├── schemas.ts
@@ -286,6 +326,7 @@ backend/
 │   │   └── notifications/
 │   │       ├── emailProvider.ts
 │   │       ├── devEmailProvider.ts
+│   │       ├── smtpEmailProvider.ts
 │   │       └── index.ts
 │   ├── db/                    # Database client
 │   │   └── client.ts
@@ -296,14 +337,20 @@ backend/
 │   ├── schema.prisma          # Database schema
 │   └── migrations/            # Database migrations
 ├── tests/                     # Test files
+│   ├── setup.ts
 │   ├── auth.test.ts
+│   ├── admin.test.ts
 │   ├── booking.test.ts
+│   ├── bookings.test.ts
 │   ├── loyalty.test.ts
-│   └── setup.ts
+│   ├── offers.test.ts
+│   ├── salons.test.ts
+│   └── barbers.test.ts
 ├── dist/                      # Compiled JavaScript (generated)
 ├── .env.example               # Environment variables template
 ├── README.md                  # This file
 ├── TESTING.md                 # Complete testing guide
+├── ADMIN.md                   # Admin endpoints documentation
 └── package.json
 ```
 
@@ -846,16 +893,16 @@ Response:
 
 ## Managing Data
 
-Salons, barbers, and offers are managed directly in the database via pgAdmin. There are no admin endpoints.
+Salons, barbers, and offers can be managed either via the **Admin API** (see [ADMIN.md](./ADMIN.md)) or directly in the database via pgAdmin.
 
 ### Managing Salons and Barbers
 
-Salons and barbers are managed directly in the database via pgAdmin. The relationship between salons and barbers is many-to-many, managed through the `barber_salons` join table.
+The relationship between salons and barbers is many-to-many, managed through the `barber_salons` join table. Use the Admin API (see [ADMIN.md](./ADMIN.md)) or pgAdmin as below.
 
 #### Inserting a Salon via pgAdmin
 
 1. Open pgAdmin and connect to your database
-2. Navigate to: `Databases` → `Barber-Club-DB` → `Schemas` → `public` → `Tables` → `salons`
+2. Navigate to: `Databases` → `barber_club` (or your DB name) → `Schemas` → `public` → `Tables` → `salons`
 3. Right-click on `salons` → `View/Edit Data` → `All Rows`
 4. Click the `+` button to add a new row
 5. Fill in the fields:
@@ -873,7 +920,7 @@ Salons and barbers are managed directly in the database via pgAdmin. The relatio
 
 #### Inserting a Barber via pgAdmin
 
-1. Navigate to: `Databases` → `Barber-Club-DB` → `Schemas` → `public` → `Tables` → `barbers`
+1. Navigate to: `Databases` → `barber_club` (or your DB name) → `Schemas` → `public` → `Tables` → `barbers`
 2. Right-click on `barbers` → `View/Edit Data` → `All Rows`
 3. Click the `+` button to add a new row
 4. Fill in the fields:
@@ -891,7 +938,7 @@ Salons and barbers are managed directly in the database via pgAdmin. The relatio
 
 #### Linking a Barber to a Salon
 
-1. Navigate to: `Databases` → `Barber-Club-DB` → `Schemas` → `public` → `Tables` → `barber_salons`
+1. Navigate to: `Databases` → `barber_club` (or your DB name) → `Schemas` → `public` → `Tables` → `barber_salons`
 2. Right-click on `barber_salons` → `View/Edit Data` → `All Rows`
 3. Click the `+` button to add a new row
 4. Fill in the fields:
@@ -936,12 +983,12 @@ VALUES (
 
 ### Managing Offers
 
-Offers are managed directly in the database via pgAdmin. There are no admin endpoints.
+Use the Admin API (see [ADMIN.md](./ADMIN.md)) or pgAdmin as below.
 
-### Inserting an Offer via pgAdmin
+#### Inserting an Offer via pgAdmin
 
 1. Open pgAdmin and connect to your database
-2. Navigate to: `Databases` → `Barber-Club-DB` → `Schemas` → `public` → `Tables` → `offers`
+2. Navigate to: `Databases` → `barber_club` (or your DB name) → `Schemas` → `public` → `Tables` → `offers`
 3. Right-click on `offers` → `View/Edit Data` → `All Rows`
 4. Click the `+` button to add a new row
 5. Fill in the fields:
@@ -956,7 +1003,7 @@ Offers are managed directly in the database via pgAdmin. There are no admin endp
    - `updated_at`: Leave empty (auto-updated)
 6. Click `Save` to insert the offer
 
-### Example SQL Insert
+#### Example SQL Insert
 
 ```sql
 INSERT INTO offers (title, description, image_url, valid_from, valid_to, is_active)
@@ -970,7 +1017,7 @@ VALUES (
 );
 ```
 
-### Active Offers Logic
+#### Active Offers Logic
 
 An offer is considered "active" when:
 - `is_active = true`
@@ -1174,22 +1221,21 @@ The test suite includes comprehensive coverage:
 - Get offer details
 - Error handling (not found, validation errors)
 
-**Salons Tests (6 tests):**
-- List returns only active salons
+**Salons Tests (8 tests):**
+- List returns only active salons; empty list when none exist
 - Salons sorted by city ASC, name ASC
-- Salon details returns associated barbers
-- Only active barbers included in salon details
-- Invalid id returns VALIDATION_ERROR
-- Missing salon returns SALON_NOT_FOUND
+- Salon details returns associated barbers (or none)
+- Invalid id returns VALIDATION_ERROR; missing salon returns SALON_NOT_FOUND
 
-**Barbers Tests (7 tests):**
-- List returns only active barbers
+**Barbers Tests (11 tests):**
+- List returns only active barbers; empty list when none exist
 - Barbers sorted by firstName ASC
-- Barber details returns associated salons and interests
-- Only active salons included in barber details
-- Invalid id returns VALIDATION_ERROR
-- Missing barber returns BARBER_NOT_FOUND
-- Null experienceYears and empty interests handled correctly
+- Barber details returns associated salons and interests; null experienceYears, empty interests
+- Invalid id returns VALIDATION_ERROR; missing barber returns BARBER_NOT_FOUND
+
+**Admin Tests (13 tests):**
+- Create salon, barber, offer with `adminSecret`; 403 when missing or incorrect
+- Validation errors (invalid payload, non-existent salonIds, validFrom > validTo)
 
 **Loyalty Tests (21 tests):**
 - Loyalty state retrieval for new and existing users (with eligibleForReward field)
@@ -1205,7 +1251,7 @@ The test suite includes comprehensive coverage:
 - Integration with booking confirmation flow
 - Error handling (insufficient stamps, invalid QR, authentication)
 
-**Total: 70+ tests, all passing**
+**Total: 130+ tests, all passing**
 
 ### Testing Booking Endpoints
 
@@ -1389,6 +1435,9 @@ All endpoints return consistent error codes:
 - `NOT_FOUND`: Resource not found
 - `CONFLICT`: Resource conflict (e.g., duplicate user)
 - `FORBIDDEN`: Access forbidden
+
+### Admin Errors
+- `ADMIN_FORBIDDEN`: Invalid or missing admin secret (admin endpoints)
 
 ### Booking Errors
 - `BOOKING_SLOT_UNAVAILABLE`: Booking slot not available or already taken
