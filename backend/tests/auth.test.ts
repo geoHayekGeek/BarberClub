@@ -407,7 +407,7 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(email).toBeTruthy();
     expect(email.html).toBeDefined();
 
-    const resetUrlMatch = email.html.match(/reset-password\?token=([^&"'\s<>]+)/);
+    const resetUrlMatch = email.html.match(/reset-password-redirect\?token=([^&"'\s<>]+)/);
     expect(resetUrlMatch).toBeTruthy();
     expect(resetUrlMatch).toHaveLength(2);
     resetToken = decodeURIComponent(resetUrlMatch![1]);
@@ -438,7 +438,7 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(resetEmails.length).toBeGreaterThan(0);
     const email = resetEmails[resetEmails.length - 1];
 
-    const resetUrlMatch = email.html.match(/reset-password\?token=([^&"'\s<>]+)/);
+    const resetUrlMatch = email.html.match(/reset-password-redirect\?token=([^&"'\s<>]+)/);
     expect(resetUrlMatch).toBeTruthy();
     const testToken = decodeURIComponent(resetUrlMatch![1]);
 
@@ -526,7 +526,7 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(resetEmails.length).toBeGreaterThan(0);
     const email = resetEmails[resetEmails.length - 1];
 
-    const resetUrlMatch = email.html.match(/reset-password\?token=([^&"'\s<>]+)/);
+    const resetUrlMatch = email.html.match(/reset-password-redirect\?token=([^&"'\s<>]+)/);
     expect(resetUrlMatch).toBeTruthy();
     const usedToken = decodeURIComponent(resetUrlMatch![1]);
     expect(usedToken).toBeTruthy();

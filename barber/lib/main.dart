@@ -43,7 +43,10 @@ class _MainAppState extends ConsumerState<MainApp> {
     final router = ref.watch(appRouterProvider);
     
     // Initialize deep link service when router is available
-    _deepLinkService.initialize(router);
+    // Use post-frame callback to ensure router is fully ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _deepLinkService.initialize(router);
+    });
 
     return MaterialApp.router(
       title: 'Barber Club',

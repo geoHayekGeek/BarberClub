@@ -28,6 +28,9 @@ dependencies:
   
   # Deep Links
   app_links: ^6.3.1
+  
+  # URL Launcher
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +44,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Assets
+  assets:
+    - assets/images/barber_background.jpg
