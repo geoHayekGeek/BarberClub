@@ -43,6 +43,25 @@ cp .env.example .env
 npm run prisma:generate
 ```
 
+## Build the database (Prisma)
+
+To create the same database schema as this project using Prisma:
+
+1. **Create a PostgreSQL database** (e.g. `barber_club`) and set `DATABASE_URL` in `.env` (see [Environment Setup](#environment-setup) and [Local PostgreSQL Setup](#local-postgresql-setup-using-pgadmin)).
+
+2. **run migrations:**
+```bash
+# Edit .env: set DATABASE_URL, JWT_SECRET, CORS_ORIGINS
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+`npm run prisma:migrate` runs `prisma migrate dev`, which applies all migrations in `prisma/migrations/` and creates the tables. For production or CI (apply only, no new migrations), use:
+
+```bash
+npx prisma migrate deploy
+```
+
 ## Environment Setup
 
 Create a `.env` file in the backend root directory with the following variables:

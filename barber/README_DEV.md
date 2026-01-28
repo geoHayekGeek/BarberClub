@@ -1,36 +1,36 @@
-# Barber Club - Guide de développement
+# Barber Club - Development Guide
 
-## Prérequis
+## Prerequisites
 
-- Flutter SDK 3.10.7 ou supérieur
-- Dart SDK 3.10.7 ou supérieur
-- Backend API en cours d'exécution (voir `../backend/README.md`)
+- Flutter SDK 3.10.7 or higher
+- Dart SDK 3.10.7 or higher
+- Backend API running (see `../backend/README.md`)
 
 ## Installation
 
-1. Installer les dépendances Flutter :
+1. Install Flutter dependencies:
 ```bash
 flutter pub get
 ```
 
-2. Générer les fichiers de code (freezed, json_serializable) :
+2. Generate code files (freezed, json_serializable):
 ```bash
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-## Configuration de l'URL de l'API
+## API Base URL Configuration
 
-L'application utilise `--dart-define` pour configurer l'URL de base de l'API.
+The app uses `--dart-define` to configure the API base URL.
 
-### Android Emulator (par défaut)
+### Android Emulator (default)
 
-L'URL par défaut est `http://10.0.2.2:3000` (qui pointe vers `localhost:3000` sur votre machine hôte).
+The default URL is `http://10.0.2.2:3000` (which maps to `localhost:3000` on your host machine).
 
 ```bash
 flutter run
 ```
 
-ou explicitement :
+or explicitly:
 
 ```bash
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
@@ -38,37 +38,37 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
 
 ### iOS Simulator
 
-Pour iOS Simulator, utilisez `http://localhost:3000` ou l'IP de votre machine sur le réseau local :
+For iOS Simulator, use `http://localhost:3000` or your machine's IP on the local network:
 
 ```bash
-# Option 1: localhost (si backend sur même machine)
+# Option 1: localhost (if backend on same machine)
 flutter run --dart-define=API_BASE_URL=http://localhost:3000
 
-# Option 2: IP locale (si backend sur réseau)
+# Option 2: Local IP (if backend on network)
 flutter run --dart-define=API_BASE_URL=http://192.168.1.XXX:3000
 ```
 
-### Appareil physique
+### Physical Device
 
-Pour un appareil physique (Android ou iOS), utilisez l'IP de votre machine sur le réseau local :
+For a physical device (Android or iOS), use your machine's IP on the local network:
 
 ```bash
 flutter run --dart-define=API_BASE_URL=http://192.168.1.XXX:3000
 ```
 
-**Note** : Remplacez `192.168.1.XXX` par l'IP réelle de votre machine. Vous pouvez la trouver avec :
-- Windows : `ipconfig`
-- macOS/Linux : `ifconfig` ou `ip addr`
+**Note:** Replace `192.168.1.XXX` with your machine's actual IP. You can find it with:
+- Windows: `ipconfig`
+- macOS/Linux: `ifconfig` or `ip addr`
 
-## Exécution
+## Running
 
-### Mode développement
+### Development mode
 
 ```bash
 flutter run
 ```
 
-### Mode release
+### Release mode
 
 ```bash
 flutter run --release
@@ -76,96 +76,96 @@ flutter run --release
 
 ## Tests
 
-Exécuter les tests unitaires :
+Run unit tests:
 
 ```bash
 flutter test
 ```
 
-Les tests incluent :
-- Validation des formulaires (email, téléphone, mot de passe)
-- Validateurs avec messages d'erreur en français
+Tests cover:
+- Form validation (email, phone, password)
+- Validators with localized error messages
 
-## Structure du projet
+## Project Structure
 
 ```
 lib/
 ├── core/
 │   ├── config/          # Configuration (API base URL)
-│   ├── network/          # Dio client avec interceptors
-│   ├── storage/          # Token repository (secure storage)
-│   └── validators/       # Validateurs de formulaires
+│   ├── network/         # Dio client with interceptors
+│   ├── storage/         # Token repository (secure storage)
+│   └── validators/      # Form validators
 ├── domain/
-│   ├── models/           # Modèles de domaine (User, AuthResponse, etc.)
-│   └── repositories/     # Interfaces de repositories
+│   ├── models/          # Domain models (User, AuthResponse, etc.)
+│   └── repositories/    # Repository interfaces
 ├── data/
-│   └── repositories/     # Implémentations des repositories
+│   └── repositories/    # Repository implementations
 └── presentation/
-    ├── providers/        # Providers Riverpod
-    ├── screens/          # Écrans UI
-    ├── routing/          # Configuration GoRouter
-    └── theme/            # Thème Material 3
+    ├── providers/       # Riverpod providers
+    ├── screens/         # UI screens
+    ├── routing/         # GoRouter configuration
+    └── theme/           # Material 3 theme
 ```
 
-## Fonctionnalités implémentées
+## Implemented Features
 
-### Authentification
+### Authentication
 
-- ✅ Connexion (email ou téléphone + mot de passe)
-- ✅ Inscription (nom, email, téléphone, mot de passe)
-- ✅ Mot de passe oublié
-- ✅ Gestion de session (bootstrap au démarrage)
-- ✅ Déconnexion
-- ✅ Refresh token automatique
-- ✅ Stockage sécurisé des tokens
+- ✅ Login (email or phone + password)
+- ✅ Sign up (name, email, phone, password)
+- ✅ Forgot password
+- ✅ Session handling (bootstrap on startup)
+- ✅ Logout
+- ✅ Automatic refresh token
+- ✅ Secure token storage
 
-### Sécurité
+### Security
 
-- ✅ Tokens stockés dans `flutter_secure_storage`
-- ✅ Refresh token automatique avec queue lock
-- ✅ Gestion des erreurs 401 avec redirection vers login
-- ✅ Validation côté client avant envoi API
+- ✅ Tokens stored in `flutter_secure_storage`
+- ✅ Automatic refresh token with queue lock
+- ✅ 401 error handling with redirect to login
+- ✅ Client-side validation before API calls
 
 ### UI/UX
 
-- ✅ Thème Material 3 sombre (or/beige)
-- ✅ Messages d'erreur en français
-- ✅ Validation en temps réel
-- ✅ États de chargement
-- ✅ Navigation avec GoRouter
-- ✅ Accessibilité (SafeArea, text scaling)
+- ✅ Dark Material 3 theme (gold/beige)
+- ✅ Localized error messages
+- ✅ Real-time validation
+- ✅ Loading states
+- ✅ Navigation with GoRouter
+- ✅ Accessibility (SafeArea, text scaling)
 
-## Dépannage
+## Troubleshooting
 
-### Erreur de connexion réseau
+### Network connection error
 
-- Vérifiez que le backend est en cours d'exécution
-- Vérifiez l'URL de base de l'API avec `--dart-define`
-- Pour Android Emulator : utilisez `http://10.0.2.2:3000`
-- Pour iOS Simulator : utilisez `http://localhost:3000` ou l'IP locale
+- Ensure the backend is running
+- Check the API base URL with `--dart-define`
+- For Android Emulator: use `http://10.0.2.2:3000`
+- For iOS Simulator: use `http://localhost:3000` or local IP
 
-### Erreurs de build (freezed/json_serializable)
+### Build errors (freezed/json_serializable)
 
-Si les fichiers générés sont manquants :
+If generated files are missing:
 
 ```bash
 flutter pub run build_runner clean
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-### Erreurs de lint
+### Lint errors
 
-Le projet utilise des règles de lint strictes. Pour voir les erreurs :
+The project uses strict lint rules. To see errors:
 
 ```bash
 flutter analyze
 ```
 
-## Prochaines étapes
+## Next Steps
 
-Cette implémentation couvre uniquement le module d'authentification. Les modules suivants seront ajoutés séparément :
+This implementation covers the authentication module only. The following modules will be added separately:
 
-- Réservation (booking)
-- Profil utilisateur
-- Navigation principale (tabs)
-- Intégration avec TIMIFY (si nécessaire)
+- Booking
+- User profile
+- Main navigation (tabs)
+- TIMIFY integration (if needed)
