@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "types": [
+      "node",
+      "jest"
+    ],
     "target": "ES2022",
     "module": "commonjs",
     "lib": ["ES2022"],
@@ -20,6 +24,6 @@
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "prisma/**/*"],
+  "include": ["src/**/*", "prisma/**/*","tests/**/*", "**/*.test.ts"],
   "exclude": ["node_modules", "dist", "tests"]
 }

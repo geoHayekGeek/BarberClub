@@ -1,4 +1,5 @@
 /// Authentication form validators with French error messages
+library;
 
 class AuthValidators {
   /// Validate full name (minimum 3 characters)

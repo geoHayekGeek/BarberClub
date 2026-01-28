@@ -6,11 +6,11 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(
-        primary: const Color(0xFFD4AF37), // Gold
-        secondary: const Color(0xFFF5E6D3), // Beige
-        surface: const Color(0xFF1A1A1A),
-        error: const Color(0xFFCF6679),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFFD4AF37), // Gold
+        secondary: Color(0xFFF5E6D3), // Beige
+        surface: Color(0xFF1A1A1A),
+        error: Color(0xFFCF6679),
         onPrimary: Colors.black,
         onSecondary: Colors.black,
         onSurface: Colors.white,

@@ -17,15 +17,15 @@ enum AuthStatus {
 
 /// Auth state
 class AuthState {
-  final AuthStatus status;
-  final User? user;
-  final String? errorMessage;
 
   const AuthState({
     required this.status,
     this.user,
     this.errorMessage,
   });
+  final AuthStatus status;
+  final User? user;
+  final String? errorMessage;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -110,9 +110,8 @@ class AuthController extends StateNotifier<AuthState> {
 
   /// Login with email or phone number
   Future<void> login({
-    String? email,
+    required String password, String? email,
     String? phoneNumber,
-    required String password,
   }) async {
     state = state.copyWith(
       status: AuthStatus.authenticating,

@@ -18,9 +18,8 @@ abstract class AuthRepository {
   /// 
   /// Throws [ApiError] on failure
   Future<AuthResponse> login({
-    String? email,
+    required String password, String? email,
     String? phoneNumber,
-    required String password,
   });
 
   /// Get current user profile

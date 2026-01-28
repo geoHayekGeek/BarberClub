@@ -6,9 +6,7 @@ import '../../core/validators/auth_validators.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({
-    super.key,
-    required this.email,
-    required this.token,
+    required this.email, required this.token, super.key,
   });
 
   final String email;
