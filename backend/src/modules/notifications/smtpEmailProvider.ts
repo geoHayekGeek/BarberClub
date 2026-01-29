@@ -34,6 +34,7 @@ class SMTPEmailProvider implements EmailProvider {
         host: process.env.SMTP_HOST,
         port,
         secure: isSecure,
+        requireTLS: !isSecure, // Gmail 587: use STARTTLS
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASSWORD?.replace(/\s+/g, ''),

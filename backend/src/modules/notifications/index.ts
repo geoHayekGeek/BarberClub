@@ -20,7 +20,9 @@ function isSMTPConfigured(): boolean {
 
 let emailProvider: EmailProvider;
 
-// Always use DevEmailProvider in test mode (tests need to access emails programmatically)
+// Test: always use DevEmailProvider (tests need to access emails programmatically)
+// Development without SMTP: use DevEmailProvider so forgot-password etc. "send" to in-memory store
+// Development with SMTP or production: use SMTP (production should have SMTP configured for real emails)
 if (config.NODE_ENV === 'test') {
   emailProvider = devEmailProvider;
 } else if (isSMTPConfigured()) {

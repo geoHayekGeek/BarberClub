@@ -3,10 +3,13 @@
  * Loads and validates environment variables
  */
 
+import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+// Load .env from backend root so it works whether you run from backend/ or project root
+const backendRoot = path.resolve(__dirname, '../..');
+dotenv.config({ path: path.join(backendRoot, '.env') });
 
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -20,6 +23,7 @@ const configSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).pipe(z.number().int().positive()).default('100'),
   LOG_LEVEL: z.string().optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  BACKEND_PUBLIC_URL: z.string().url().optional(),
   TIMIFY_BASE_URL: z.string().url().default('https://api.timify.com/v1'),
   TIMIFY_REGION: z.enum(['EUROPE', 'US', 'ASIA']).default('EUROPE'),
   TIMIFY_COMPANY_IDS: z.string().optional(),
@@ -37,7 +41,14 @@ type Config = z.infer<typeof configSchema>;
 let config: Config;
 
 try {
-  config = configSchema.parse(process.env);
+  const parsed = configSchema.parse(process.env);
+  
+  // Set BACKEND_PUBLIC_URL default if not provided
+  if (!parsed.BACKEND_PUBLIC_URL) {
+    parsed.BACKEND_PUBLIC_URL = `http://localhost:${parsed.PORT}`;
+  }
+  
+  config = parsed as Config & { BACKEND_PUBLIC_URL: string };
   
   // Validate ADMIN_SECRET is set in production
   if (config.NODE_ENV === 'production' && !config.ADMIN_SECRET) {

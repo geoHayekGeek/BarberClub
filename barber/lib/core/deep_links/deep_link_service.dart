@@ -22,8 +22,13 @@ class DeepLinkService {
   /// Handle initial link (when app is opened from a link)
   Future<void> _handleInitialLink() async {
     try {
+      // Wait a bit for router to be ready
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       final initialUri = await _appLinks!.getInitialLink();
       if (initialUri != null) {
+        // Additional delay to ensure router is ready
+        await Future.delayed(const Duration(milliseconds: 300));
         _processDeepLink(initialUri);
       }
     } catch (e) {
@@ -45,24 +50,49 @@ class DeepLinkService {
 
   /// Process deep link and navigate if valid
   void _processDeepLink(Uri uri) {
-    if (_router == null) return;
+    if (_router == null) {
+      // Retry after a short delay if router not ready
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (_router != null) {
+          _processDeepLink(uri);
+        }
+      });
+      return;
+    }
 
     try {
       // Check if it's a password reset link
       // Format: barberclub://reset-password?token=XXX&email=YYY
-      if (uri.scheme == 'barberclub' && 
-          (uri.host == 'reset-password' || uri.path == '/reset-password' || uri.path == 'reset-password') &&
-          uri.queryParameters.containsKey('token') &&
-          uri.queryParameters.containsKey('email')) {
-        
-        final token = uri.queryParameters['token']!;
-        final email = uri.queryParameters['email']!;
-        
-        // Validate token and email are not empty
-        if (token.isNotEmpty && email.isNotEmpty) {
-          // Navigate to reset password screen
-          _router!.go('/reset-password?token=$token&email=${Uri.encodeComponent(email)}');
-        }
+      // For barberclub://reset-password?token=xxx, Android parses:
+      // - scheme: barberclub
+      // - host: reset-password (the part between // and ?)
+      // - path: empty
+      // - query: token=xxx&email=yyy
+      
+      if (uri.scheme != 'barberclub') return;
+      
+      // Check if it's reset-password (could be in host or path)
+      final uriString = uri.toString();
+      final isResetPassword = uri.host == 'reset-password' ||
+          uri.path == '/reset-password' ||
+          uri.path == 'reset-password' ||
+          uriString.contains('reset-password');
+      
+      if (!isResetPassword) return;
+      
+      // Check for required query parameters
+      if (!uri.queryParameters.containsKey('token') ||
+          !uri.queryParameters.containsKey('email')) {
+        return;
+      }
+      
+      final token = uri.queryParameters['token']!;
+      final email = uri.queryParameters['email']!;
+      
+      // Validate token and email are not empty
+      if (token.isNotEmpty && email.isNotEmpty) {
+        // Navigate to reset password screen
+        _router!.go('/reset-password?token=$token&email=${Uri.encodeComponent(email)}');
       }
     } catch (e) {
       // Invalid link format, ignore

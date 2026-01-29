@@ -28,16 +28,34 @@ dependencies:
   
   # Deep Links
   app_links: ^6.3.1
+  
+  # URL Launcher
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
-  
+  flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.13.1
+
   # Code Generation
   build_runner: ^2.4.7
   freezed: ^2.4.7
   json_serializable: ^6.7.1
 
+# FIXED: This must be at the far left margin (no spaces before it)flutter_launcher_icons:
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/barber_club_logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#1A1A1A"
+  adaptive_icon_foreground: "assets/images/barber_club_logo.png"
+
 flutter:
   uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/images/barber_background.jpg
+    - assets/images/barber_club_logo.png

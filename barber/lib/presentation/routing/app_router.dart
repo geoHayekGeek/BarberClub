@@ -5,6 +5,9 @@ import '../screens/signup_screen.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/reset_password_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/rdv_screen.dart';
+import '../screens/compte_screen.dart';
+import '../screens/placeholder_screen.dart';
 import '../../core/network/dio_client.dart';
 
 /// App router configuration
@@ -48,6 +51,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/home',
         name: 'home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/rdv',
+        name: 'rdv',
+        builder: (context, state) => const RdvScreen(),
+      ),
+      GoRoute(
+        path: '/compte',
+        name: 'compte',
+        builder: (context, state) => const CompteScreen(),
+      ),
+      GoRoute(
+        path: '/coiffeurs',
+        name: 'coiffeurs',
+        builder: (context, state) => const PlaceholderScreen(title: 'Nos coiffeurs'),
+      ),
+      GoRoute(
+        path: '/salons',
+        name: 'salons',
+        builder: (context, state) => const PlaceholderScreen(title: 'Nos salons'),
+      ),
+      GoRoute(
+        path: '/carte-fidelite',
+        name: 'carte-fidelite',
+        builder: (context, state) => const PlaceholderScreen(title: 'Carte fidélité'),
+      ),
+      GoRoute(
+        path: '/offres',
+        name: 'offres',
+        builder: (context, state) => const PlaceholderScreen(title: 'Offres'),
       ),
     ],
   );

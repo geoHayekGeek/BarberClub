@@ -410,4 +410,82 @@ router.post(
   }
 );
 
+/**
+ * Redirect route for password reset deep links
+ * Serves an HTML page that redirects to barberclub:// deep link
+ * This makes the link clickable in email clients and web browsers
+ */
+router.get('/reset-password-redirect', (req: Request, res: Response) => {
+  const { token, email } = req.query;
+
+  if (!token || !email || typeof token !== 'string' || typeof email !== 'string') {
+    res.status(400).send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Invalid Reset Link</title>
+      </head>
+      <body style="margin:0;padding:16px;font-family:sans-serif;">
+        <h1>Invalid Reset Link</h1>
+        <p>The password reset link is missing required parameters.</p>
+      </body>
+      </html>
+    `);
+    return;
+  }
+
+  const deepLink = `barberclub://reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  const safeToken = token.replace(/[<>&"']/g, (c) => {
+    const map: Record<string, string> = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+    return map[c] || c;
+  });
+  const safeEmail = email.replace(/[<>&"']/g, (c) => {
+    const map: Record<string, string> = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+    return map[c] || c;
+  });
+
+  const escapedDeepLink = deepLink.replace(/&/g, '&amp;');
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Opening Barber Club App...</title>
+      <meta http-equiv="refresh" content="0;url=${escapedDeepLink}">
+      <script>
+        // Try immediate redirect
+        try {
+          window.location.href = ${JSON.stringify(deepLink)};
+        } catch (e) {
+          // If that fails, try using a link click
+          setTimeout(function() {
+            var link = document.createElement('a');
+            link.href = ${JSON.stringify(deepLink)};
+            link.click();
+          }, 100);
+        }
+        
+        // Show fallback after 2 seconds if still on page
+        setTimeout(function() {
+          document.getElementById('fallback').style.display = 'block';
+        }, 2000);
+      </script>
+    </head>
+    <body style="margin:0;padding:16px;font-family:sans-serif;text-align:center;">
+      <h1>Opening Barber Club App...</h1>
+      <p>If the app doesn't open automatically, tap the link below:</p>
+      <p><a href="${escapedDeepLink}" style="display:inline-block;padding:12px 20px;background:#1967d2;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Open in Barber Club App</a></p>
+      <div id="fallback" style="display:none;margin-top:24px;padding-top:16px;border-top:1px solid #eee;">
+        <p style="font-size:14px;color:#666;">If the app didn't open, make sure you have the Barber Club app installed and try tapping the button above.</p>
+        <p style="font-size:12px;color:#999;word-break:break-all;">Deep link: ${safeToken.substring(0, 20)}...&email=${safeEmail}</p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
 export default router;
