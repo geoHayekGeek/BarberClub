@@ -8,7 +8,11 @@ import '../screens/home_screen.dart';
 import '../screens/rdv_screen.dart';
 import '../screens/compte_screen.dart';
 import '../screens/placeholder_screen.dart';
+import '../screens/salons_list_screen.dart';
+import '../screens/salon_detail_screen.dart';
 import '../../core/network/dio_client.dart';
+import '../../data/sources/salons_mock_data.dart';
+import '../../domain/models/salon.dart';
 
 /// App router configuration
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -70,7 +74,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/salons',
         name: 'salons',
-        builder: (context, state) => const PlaceholderScreen(title: 'Nos salons'),
+        builder: (context, state) => const SalonsListScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'salon-detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id'] ?? '';
+              final list = salonsMockData.where((Salon s) => s.id == id).toList();
+              if (list.isEmpty) {
+                return const SalonsListScreen();
+              }
+              return SalonDetailScreen(salon: list.first);
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/carte-fidelite',

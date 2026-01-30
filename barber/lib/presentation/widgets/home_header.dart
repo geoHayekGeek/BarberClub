@@ -7,34 +7,39 @@ import 'package:url_launcher/url_launcher.dart';
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
 
-  Future<void> _openWebsite(BuildContext context) async {
-    final uri = Uri.parse('https://barberclub-grenoble.fr/');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible d\'ouvrir le site web')),
-        );
+  Future<void> _openUrl(BuildContext context, Uri uri, {LaunchMode mode = LaunchMode.externalApplication}) async {
+    try {
+      if (await launchUrl(uri, mode: mode)) {
+        return;
       }
+    } catch (_) {}
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir le lien')),
+      );
     }
   }
 
+  Future<void> _openWebsite(BuildContext context) async {
+    final uri = Uri.parse('https://barberclub-grenoble.fr/');
+    await _openUrl(context, uri);
+  }
+
   Future<void> _openInstagram(BuildContext context) async {
-    // Try Instagram app first, fallback to browser
-    final instagramUri = Uri.parse('https://www.instagram.com/barberclubgrenoble/');
-    final instagramAppUri = Uri.parse('instagram://user?username=barberclubgrenoble');
-    
-    if (await canLaunchUrl(instagramAppUri)) {
-      await launchUrl(instagramAppUri);
-    } else if (await canLaunchUrl(instagramUri)) {
-      await launchUrl(instagramUri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible d\'ouvrir Instagram')),
-        );
-      }
+    // Try Instagram app first, then fallback to browser
+    const instagramWeb = 'https://www.instagram.com/barberclubgrenoble/';
+    const instagramApp = 'instagram://user?username=barberclubgrenoble';
+
+    try {
+      if (await launchUrl(Uri.parse(instagramApp))) return;
+    } catch (_) {}
+    try {
+      if (await launchUrl(Uri.parse(instagramWeb), mode: LaunchMode.externalApplication)) return;
+    } catch (_) {}
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir Instagram')),
+      );
     }
   }
 
