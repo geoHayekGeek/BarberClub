@@ -1,32 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/salon_providers.dart';
+import '../providers/barber_providers.dart';
+import '../widgets/barber_card.dart';
 import '../widgets/bottom_nav_bar.dart';
-import '../widgets/salon_card.dart';
 
-/// Nos Salons list page.
-/// Fetches salons from backend; loading / error / empty states.
-class SalonsListScreen extends ConsumerWidget {
-  const SalonsListScreen({super.key});
+/// Nos Coiffeurs list page.
+/// Fetches barbers from backend; loading / error / empty states.
+class BarbersListScreen extends ConsumerWidget {
+  const BarbersListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final salonsAsync = ref.watch(salonsListProvider);
+    final barbersAsync = ref.watch(barbersListProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nos salons'),
+        title: const Text('Nos coiffeurs'),
       ),
       body: SafeArea(
-        child: salonsAsync.when(
-          data: (salons) {
-            if (salons.isEmpty) {
+        child: barbersAsync.when(
+          data: (barbers) {
+            if (barbers.isEmpty) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Aucun salon disponible pour le moment.',
+                    'Aucun coiffeur disponible pour le moment.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white70,
                         ),
@@ -37,12 +37,12 @@ class SalonsListScreen extends ConsumerWidget {
             }
             return ListView.builder(
               padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: salons.length,
+              itemCount: barbers.length,
               itemBuilder: (context, index) {
-                final salon = salons[index];
-                return SalonCard(
-                  salon: salon,
-                  onTap: () => context.push('/salons/${salon.id}'),
+                final barber = barbers[index];
+                return BarberCard(
+                  barber: barber,
+                  onTap: () => context.push('/coiffeurs/${barber.id}'),
                 );
               },
             );
@@ -51,7 +51,7 @@ class SalonsListScreen extends ConsumerWidget {
             child: CircularProgressIndicator(),
           ),
           error: (error, stackTrace) {
-            final message = getSalonErrorMessage(error, stackTrace);
+            final message = getBarberErrorMessage(error, stackTrace);
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -67,7 +67,7 @@ class SalonsListScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: () => ref.invalidate(salonsListProvider),
+                      onPressed: () => ref.invalidate(barbersListProvider),
                       icon: const Icon(Icons.refresh),
                       label: const Text('Réessayer'),
                     ),

@@ -64,9 +64,10 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/', publicReadLimiter, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const barbers = await barbersService.listBarbers();
+    const salonId = req.query.salonId as string | undefined;
+    const barbers = await barbersService.listBarbers(salonId);
     res.json({ data: barbers });
   } catch (error) {
     next(error);

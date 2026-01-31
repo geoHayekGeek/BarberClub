@@ -10,8 +10,10 @@ export interface BarberListItem {
   id: string;
   firstName: string;
   lastName: string;
+  displayName: string;
   bio: string;
   experienceYears: number | null;
+  level: string;
   images: string[];
   salons: Array<{
     id: string;
@@ -25,10 +27,17 @@ export interface BarberDetail extends BarberListItem {
 }
 
 class BarbersService {
-  async listBarbers(): Promise<BarberListItem[]> {
+  async listBarbers(salonId?: string): Promise<BarberListItem[]> {
     const barbers = await prisma.barber.findMany({
       where: {
         isActive: true,
+        ...(salonId
+          ? {
+              salons: {
+                some: { salonId },
+              },
+            }
+          : {}),
       },
       orderBy: {
         firstName: 'asc',
@@ -57,8 +66,10 @@ class BarbersService {
       id: barber.id,
       firstName: barber.firstName,
       lastName: barber.lastName,
+      displayName: barber.displayName ?? barber.firstName,
       bio: barber.bio,
       experienceYears: barber.experienceYears,
+      level: barber.level,
       images: barber.images,
       salons: barber.salons.map((bs) => ({
         id: bs.salon.id,
@@ -99,8 +110,10 @@ class BarbersService {
       id: barber.id,
       firstName: barber.firstName,
       lastName: barber.lastName,
+      displayName: barber.displayName ?? barber.firstName,
       bio: barber.bio,
       experienceYears: barber.experienceYears,
+      level: barber.level,
       interests: barber.interests,
       images: barber.images,
       salons: barber.salons.map((bs) => ({
@@ -114,8 +127,10 @@ class BarbersService {
   async createBarber(data: {
     firstName: string;
     lastName: string;
+    displayName?: string;
     bio: string;
     experienceYears: number | null;
+    level?: string;
     interests: string[];
     images: string[];
     salonIds: string[];
@@ -142,8 +157,10 @@ class BarbersService {
       data: {
         firstName: data.firstName,
         lastName: data.lastName,
+        displayName: data.displayName ?? undefined,
         bio: data.bio,
         experienceYears: data.experienceYears,
+        level: data.level ?? 'senior',
         interests: data.interests,
         images: data.images,
         isActive: data.isActive,
@@ -172,8 +189,10 @@ class BarbersService {
       id: barber.id,
       firstName: barber.firstName,
       lastName: barber.lastName,
+      displayName: barber.displayName ?? barber.firstName,
       bio: barber.bio,
       experienceYears: barber.experienceYears,
+      level: barber.level,
       interests: barber.interests,
       images: barber.images,
       salons: barber.salons.map((bs) => ({

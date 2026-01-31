@@ -32,35 +32,18 @@ dependencies:
   # URL Launcher
   url_launcher: ^6.3.0
 
+  # Image caching
+  cached_network_image: ^3.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.13.1
-
   
   # Code Generation
   build_runner: ^2.4.7
   freezed: ^2.4.7
   json_serializable: ^6.7.1
-  flutter_native_splash: ^2.4.7
-
-flutter_native_splash:
-  color: "#000000"
-  image: assets/images/barber_club_logo.png
-  
-  # This section is what fixes the white screen in your screenshot
-  android_12:
-    color: "#000000"
-    image: assets/images/barber_club_logo.png
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/images/barber_club_logo.png"
-  adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/images/barber_club_logo.png"
-
 
 flutter:
   uses-material-design: true
@@ -68,4 +51,3 @@ flutter:
   # Assets
   assets:
     - assets/images/barber_background.jpg
-    - assets/images/barber_club_logo.png

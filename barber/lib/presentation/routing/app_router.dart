@@ -10,9 +10,9 @@ import '../screens/compte_screen.dart';
 import '../screens/placeholder_screen.dart';
 import '../screens/salons_list_screen.dart';
 import '../screens/salon_detail_screen.dart';
+import '../screens/barbers_list_screen.dart';
+import '../screens/barber_detail_screen.dart';
 import '../../core/network/dio_client.dart';
-import '../../data/sources/salons_mock_data.dart';
-import '../../domain/models/salon.dart';
 
 /// App router configuration
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -69,7 +69,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/coiffeurs',
         name: 'coiffeurs',
-        builder: (context, state) => const PlaceholderScreen(title: 'Nos coiffeurs'),
+        builder: (context, state) => const BarbersListScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            name: 'barber-detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id'] ?? '';
+              return BarberDetailScreen(barberId: id);
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/salons',
@@ -81,11 +91,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'salon-detail',
             builder: (context, state) {
               final id = state.pathParameters['id'] ?? '';
-              final list = salonsMockData.where((Salon s) => s.id == id).toList();
-              if (list.isEmpty) {
-                return const SalonsListScreen();
-              }
-              return SalonDetailScreen(salon: list.first);
+              return SalonDetailScreen(salonId: id);
             },
           ),
         ],

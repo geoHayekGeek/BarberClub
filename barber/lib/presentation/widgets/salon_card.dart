@@ -1,5 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../domain/models/salon.dart';
+
+/// Placeholder asset when no image or error.
+const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
 
 /// Card for a single salon in the list.
 /// Large photo (16:9), dark overlay, city, name, short description, arrow.
@@ -16,6 +20,8 @@ class SalonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final imageUrl = salon.images.isNotEmpty ? salon.images.first : null;
+    final isNetworkUrl = imageUrl != null && imageUrl.startsWith('http');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -31,15 +37,24 @@ class SalonCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    salon.images.isNotEmpty
-                        ? salon.images.first
-                        : 'assets/images/barber_background.jpg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: const Color(0xFF1A1A1A),
-                    ),
-                  ),
+                  if (isNetworkUrl)
+                    CachedNetworkImage(
+                      imageUrl: imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        color: const Color(0xFF1A1A1A),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => _placeholderImage(),
+                    )
+                  else
+                    _placeholderImage(),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -109,6 +124,16 @@ class SalonCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _placeholderImage() {
+    return Image.asset(
+      _kPlaceholderAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFF1A1A1A),
       ),
     );
   }

@@ -192,8 +192,10 @@ model Barber {
   id              String       @id @default(uuid())
   firstName       String       @map("first_name")
   lastName        String       @map("last_name")
+  displayName     String?      @map("display_name")
   bio             String       @db.Text
   experienceYears Int?         @map("experience_years")
+  level           String       @default("senior")
   interests       String[]
   images          String[]
   isActive        Boolean      @default(true) @map("is_active")
