@@ -43,13 +43,11 @@ dev_dependencies:
   freezed: ^2.4.7
   json_serializable: ^6.7.1
 
-# FIXED: This must be at the far left margin (no spaces before it)flutter_launcher_icons:
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
   image_path: "assets/images/barber_club_logo.png"
-  min_sdk_android: 21
-  adaptive_icon_background: "#1A1A1A"
+  adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/images/barber_club_logo.png"
 
 flutter:
