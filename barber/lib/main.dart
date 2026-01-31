@@ -50,6 +50,7 @@ class _MainAppState extends ConsumerState<MainApp> {
 
     return MaterialApp.router(
       title: 'Barber Club',
+      scaffoldMessengerKey: GlobalKey<ScaffoldMessengerState>(),
       theme: AppTheme.darkTheme,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
