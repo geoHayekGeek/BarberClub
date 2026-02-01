@@ -13,85 +13,48 @@ const router = Router();
 /**
  * @swagger
  * /api/v1/offers:
- *   get:
- *     summary: Get list of offers
- *     tags: [Offers]
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [active, all]
- *           default: active
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 20
- *       - in: query
- *         name: cursor
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: List of offers
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: object
- *                   properties:
- *                     items:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: string
- *                             format: uuid
- *                           title:
- *                             type: string
- *                           description:
- *                             type: string
- *                           imageUrl:
- *                             type: string
- *                             nullable: true
- *                           validFrom:
- *                             type: string
- *                             format: date-time
- *                             nullable: true
- *                           validTo:
- *                             type: string
- *                             format: date-time
- *                             nullable: true
- *                     nextCursor:
- *                       type: string
- *                       nullable: true
- *       400:
- *         description: Invalid query parameters
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ * get:
+ * summary: Get list of offers
+ * tags: [Offers]
+ * parameters:
+ * - in: query
+ * name: salonId
+ * schema:
+ * type: string
+ * format: uuid
+ * description: Filter offers by salon ID
+ * - in: query
+ * name: status
+ * schema:
+ * type: string
+ * enum: [active, all]
+ * default: active
+ * - in: query
+ * name: limit
+ * schema:
+ * type: integer
+ * minimum: 1
+ * maximum: 50
+ * default: 20
+ * - in: query
+ * name: cursor
+ * schema:
+ * type: string
+ * responses:
+ * 200:
+ * description: List of offers
  */
 router.get('/', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // 1. Extract and validate query parameters, including salonId
     const query = listOffersQuerySchema.parse({
       status: typeof req.query.status === 'string' ? req.query.status : undefined,
       limit: typeof req.query.limit === 'string' ? req.query.limit : undefined,
       cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+      salonId: typeof req.query.salonId === 'string' ? req.query.salonId : undefined, // ADDED
     });
 
+    // 2. Pass the validated query (containing salonId) to the service
     const result = await offersService.listOffers(query);
     res.json({ data: result });
   } catch (error) {
@@ -99,67 +62,6 @@ router.get('/', publicReadLimiter, async (req: Request, res: Response, next: Nex
   }
 });
 
-/**
- * @swagger
- * /api/v1/offers/{id}:
- *   get:
- *     summary: Get offer details
- *     tags: [Offers]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Offer details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
- *                     title:
- *                       type: string
- *                     description:
- *                       type: string
- *                     imageUrl:
- *                       type: string
- *                       nullable: true
- *                     validFrom:
- *                       type: string
- *                       format: date-time
- *                       nullable: true
- *                     validTo:
- *                       type: string
- *                       format: date-time
- *                       nullable: true
- *       400:
- *         description: Invalid offer ID format
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       404:
- *         description: Offer not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
 router.get('/:id', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const params = offerIdParamSchema.parse({ id: req.params.id });

@@ -1,12 +1,9 @@
 /**
  * Seed script: salons + barbers (coiffeurs) with links.
+ * * Updated: Offers section simplified to only include Title, Description, Price, and Salon link.
  *
- * Run AFTER migrations: npx prisma migrate deploy  (or: npx prisma migrate dev)
- * Then:                npx prisma db seed
- * Or:                  npm run prisma:seed
- *
- * If barbers list is empty: ensure the migration that adds display_name and level
- * has been applied, then run this seed again.
+ * Run AFTER migrations: npx prisma migrate dev
+ * Then: npx prisma db seed
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -154,7 +151,6 @@ async function main() {
       },
     });
     if (existing) {
-      // Ensure existing barbers have displayName and level (in case they were created before migration)
       await prisma.barber.update({
         where: { id: existing.id },
         data: {
@@ -187,6 +183,51 @@ async function main() {
 
   const barberCountAfter = await prisma.barber.count();
   console.log(`Seed completed: ${created} barber(s) created. Total barbers in DB: ${barberCountAfter}.`);
+
+  // 3. Create Simplified Offers (Duration and Images removed as requested)
+  const offersData = [
+    {
+      title: 'Coupe classique',
+      price: 25,
+      isActive: true,
+      salonId: salonGrenoble.id,
+    },
+    {
+      title: 'Rasage à l’ancienne',
+      price: 20,
+      isActive: true,
+      salonId: salonGrenoble.id,
+    },
+    {
+      title: 'Taille de barbe',
+      price: 15,
+      isActive: true,
+      salonId: salonVoiron.id,
+    },
+    {
+      title: 'Coupe tendance',
+      price: 28,
+      isActive: true,
+      salonId: salonMeylan.id,
+    },
+    {
+      title: 'Soin complet',
+      price: 40,
+      isActive: true,
+      salonId: salonMeylan.id,
+    },
+  ];
+
+  // Clear existing offers to ensure the new simplified structure is applied
+  await prisma.offer.deleteMany();
+
+  let offersCreated = 0;
+  for (const offer of offersData) {
+    await prisma.offer.create({ data: offer });
+    offersCreated++;
+  }
+
+  console.log(`Seed completed: ${offersCreated} simplified offer(s) created (Duration removed).`);
 }
 
 main()

@@ -13,6 +13,7 @@ import '../screens/salon_detail_screen.dart';
 import '../screens/barbers_list_screen.dart';
 import '../screens/barber_detail_screen.dart';
 import '../../core/network/dio_client.dart';
+import '../screens/offers_list_screen.dart';
 
 /// App router configuration
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -42,13 +43,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final email = state.uri.queryParameters['email'] ?? '';
           final token = state.uri.queryParameters['token'] ?? '';
           if (email.isEmpty || token.isEmpty) {
-            // Invalid deep link, redirect to login
             return const LoginScreen();
           }
-          return ResetPasswordScreen(
-            email: email,
-            token: token,
-          );
+          return ResetPasswordScreen(email: email, token: token);
         },
       ),
       GoRoute(
@@ -101,10 +98,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'carte-fidelite',
         builder: (context, state) => const PlaceholderScreen(title: 'Carte fidélité'),
       ),
+      
+      // --- FIXED OFFERS ROUTE ---
+      // 1. Base route: Redirects to salons if no ID is provided, 
+      // ensuring the user picks a salon first as requested.
       GoRoute(
         path: '/offres',
-        name: 'offres',
-        builder: (context, state) => const PlaceholderScreen(title: 'Offres'),
+        name: 'offres-base',
+        redirect: (context, state) {
+          // If the user just hits '/offres', send them to pick a salon first
+          return '/salons?selectFor=offers';
+        },
+      ),
+      
+      // 2. Filtered route: Displays the offers for a specific salon
+      GoRoute(
+        path: '/offres/:salonId',
+        name: 'salon-offres',
+        builder: (context, state) {
+          final salonId = state.pathParameters['salonId'] ?? '';
+          return OffersListScreen(salonId: salonId);
+        },
       ),
     ],
   );

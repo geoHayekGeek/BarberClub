@@ -154,19 +154,19 @@ model LoyaltyRedemption {
 }
 
 model Offer {
-  id          String    @id @default(uuid())
-  title       String
-  description String    @db.Text
-  imageUrl    String?   @map("image_url")
-  validFrom   DateTime? @map("valid_from")
-  validTo     DateTime? @map("valid_to")
-  isActive    Boolean   @default(true) @map("is_active")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  title           String
+  price           Int      
+
+  salonId         String   @map("salon_id")
+  salon           Salon    @relation(fields: [salonId], references: [id])
+  
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([isActive])
-  @@index([validFrom])
-  @@index([validTo])
+  @@index([salonId])
   @@map("offers")
 }
 
@@ -183,6 +183,7 @@ model Salon {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   barbers BarberSalon[]
+  offers  Offer[] // Add this line
 
   @@index([isActive])
   @@map("salons")
