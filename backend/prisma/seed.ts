@@ -1,6 +1,12 @@
 /**
  * Seed script: salons + barbers (coiffeurs) with links.
- * Run: npx prisma db seed
+ *
+ * Run AFTER migrations: npx prisma migrate deploy  (or: npx prisma migrate dev)
+ * Then:                npx prisma db seed
+ * Or:                  npm run prisma:seed
+ *
+ * If barbers list is empty: ensure the migration that adds display_name and level
+ * has been applied, then run this seed again.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -10,6 +16,9 @@ const prisma = new PrismaClient();
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400';
 
 async function main() {
+  const barberCountBefore = await prisma.barber.count();
+  console.log(`Barbers in DB before seed: ${barberCountBefore}`);
+
   // 1. Ensure salons exist (find or create by name)
   let salonGrenoble = await prisma.salon.findFirst({
     where: { name: 'Barber Club Grenoble' },
@@ -135,6 +144,7 @@ async function main() {
     },
   ];
 
+  let created = 0;
   for (const data of barbersData) {
     const { salonIds, ...barberData } = data;
     const existing = await prisma.barber.findFirst({
@@ -143,7 +153,18 @@ async function main() {
         lastName: barberData.lastName,
       },
     });
-    if (existing) continue;
+    if (existing) {
+      // Ensure existing barbers have displayName and level (in case they were created before migration)
+      await prisma.barber.update({
+        where: { id: existing.id },
+        data: {
+          displayName: existing.displayName ?? barberData.displayName,
+          level: existing.level || barberData.level,
+          isActive: true,
+        },
+      });
+      continue;
+    }
 
     await prisma.barber.create({
       data: {
@@ -161,9 +182,11 @@ async function main() {
         },
       },
     });
+    created++;
   }
 
-  console.log('Seed completed: salons and barbers created.');
+  const barberCountAfter = await prisma.barber.count();
+  console.log(`Seed completed: ${created} barber(s) created. Total barbers in DB: ${barberCountAfter}.`);
 }
 
 main()

@@ -136,16 +136,19 @@ class BarbersService {
     salonIds: string[];
     isActive: boolean;
   }): Promise<BarberDetail> {
-    // Validate salonIds exist
+    // Dedupe salonIds to avoid unique constraint violation and misleading validation
+    const uniqueSalonIds = [...new Set(data.salonIds)];
+
+    // Validate all salonIds exist
     const salons = await prisma.salon.findMany({
       where: {
         id: {
-          in: data.salonIds,
+          in: uniqueSalonIds,
         },
       },
     });
 
-    if (salons.length !== data.salonIds.length) {
+    if (salons.length !== uniqueSalonIds.length) {
       throw new AppError(
         ErrorCode.VALIDATION_ERROR,
         'One or more salon IDs do not exist',
@@ -165,7 +168,7 @@ class BarbersService {
         images: data.images,
         isActive: data.isActive,
         salons: {
-          create: data.salonIds.map((salonId) => ({
+          create: uniqueSalonIds.map((salonId) => ({
             salonId,
           })),
         },
