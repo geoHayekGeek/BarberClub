@@ -1,18 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
+
+/// Resend cooldown in seconds (UI-only; backend also enforces 60s)
+const int _resendCooldownSeconds = 60;
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({
     super.key,
     required this.email,
-    required this.token,
   });
 
   final String email;
-  final String token;
 
   @override
   ConsumerState<ResetPasswordScreen> createState() =>
@@ -21,28 +26,69 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _codeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+  bool _didSubmitReset = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startResendCooldown();
+  }
+
+  void _startResendCooldown() {
+    setState(() => _resendCooldown = _resendCooldownSeconds);
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _resendCooldown--;
+        if (_resendCooldown <= 0) timer.cancel();
+      });
+    });
+  }
 
   @override
   void dispose() {
+    _codeController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
+    _didSubmitReset = true;
     await ref.read(authStateProvider.notifier).resetPassword(
           email: widget.email,
-          token: widget.token,
-          password: _passwordController.text,
+          code: _codeController.text.trim(),
+          newPassword: _passwordController.text,
         );
+  }
+
+  Future<void> _handleResendCode() async {
+    if (_resendCooldown > 0) return;
+    // This should not trigger the "reset success" dialog.
+    _didSubmitReset = false;
+    await ref.read(authStateProvider.notifier).forgotPassword(widget.email);
+    _startResendCooldown();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Si l\'adresse existe, un code a été envoyé.'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   void _showSuccessDialog() {
@@ -57,8 +103,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              // Navigate to login and clear stack
+              Navigator.of(context).pop();
               context.go('/login');
             },
             child: const Text('OK'),
@@ -74,21 +119,23 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     final isLoading = authState.status == AuthStatus.authenticating;
     final hasError = authState.errorMessage != null;
 
-    // Show success dialog and navigate
     ref.listen<AuthState>(authStateProvider, (previous, next) {
-      // Success: transition from authenticating to unauthenticated without error
+      if (!_didSubmitReset) return;
       if (previous?.status == AuthStatus.authenticating &&
           next.status == AuthStatus.unauthenticated &&
           next.errorMessage == null) {
+        // Only react to the reset-password request initiated from this screen.
+        _didSubmitReset = false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showSuccessDialog();
         });
       }
     });
 
-    // Show error snackbar
     if (hasError && !isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Reset local "in-flight" flag so the user can retry.
+        _didSubmitReset = false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authState.errorMessage!),
@@ -107,30 +154,62 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(
-                    Icons.lock_reset_outlined,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                          Icon(
+                        Icons.lock_reset_outlined,
+                        size: 64,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Réinitialiser le mot de passe',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Entrez le code reçu par e-mail et choisissez un nouveau mot de passe.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      TextFormField(
+                    controller: _codeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Code à 6 chiffres',
+                      hintText: '000000',
+                      prefixIcon: Icon(Icons.pin_outlined),
+                    ),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    validator: AuthValidators.validateResetCode,
+                    enabled: !isLoading,
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Réinitialiser le mot de passe',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _resendCooldown > 0 || isLoading
+                        ? null
+                        : _handleResendCode,
+                    child: Text(
+                      _resendCooldown > 0
+                          ? 'Renvoyer un code ($_resendCooldown s)'
+                          : 'Renvoyer un code',
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Choisissez un nouveau mot de passe sécurisé.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
@@ -143,9 +222,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                               : Icons.visibility_off_outlined,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
+                          setState(() => _obscurePassword = !_obscurePassword);
                         },
                       ),
                     ),
@@ -168,9 +245,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                               : Icons.visibility_off_outlined,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          });
+                          setState(
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword);
                         },
                       ),
                     ),
@@ -189,7 +266,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : _handleSubmit,
+                      onPressed: isLoading ? null : () => _handleSubmit(),
                       child: isLoading
                           ? const SizedBox(
                               height: 20,
@@ -205,6 +282,16 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.center,
+              child: TextButton(
+                onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                child: const Text('Retour'),
+              ),
+            ),
+          ],
             ),
           ),
         ),

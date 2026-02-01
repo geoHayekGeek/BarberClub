@@ -9,6 +9,7 @@ import prisma from '../src/db/client';
 beforeAll(async () => {
   await prisma.$connect();
   // Clean up all data before starting tests
+  await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
@@ -18,6 +19,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Clean up all data after tests
+  await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
@@ -30,7 +32,8 @@ const app = createApp();
 
 describe('POST /api/v1/auth/register', () => {
   beforeEach(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -181,7 +184,8 @@ describe('POST /api/v1/auth/register', () => {
 
 describe('POST /api/v1/auth/login', () => {
   beforeEach(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -252,7 +256,8 @@ describe('GET /api/v1/auth/me', () => {
   let accessToken: string;
 
   beforeAll(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -271,7 +276,8 @@ describe('GET /api/v1/auth/me', () => {
   });
 
   afterAll(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -308,7 +314,9 @@ describe('GET /api/v1/auth/me', () => {
 
 describe('POST /api/v1/auth/forgot-password', () => {
   beforeEach(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -331,10 +339,10 @@ describe('POST /api/v1/auth/forgot-password', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(response.body.message).toContain('password reset link has been sent');
+    expect(response.body.message).toContain('code a été envoyé');
   });
 
-  it('should return 200 for non-existing email', async () => {
+  it('should return 200 for non-existing email (no enumeration)', async () => {
     const response = await request(app)
       .post('/api/v1/auth/forgot-password')
       .send({
@@ -342,10 +350,10 @@ describe('POST /api/v1/auth/forgot-password', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(response.body.message).toContain('password reset link has been sent');
+    expect(response.body.message).toContain('code a été envoyé');
   });
 
-  it('should create password reset token for existing user', async () => {
+  it('should create password reset code for existing user', async () => {
     const registerResponse = await request(app)
       .post('/api/v1/auth/register')
       .send({
@@ -362,28 +370,72 @@ describe('POST /api/v1/auth/forgot-password', () => {
         email: 'token@example.com',
       });
 
-    const resetToken = await prisma.passwordResetToken.findFirst({
+    const resetCode = await prisma.passwordResetCode.findFirst({
       where: { userId },
     });
 
-    expect(resetToken).toBeTruthy();
-    expect(resetToken?.usedAt).toBeNull();
-    expect(resetToken?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(resetCode).toBeTruthy();
+    expect(resetCode?.usedAt).toBeNull();
+    expect(resetCode?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(resetCode?.attempts).toBe(0);
+  });
+
+  it('should invalidate previous code when requesting new one', async () => {
+    await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'invalidate@example.com',
+        phoneNumber: '+6666666666',
+        password: 'password123',
+      });
+
+    await request(app)
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'invalidate@example.com' });
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    await request(app)
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'invalidate@example.com' });
+
+    const user = await prisma.user.findUnique({
+      where: { email: 'invalidate@example.com' },
+    });
+    expect(user).toBeTruthy();
+
+    const codes = await prisma.passwordResetCode.findMany({
+      where: { userId: user!.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(codes.length).toBe(2);
+    expect(codes[1].usedAt).toBeTruthy();
+    expect(codes[0].usedAt).toBeNull();
   });
 });
 
+/** Extract 6-digit OTP code from password reset email */
+function extractCodeFromEmail(email: { html?: string; text?: string }): string {
+  const content = email.html || email.text || '';
+  const match = content.match(/(\d{6})/);
+  if (!match) throw new Error('No 6-digit code found in email');
+  return match[1];
+}
+
 describe('POST /api/v1/auth/reset-password', () => {
-  let user: { id: string; email: string };
-  let resetToken: string;
+  let resetCode: string;
 
   beforeEach(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
-    const registerResponse = await request(app)
+    await request(app)
       .post('/api/v1/auth/register')
       .send({
         email: 'reset@example.com',
@@ -391,13 +443,9 @@ describe('POST /api/v1/auth/reset-password', () => {
         password: 'oldpassword123',
       });
 
-    user = registerResponse.body.user;
-
     const forgotResponse = await request(app)
       .post('/api/v1/auth/forgot-password')
-      .send({
-        email: 'reset@example.com',
-      });
+      .send({ email: 'reset@example.com' });
 
     expect(forgotResponse.status).toBe(200);
 
@@ -405,48 +453,25 @@ describe('POST /api/v1/auth/reset-password', () => {
     const emails = emailsResponse.body.emails;
     const email = emails.find((e: { to: string }) => e.to === 'reset@example.com');
     expect(email).toBeTruthy();
-    expect(email.html).toBeDefined();
-
-    const resetUrlMatch = email.html.match(/reset-password-redirect\?token=([^&"'\s<>]+)/);
-    expect(resetUrlMatch).toBeTruthy();
-    expect(resetUrlMatch).toHaveLength(2);
-    resetToken = decodeURIComponent(resetUrlMatch![1]);
-    expect(resetToken).toBeTruthy();
-    expect(resetToken.length).toBeGreaterThan(0);
+    resetCode = extractCodeFromEmail(email);
   });
 
   afterAll(async () => {
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
   });
 
-  it('should reset password with valid token', async () => {
-    const forgotResponse = await request(app)
-      .post('/api/v1/auth/forgot-password')
-      .send({
-        email: 'reset@example.com',
-      });
-
-    expect(forgotResponse.status).toBe(200);
-
-    const emailsResponse = await request(app).get('/api/v1/dev/emails');
-    const emails = emailsResponse.body.emails;
-    const resetEmails = emails.filter((e: { to: string }) => e.to === 'reset@example.com');
-    expect(resetEmails.length).toBeGreaterThan(0);
-    const email = resetEmails[resetEmails.length - 1];
-
-    const resetUrlMatch = email.html.match(/reset-password-redirect\?token=([^&"'\s<>]+)/);
-    expect(resetUrlMatch).toBeTruthy();
-    const testToken = decodeURIComponent(resetUrlMatch![1]);
-
+  it('should reset password with valid code', async () => {
     const response = await request(app)
       .post('/api/v1/auth/reset-password')
       .send({
         email: 'reset@example.com',
-        token: testToken,
+        code: resetCode,
         newPassword: 'newpassword123',
       });
 
@@ -463,79 +488,92 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(loginResponse.status).toBe(200);
   });
 
-  it('should fail with invalid token', async () => {
+  it('should fail with invalid code', async () => {
     const response = await request(app)
       .post('/api/v1/auth/reset-password')
       .send({
         email: 'reset@example.com',
-        token: 'invalid-token',
+        code: '000000',
         newPassword: 'newpassword123',
       });
 
     expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('TOKEN_INVALID');
+    expect(response.body.error.code).toBe('CODE_INVALID');
   });
 
-  it('should fail with expired token', async () => {
-    const tokenRecord = await prisma.passwordResetToken.findFirst({
-      where: { userId: user.id },
+  it('should increment attempts on wrong code', async () => {
+    const user = await prisma.user.findUnique({
+      where: { email: 'reset@example.com' },
     });
+    expect(user).toBeTruthy();
 
-    if (tokenRecord) {
-      await prisma.passwordResetToken.update({
-        where: { id: tokenRecord.id },
-        data: { expiresAt: new Date(Date.now() - 1000) },
+    await request(app)
+      .post('/api/v1/auth/reset-password')
+      .send({
+        email: 'reset@example.com',
+        code: '111111',
+        newPassword: 'newpassword123',
       });
+
+    const codeRecord = await prisma.passwordResetCode.findFirst({
+      where: { userId: user!.id },
+    });
+    expect(codeRecord?.attempts).toBe(1);
+  });
+
+  it('should lock after 5 wrong attempts', async () => {
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({
+          email: 'reset@example.com',
+          code: '111111',
+          newPassword: 'newpassword123',
+        });
+      expect(res.status).toBe(401);
     }
 
     const response = await request(app)
       .post('/api/v1/auth/reset-password')
       .send({
         email: 'reset@example.com',
-        token: resetToken,
+        code: resetCode,
+        newPassword: 'newpassword123',
+      });
+
+    expect(response.status).toBe(429);
+    expect(response.body.error.code).toBe('CODE_TOO_MANY_ATTEMPTS');
+  });
+
+  it('should fail with expired code', async () => {
+    const user = await prisma.user.findUnique({
+      where: { email: 'reset@example.com' },
+    });
+    expect(user).toBeTruthy();
+
+    await prisma.passwordResetCode.updateMany({
+      where: { userId: user!.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+
+    const response = await request(app)
+      .post('/api/v1/auth/reset-password')
+      .send({
+        email: 'reset@example.com',
+        code: resetCode,
         newPassword: 'newpassword123',
       });
 
     expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('TOKEN_INVALID');
+    expect(response.body.error.code).toBe('CODE_EXPIRED');
   });
 
-  it('should fail with used token', async () => {
-    // Create a fresh user for this test to ensure isolation
-    const registerResponse = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        email: 'usedtoken@example.com',
-        phoneNumber: '+9999999999',
-        password: 'oldpassword123',
-      });
-
-    expect(registerResponse.status).toBe(201);
-
-    const usedTokenResponse = await request(app)
-      .post('/api/v1/auth/forgot-password')
-      .send({
-        email: 'usedtoken@example.com',
-      });
-
-    expect(usedTokenResponse.status).toBe(200);
-
-    const emailsResponse = await request(app).get('/api/v1/dev/emails');
-    const emails = emailsResponse.body.emails;
-    const resetEmails = emails.filter((e: { to: string }) => e.to === 'usedtoken@example.com');
-    expect(resetEmails.length).toBeGreaterThan(0);
-    const email = resetEmails[resetEmails.length - 1];
-
-    const resetUrlMatch = email.html.match(/reset-password-redirect\?token=([^&"'\s<>]+)/);
-    expect(resetUrlMatch).toBeTruthy();
-    const usedToken = decodeURIComponent(resetUrlMatch![1]);
-    expect(usedToken).toBeTruthy();
-
+  it('should fail with used code', async () => {
     const firstResponse = await request(app)
       .post('/api/v1/auth/reset-password')
       .send({
-        email: 'usedtoken@example.com',
-        token: usedToken,
+        email: 'reset@example.com',
+        code: resetCode,
         newPassword: 'newpassword123',
       });
 
@@ -544,13 +582,13 @@ describe('POST /api/v1/auth/reset-password', () => {
     const response = await request(app)
       .post('/api/v1/auth/reset-password')
       .send({
-        email: 'usedtoken@example.com',
-        token: usedToken,
+        email: 'reset@example.com',
+        code: resetCode,
         newPassword: 'anotherpassword123',
       });
 
     expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('TOKEN_INVALID');
+    expect(response.body.error.code).toBe('CODE_EXPIRED');
   });
 
   it('should revoke all refresh tokens after password reset', async () => {
@@ -567,15 +605,13 @@ describe('POST /api/v1/auth/reset-password', () => {
       .post('/api/v1/auth/reset-password')
       .send({
         email: 'reset@example.com',
-        token: resetToken,
+        code: resetCode,
         newPassword: 'newpassword123',
       });
 
     const refreshResponse = await request(app)
       .post('/api/v1/auth/refresh')
-      .send({
-        refreshToken,
-      });
+      .send({ refreshToken });
 
     expect(refreshResponse.status).toBe(401);
   });

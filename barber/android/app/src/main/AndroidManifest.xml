@@ -24,8 +24,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep link for password reset: barberclub://reset-password?token=...&email=... -->
-            <!-- Catch all barberclub:// links - Flutter will filter for reset-password -->
+            <!-- Deep link scheme barberclub:// (password reset uses OTP in-app; no deep links) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
