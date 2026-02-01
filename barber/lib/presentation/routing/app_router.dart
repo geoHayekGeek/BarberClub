@@ -7,6 +7,7 @@ import '../screens/reset_password_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/rdv_screen.dart';
 import '../screens/compte_screen.dart';
+import '../screens/loyalty_card_screen.dart';
 import '../screens/placeholder_screen.dart';
 import '../screens/salons_list_screen.dart';
 import '../screens/salon_detail_screen.dart';
@@ -99,7 +100,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/carte-fidelite',
         name: 'carte-fidelite',
-        builder: (context, state) => const PlaceholderScreen(title: 'Carte fidélité'),
+        builder: (context, state) => const LoyaltyCardScreen(),
       ),
       GoRoute(
         path: '/offres',
