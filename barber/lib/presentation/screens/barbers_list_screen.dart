@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
-import '../widgets/barber_card.dart';
+import '../widgets/barber_horizontal_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 /// Nos Coiffeurs list page.
-/// Fetches barbers from backend; loading / error / empty states.
+/// Horizontal scrolling cards (carousel), one per coiffeur.
 class BarbersListScreen extends ConsumerWidget {
   const BarbersListScreen({super.key});
 
@@ -16,7 +18,7 @@ class BarbersListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nos coiffeurs'),
+        title: const Text(BarberStrings.pageTitle),
       ),
       body: SafeArea(
         child: barbersAsync.when(
@@ -24,9 +26,9 @@ class BarbersListScreen extends ConsumerWidget {
             if (barbers.isEmpty) {
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
                   child: Text(
-                    'Aucun coiffeur disponible pour le moment.',
+                    BarberStrings.emptyList,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white70,
                         ),
@@ -35,16 +37,32 @@ class BarbersListScreen extends ConsumerWidget {
                 ),
               );
             }
-            return ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: barbers.length,
-              itemBuilder: (context, index) {
-                final barber = barbers[index];
-                return BarberCard(
-                  barber: barber,
-                  onTap: () => context.push('/coiffeurs/${barber.id}'),
-                );
-              },
+            final carouselHeight =
+                MediaQuery.of(context).size.height * BarberUIConstants.carouselHeightFraction;
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: carouselHeight,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BarberUIConstants.horizontalGutter,
+                      vertical: BarberUIConstants.sectionSpacing,
+                    ),
+                    itemCount: barbers.length,
+                    itemBuilder: (context, index) {
+                      final barber = barbers[index];
+                      return BarberHorizontalCard(
+                        barber: barber,
+                        onTap: () => context.push('/coiffeurs/${barber.id}'),
+                      );
+                    },
+                  ),
+                ),
+              ],
             );
           },
           loading: () => const Center(
@@ -54,7 +72,7 @@ class BarbersListScreen extends ConsumerWidget {
             final message = getBarberErrorMessage(error, stackTrace);
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -65,11 +83,11 @@ class BarbersListScreen extends ConsumerWidget {
                           ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: BarberUIConstants.sectionSpacing),
                     FilledButton.icon(
                       onPressed: () => ref.invalidate(barbersListProvider),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Réessayer'),
+                      label: const Text(BarberStrings.retry),
                     ),
                   ],
                 ),

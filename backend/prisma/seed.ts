@@ -8,6 +8,7 @@
  * If barbers list is empty: ensure the migration that adds display_name and level
  * has been applied, then run this seed again.
  */
+/// <reference types="node" />
 
 import { PrismaClient } from '@prisma/client';
 
