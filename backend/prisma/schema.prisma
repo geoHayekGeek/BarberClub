@@ -20,6 +20,7 @@ model User {
 
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  passwordResetCodes PasswordResetCode[]
   timifyReservations TimifyReservation[]
   bookings Booking[]
   loyaltyState LoyaltyState?
@@ -57,6 +58,23 @@ model PasswordResetToken {
   @@index([userId])
   @@index([tokenHash])
   @@map("password_reset_tokens")
+}
+
+model PasswordResetCode {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  codeHash   String    @map("code_hash")
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([codeHash])
+  @@index([expiresAt, usedAt])
+  @@map("password_reset_codes")
 }
 
 model TimifyReservation {

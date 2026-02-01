@@ -138,10 +138,12 @@ ADMIN_SECRET=change-me-in-production
 - `ADMIN_SECRET`: Secret for admin endpoints (required in production; see [ADMIN.md](./ADMIN.md)). Must be changed from default in production.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: Optional. When all set, password-reset emails are sent via SMTP. Otherwise, in development a dev provider stores emails in-memory (see [Email / Password Reset](#email--password-reset)).
 
-### Email / Password Reset
+### Email / Password Reset (OTP flow)
 
-The **forgot-password** and **reset-password** flows send an email with a reset link.
+The **forgot-password** and **reset-password** flows use a 6-digit OTP code sent by email (no deep links).
 
+- **forgot-password**: Sends a 6-digit code to the user's email. Code expires in 10 minutes. Resend cooldown: 60 seconds per email.
+- **reset-password**: Accepts `email`, `code` (6 digits), and `newPassword`. Max 5 failed attempts per code before lockout.
 - **Development without SMTP**: If `SMTP_*` are not set, the app uses an in-memory dev provider. Emails are not sent; you can view them at `GET /api/v1/dev/emails` (see [Development](#development) endpoints).
 - **Development or production with SMTP**: Set all of `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. Password-reset emails are sent via SMTP.
 - **Production without SMTP**: Forgot-password will fail when sending the email. Configure SMTP for production if you use password reset.
@@ -372,8 +374,8 @@ Both fields serve as unique identifiers and can be used for login. Attempting to
 - `POST /api/v1/auth/refresh` - Refresh access token
 - `POST /api/v1/auth/logout` - Logout and revoke token
 - `GET /api/v1/auth/me` - Get current user profile (requires authentication)
-- `POST /api/v1/auth/forgot-password` - Request password reset (email-only)
-- `POST /api/v1/auth/reset-password` - Reset password with token
+- `POST /api/v1/auth/forgot-password` - Request password reset (sends 6-digit OTP to email)
+- `POST /api/v1/auth/reset-password` - Reset password with OTP code (email + code + newPassword)
 
 ### Booking
 

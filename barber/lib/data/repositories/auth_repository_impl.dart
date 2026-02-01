@@ -103,16 +103,16 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> resetPassword({
     required String email,
-    required String token,
-    required String password,
+    required String code,
+    required String newPassword,
   }) async {
     try {
       await _dio.post(
         '/api/v1/auth/reset-password',
         data: {
           'email': email,
-          'token': token,
-          'newPassword': password,
+          'code': code,
+          'newPassword': newPassword,
         },
       );
     } on DioException catch (e) {

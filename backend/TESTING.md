@@ -270,15 +270,15 @@ curl -X POST http://localhost:3000/api/v1/auth/forgot-password \
 Expected response (200):
 ```json
 {
-  "message": "If the email exists, a password reset link has been sent"
+  "message": "Si l'adresse existe, un code a été envoyé."
 }
 ```
 
-**Note:** In development mode, check sent emails at `GET /api/v1/dev/emails`
+**Note:** In development mode, check sent emails at `GET /api/v1/dev/emails`. The email contains a 6-digit code (e.g. "Voici votre code : 482193").
 
 ### 7. Reset password
 
-Replace `TOKEN` with the token from the reset email:
+Replace `CODE` with the 6-digit code from the reset email:
 
 **Postman/API Client:**
 - Method: `POST`
@@ -288,7 +288,7 @@ Replace `TOKEN` with the token from the reset email:
 ```json
 {
   "email": "test@example.com",
-  "token": "TOKEN_FROM_EMAIL",
+  "code": "482193",
   "newPassword": "newpassword123"
 }
 ```
@@ -299,7 +299,7 @@ curl -X POST http://localhost:3000/api/v1/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",
-    "token": "TOKEN_FROM_EMAIL",
+    "code": "482193",
     "newPassword": "newpassword123"
   }'
 ```
@@ -310,6 +310,8 @@ Expected response (200):
   "message": "Password reset successfully"
 }
 ```
+
+**Note:** Code expires in 10 minutes. Max 5 failed attempts per code.
 
 ### 8. Logout
 

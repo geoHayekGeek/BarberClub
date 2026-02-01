@@ -15,6 +15,7 @@ beforeAll(async () => {
   await prisma.loyaltyState.deleteMany();
   await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -24,6 +25,7 @@ afterAll(async () => {
   await prisma.loyaltyState.deleteMany();
   await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -48,7 +50,8 @@ describe('GET /api/v1/loyalty/me', () => {
     await prisma.loyaltyState.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -130,7 +133,8 @@ describe('POST /api/v1/loyalty/redeem', () => {
     await prisma.loyaltyState.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -229,7 +233,8 @@ describe('Booking confirmation increments loyalty stamps', () => {
     await prisma.loyaltyState.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -351,7 +356,8 @@ describe('GET /api/v1/loyalty/qr', () => {
     await prisma.loyaltyState.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -456,7 +462,8 @@ describe('POST /api/v1/loyalty/scan', () => {
     await prisma.loyaltyState.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -603,7 +610,8 @@ describe('GET /api/v1/loyalty/me - updated response', () => {
     await prisma.loyaltyState.deleteMany();
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
