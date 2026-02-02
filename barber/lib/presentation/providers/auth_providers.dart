@@ -212,11 +212,11 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  /// Reset password with token
+  /// Reset password with OTP code
   Future<void> resetPassword({
     required String email,
-    required String token,
-    required String password,
+    required String code,
+    required String newPassword,
   }) async {
     state = state.copyWith(
       status: AuthStatus.authenticating,
@@ -227,8 +227,8 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       await _authRepository.resetPassword(
         email: email,
-        token: token,
-        password: password,
+        code: code,
+        newPassword: newPassword,
       );
       // On success: set to unauthenticated, clear error
       state = const AuthState(
@@ -249,12 +249,14 @@ class AuthController extends StateNotifier<AuthState> {
   /// Get friendly error message for reset password
   String _getResetPasswordErrorMessage(ApiError error) {
     switch (error.code) {
-      case 'TOKEN_INVALID':
-      case 'INVALID_TOKEN':
-        return 'Lien de réinitialisation invalide.';
-      case 'TOKEN_EXPIRED':
-      case 'EXPIRED_TOKEN':
-        return 'Ce lien a expiré. Veuillez en demander un nouveau.';
+      case 'CODE_INVALID':
+        return 'Code incorrect.';
+      case 'CODE_EXPIRED':
+        return 'Code expiré. Demandez-en un nouveau.';
+      case 'CODE_TOO_MANY_ATTEMPTS':
+        return 'Trop de tentatives. Demandez un nouveau code.';
+      case 'RATE_LIMITED':
+        return 'Trop de demandes. Réessayez plus tard.';
       case 'VALIDATION_ERROR':
         return 'Mot de passe invalide.';
       case 'NETWORK_ERROR':

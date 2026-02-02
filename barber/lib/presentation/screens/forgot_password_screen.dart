@@ -15,6 +15,7 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  bool _didRequestCode = false;
 
   @override
   void dispose() {
@@ -27,6 +28,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       return;
     }
 
+    _didRequestCode = true;
     await ref.read(authStateProvider.notifier).forgotPassword(
           _emailController.text.trim(),
         );
@@ -38,30 +40,27 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final isLoading = authState.status == AuthStatus.authenticating;
     final hasError = authState.errorMessage != null;
 
-    // Show success message and navigate back
+    // Show success message and navigate to reset password screen
     ref.listen<AuthState>(authStateProvider, (previous, next) {
-      // Success: transition from authenticating to unauthenticated without error
+      if (!_didRequestCode) return;
       if (previous?.status == AuthStatus.authenticating &&
           next.status == AuthStatus.unauthenticated &&
           next.errorMessage == null) {
-        // Capture router before async operations
-        final router = GoRouter.of(context);
-        // Show success message
+        // Only react to the forgot-password request initiated from this screen.
+        _didRequestCode = false;
+        final email = _emailController.text.trim();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Un lien de réinitialisation a été envoyé si l\'adresse existe.',
+                'Si l\'adresse existe, un code a été envoyé.',
               ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: Duration(seconds: 2),
             ),
           );
-          // Navigate back after user sees the message
-          Future.delayed(const Duration(seconds: 3), () {
-            if (!mounted) return;
-            router.pop();
-          });
+          if (!mounted) return;
+          context.push('/reset-password', extra: email);
         });
       }
     });
@@ -69,6 +68,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     // Show error snackbar
     if (hasError && !isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Reset local "in-flight" flag so the user can retry.
+        _didRequestCode = false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_getErrorMessage(authState.errorMessage!)),
@@ -106,7 +107,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Entrez votre adresse e-mail pour recevoir un lien de réinitialisation.',
+                    'Entrez votre adresse e-mail pour recevoir un code de réinitialisation.',
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
@@ -140,7 +141,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                     AlwaysStoppedAnimation<Color>(Colors.black),
                               ),
                             )
-                          : const Text('Envoyer le lien'),
+                          : const Text('Envoyer le code'),
                     ),
                   ),
                   const SizedBox(height: 16),

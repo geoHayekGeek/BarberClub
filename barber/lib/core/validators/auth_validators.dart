@@ -56,6 +56,17 @@ class AuthValidators {
     return null;
   }
 
+  /// Validate 6-digit OTP code
+  static String? validateResetCode(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Le code est requis.';
+    }
+    if (!RegExp(r'^\d{6}$').hasMatch(value.trim())) {
+      return 'Le code doit contenir exactement 6 chiffres.';
+    }
+    return null;
+  }
+
   /// Validate password (minimum 8 characters)
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {

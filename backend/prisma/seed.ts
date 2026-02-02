@@ -5,6 +5,7 @@
  * Run AFTER migrations: npx prisma migrate dev
  * Then: npx prisma db seed
  */
+/// <reference types="node" />
 
 import { PrismaClient } from '@prisma/client';
 

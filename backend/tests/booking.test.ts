@@ -15,6 +15,7 @@ beforeAll(async () => {
   // Clean up all data before starting tests
   await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -24,6 +25,7 @@ afterAll(async () => {
   // Clean up all data after tests
   await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -238,7 +240,8 @@ describe('POST /api/v1/booking/reserve', () => {
   beforeEach(async () => {
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -257,7 +260,8 @@ describe('POST /api/v1/booking/reserve', () => {
   afterEach(async () => {
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
   });
@@ -354,7 +358,8 @@ describe('POST /api/v1/booking/confirm', () => {
   beforeEach(async () => {
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
 
@@ -396,7 +401,8 @@ describe('POST /api/v1/booking/confirm', () => {
   afterEach(async () => {
     await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
+    await prisma.passwordResetCode.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
   });

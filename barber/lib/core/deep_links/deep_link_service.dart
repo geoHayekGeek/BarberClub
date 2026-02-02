@@ -49,6 +49,7 @@ class DeepLinkService {
   }
 
   /// Process deep link and navigate if valid
+  /// Note: Password reset no longer uses deep links (OTP flow instead)
   void _processDeepLink(Uri uri) {
     if (_router == null) {
       // Retry after a short delay if router not ready
@@ -60,43 +61,9 @@ class DeepLinkService {
       return;
     }
 
-    try {
-      // Check if it's a password reset link
-      // Format: barberclub://reset-password?token=XXX&email=YYY
-      // For barberclub://reset-password?token=xxx, Android parses:
-      // - scheme: barberclub
-      // - host: reset-password (the part between // and ?)
-      // - path: empty
-      // - query: token=xxx&email=yyy
-      
-      if (uri.scheme != 'barberclub') return;
-      
-      // Check if it's reset-password (could be in host or path)
-      final uriString = uri.toString();
-      final isResetPassword = uri.host == 'reset-password' ||
-          uri.path == '/reset-password' ||
-          uri.path == 'reset-password' ||
-          uriString.contains('reset-password');
-      
-      if (!isResetPassword) return;
-      
-      // Check for required query parameters
-      if (!uri.queryParameters.containsKey('token') ||
-          !uri.queryParameters.containsKey('email')) {
-        return;
-      }
-      
-      final token = uri.queryParameters['token']!;
-      final email = uri.queryParameters['email']!;
-      
-      // Validate token and email are not empty
-      if (token.isNotEmpty && email.isNotEmpty) {
-        // Navigate to reset password screen
-        _router!.go('/reset-password?token=$token&email=${Uri.encodeComponent(email)}');
-      }
-    } catch (e) {
-      // Invalid link format, ignore
-    }
+    // Password reset deep links (barberclub://reset-password) have been removed.
+    // Reset flow now uses OTP code entered in-app.
+    // Add other deep link handlers here as needed.
   }
 
   /// Dispose resources

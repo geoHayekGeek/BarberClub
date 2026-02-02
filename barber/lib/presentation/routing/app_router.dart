@@ -7,6 +7,7 @@ import '../screens/reset_password_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/rdv_screen.dart';
 import '../screens/compte_screen.dart';
+import '../screens/loyalty_card_screen.dart';
 import '../screens/placeholder_screen.dart';
 import '../screens/salons_list_screen.dart';
 import '../screens/salon_detail_screen.dart';
@@ -40,12 +41,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/reset-password',
         name: 'reset-password',
         builder: (context, state) {
-          final email = state.uri.queryParameters['email'] ?? '';
-          final token = state.uri.queryParameters['token'] ?? '';
-          if (email.isEmpty || token.isEmpty) {
+          // Email passed via extra when navigating from ForgotPasswordScreen
+          final email = state.extra is String ? state.extra as String : '';
+          if (email.isEmpty) {
             return const LoginScreen();
           }
-          return ResetPasswordScreen(email: email, token: token);
+          return ResetPasswordScreen(email: email);
         },
       ),
       GoRoute(
@@ -96,7 +97,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/carte-fidelite',
         name: 'carte-fidelite',
-        builder: (context, state) => const PlaceholderScreen(title: 'Carte fidélité'),
+        builder: (context, state) => const LoyaltyCardScreen(),
       ),
       
       // --- FIXED OFFERS ROUTE ---

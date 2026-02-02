@@ -33,6 +33,6 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   email: z.string().email('Invalid email format').toLowerCase().trim(),
-  token: z.string().min(1, 'Token is required'),
+  code: z.string().regex(/^\d{6}$/, 'Code must be exactly 6 digits'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters'),
 });

@@ -38,12 +38,12 @@ abstract class AuthRepository {
   /// Throws [ApiError] on failure
   Future<void> forgotPassword(String email);
 
-  /// Reset password with token
+  /// Reset password with OTP code
   /// 
   /// Throws [ApiError] on failure
   Future<void> resetPassword({
     required String email,
-    required String token,
-    required String password,
+    required String code,
+    required String newPassword,
   });
 }
