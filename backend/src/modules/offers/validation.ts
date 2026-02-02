@@ -8,6 +8,8 @@ export const listOffersQuerySchema = z.object({
   status: z.enum(['active', 'all']).optional().default('active'),
   limit: z.string().optional().transform((val) => val ? Number(val) : 20).pipe(z.number().int().positive().max(50)),
   cursor: z.string().optional(),
+  // ADDED: allow salonId to be passed and validated as a UUID
+  salonId: z.string().uuid().optional(), 
 });
 
 export const offerIdParamSchema = z.object({
@@ -22,6 +24,8 @@ const createOfferBaseSchema = z.object({
   validFrom: z.string().datetime().nullable().default(null),
   validTo: z.string().datetime().nullable().default(null),
   isActive: z.boolean().default(true),
+  // Ensure creation also requires a salon link
+  salonId: z.string().uuid(), 
 });
 
 export const createOfferSchema = createOfferBaseSchema.refine(

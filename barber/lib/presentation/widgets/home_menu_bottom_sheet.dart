@@ -54,7 +54,8 @@ class HomeMenuBottomSheet extends StatelessWidget {
     MenuItem(
       icon: Icons.local_offer_outlined,
       label: 'Offres',
-      route: '/offres',
+      // We go to salons, but add a flag that we are looking for offers
+      route: '/salons?selectFor=offers',
     ),
     MenuItem(
       icon: Icons.person_outline,
