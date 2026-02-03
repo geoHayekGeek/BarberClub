@@ -52,11 +52,11 @@ class SalonsListScreen extends ConsumerWidget {
               },
             );
           },
-          // 4. RESTORED: Your original loading state
+          
           loading: () => const Center(
             child: CircularProgressIndicator(),
           ),
-          // 5. RESTORED: Your original robust error handling with Retry button
+
           error: (error, stackTrace) {
             final message = getSalonErrorMessage(error, stackTrace);
             return Center(
