@@ -14,7 +14,7 @@ class OffersListScreen extends ConsumerWidget {
 final offersAsync = ref.watch(offersListProvider(salonId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Offres Spéciales')),
+      appBar: AppBar(title: const Text('Offres')),
       body: SafeArea(
         child: offersAsync.when(
        // lib/presentation/screens/offers_list_screen.dart
