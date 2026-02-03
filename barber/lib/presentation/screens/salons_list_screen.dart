@@ -13,14 +13,13 @@ class SalonsListScreen extends ConsumerWidget {
     final salonsAsync = ref.watch(salonsListProvider);
     
     // 1. Check if we are in "Offers Mode"
-    // We read the query parameter to decide how the screen should look
     final state = GoRouterState.of(context);
     final isOfferSelection = state.uri.queryParameters['selectFor'] == 'offers';
 
     return Scaffold(
       appBar: AppBar(
-        // 2. Dynamic Title: "Nos offres" if selecting for offers, else "Nos salons"
-        title: Text(isOfferSelection ? 'Choisissez votre salon' : 'Nos salons'),
+        // 2. Dynamic Title
+        title: Text(isOfferSelection ? 'Nos offres' : 'Nos salons'),
       ),
       body: SafeArea(
         child: salonsAsync.when(
@@ -30,10 +29,11 @@ class SalonsListScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Aucun salon disponible.',
+                    'Aucun salon disponible pour le moment.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white70,
                         ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               );
@@ -45,7 +45,6 @@ class SalonsListScreen extends ConsumerWidget {
                 final salon = salons[index];
                 return SalonCard(
                   salon: salon,
-                  // We keep the navigation logic as is (it's handled inside the card or here)
                   onTap: () => context.push('/salons/${salon.id}'),
                   // 3. Pass the flag to hide description
                   hideDescription: isOfferSelection,
@@ -53,8 +52,37 @@ class SalonsListScreen extends ConsumerWidget {
               },
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('Erreur: $error')),
+          // 4. RESTORED: Your original loading state
+          loading: () => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          // 5. RESTORED: Your original robust error handling with Retry button
+          error: (error, stackTrace) {
+            final message = getSalonErrorMessage(error, stackTrace);
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.white70,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: () => ref.invalidate(salonsListProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Réessayer'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
       bottomNavigationBar: const BottomNavBar(),
