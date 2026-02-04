@@ -5,18 +5,21 @@ import '../providers/salon_providers.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/salon_card.dart';
 
-/// Nos Salons list page.
-/// Fetches salons from backend; loading / error / empty states.
 class SalonsListScreen extends ConsumerWidget {
   const SalonsListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salonsAsync = ref.watch(salonsListProvider);
+    
+    // 1. Check if we are in "Offers Mode"
+    final state = GoRouterState.of(context);
+    final isOfferSelection = state.uri.queryParameters['selectFor'] == 'offers';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nos salons'),
+        // 2. Dynamic Title
+        title: Text(isOfferSelection ? 'Nos offres' : 'Nos salons'),
       ),
       body: SafeArea(
         child: salonsAsync.when(
@@ -43,13 +46,17 @@ class SalonsListScreen extends ConsumerWidget {
                 return SalonCard(
                   salon: salon,
                   onTap: () => context.push('/salons/${salon.id}'),
+                  // 3. Pass the flag to hide description
+                  hideDescription: isOfferSelection,
                 );
               },
             );
           },
+          
           loading: () => const Center(
             child: CircularProgressIndicator(),
           ),
+
           error: (error, stackTrace) {
             final message = getSalonErrorMessage(error, stackTrace);
             return Center(

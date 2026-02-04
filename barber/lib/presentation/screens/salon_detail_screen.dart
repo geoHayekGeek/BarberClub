@@ -9,7 +9,7 @@ import '../widgets/salon_gallery.dart';
 import '../widgets/salon_info_row.dart';
 
 /// Salon detail page.
-/// Fetches salon by id; hero image, description, gallery, info block, map button, CTA.
+/// Fetches salon by id; hero image, description, gallery, info block, map button, Offers button, CTA.
 class SalonDetailScreen extends ConsumerWidget {
   final String salonId;
 
@@ -98,9 +98,18 @@ class _SalonDetailContent extends StatelessWidget {
                 const SizedBox(height: 32),
                 _buildInfoBlock(context),
                 const SizedBox(height: 24),
+                
+                // 1. Map Button
                 _buildMapButton(context),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16), // Smaller gap between buttons
+                
+                // 2. NEW: Offers Button
+                _buildOffersButton(context),
+                const SizedBox(height: 16),
+                
+                // 3. Main CTA (Booking)
                 _buildCtaButton(context),
+                
                 SizedBox(height: 32 + MediaQuery.of(context).padding.bottom),
               ],
             ),
@@ -227,6 +236,7 @@ class _SalonDetailContent extends StatelessWidget {
     );
   }
 
+  // --- EXISTING MAP BUTTON ---
   Widget _buildMapButton(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -242,6 +252,30 @@ class _SalonDetailContent extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
             side: BorderSide(color: theme.colorScheme.primary.withOpacity(0.6)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- NEW OFFERS BUTTON ---
+  Widget _buildOffersButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: OutlinedButton.icon(
+          // Navigate to offers filtered by this salon ID
+          onPressed: () => context.push('/offres/${salon.id}'),
+          icon: const Icon(Icons.local_offer_outlined, size: 22),
+          label: const Text('Voir les offres du salon'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white, // White text to stand out
+            side: const BorderSide(color: Colors.white30), // Subtle light border
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -289,14 +323,16 @@ class _SalonDetailContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: const Text('Prendre RDV ici'),
+          child: const Text(
+            'Prendre RDV ici',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
   }
 }
 
-/// Hero image: network URL or placeholder asset.
 class _SalonHeroImage extends StatelessWidget {
   final String? imageUrl;
 
