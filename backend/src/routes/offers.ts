@@ -13,36 +13,36 @@ const router = Router();
 /**
  * @swagger
  * /api/v1/offers:
- * get:
- * summary: Get list of offers
- * tags: [Offers]
- * parameters:
- * - in: query
- * name: salonId
- * schema:
- * type: string
- * format: uuid
- * description: Filter offers by salon ID
- * - in: query
- * name: status
- * schema:
- * type: string
- * enum: [active, all]
- * default: active
- * - in: query
- * name: limit
- * schema:
- * type: integer
- * minimum: 1
- * maximum: 50
- * default: 20
- * - in: query
- * name: cursor
- * schema:
- * type: string
- * responses:
- * 200:
- * description: List of offers
+ *   get:
+ *     summary: Get list of offers
+ *     tags: [Offers]
+ *     parameters:
+ *       - in: query
+ *         name: salonId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filter offers by salon ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, all]
+ *           default: active
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of offers
  */
 router.get('/', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
