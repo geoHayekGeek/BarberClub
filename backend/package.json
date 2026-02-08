@@ -4,7 +4,7 @@
   "description": "Production backend for Barber Club mobile app",
   "main": "dist/src/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/src/server.js",
     "dev": "tsx watch src/server.ts",
     "test": "jest",
@@ -13,7 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed": "node dist/prisma/seed.js",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"
   },

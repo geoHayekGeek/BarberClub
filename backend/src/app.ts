@@ -74,6 +74,12 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 export function createApp(): Express {
   const app = express();
 
+  // Railway / reverse proxies set X-Forwarded-* headers. Enable trust proxy in production
+  // so express-rate-limit can correctly identify the client IP.
+  if (config.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   app.use(helmet());
   
   app.use(cors({

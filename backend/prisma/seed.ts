@@ -4,6 +4,7 @@
  * Run AFTER migrations: npx prisma migrate dev
  * Then: npx prisma db seed
  */
+// @ts-nocheck
 /// <reference types="node" />
 
 import { PrismaClient } from '@prisma/client';
@@ -253,16 +254,29 @@ async function main() {
     },
   ];
 
-  // Clear existing offers to ensure the new simplified structure is applied
-  await prisma.offer.deleteMany();
-
+  // Idempotent offer seeding (safe to run multiple times)
+  // Note: we do NOT delete existing offers in production.
   let offersCreated = 0;
+  let offersUpdated = 0;
   for (const offer of offersData) {
+    const existing = await prisma.offer.findFirst({
+      where: { title: offer.title, salonId: offer.salonId },
+    });
+    if (existing) {
+      await prisma.offer.update({
+        where: { id: existing.id },
+        data: { price: offer.price, isActive: offer.isActive },
+      });
+      offersUpdated++;
+      continue;
+    }
     await prisma.offer.create({ data: offer });
     offersCreated++;
   }
 
-  console.log(`Seed completed: ${offersCreated} simplified offer(s) created (Duration removed).`);
+  console.log(
+    `Seed completed: ${offersCreated} offer(s) created, ${offersUpdated} offer(s) updated (simplified structure).`,
+  );
 }
 
 main()

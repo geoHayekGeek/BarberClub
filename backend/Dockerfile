@@ -10,7 +10,7 @@ FROM base AS builder
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npx prisma generate && npm run build
+RUN npm run build
 
 # Production image: only prod deps and built output
 FROM base AS runner
@@ -21,4 +21,6 @@ COPY --from=builder /app/prisma ./prisma
 RUN npx prisma generate
 COPY --from=builder /app/dist ./dist
 EXPOSE 3000
-CMD ["node", "dist/src/server.js"]
+# Apply migrations at startup (Railway Postgres starts empty)
+# Optional: set RUN_SEED_ON_STARTUP=true to also seed default data
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"${RUN_SEED_ON_STARTUP:-false}\" = \"true\" ]; then node dist/prisma/seed.js; fi && node dist/src/server.js"]
