@@ -189,7 +189,11 @@ class LoyaltyService {
       },
     });
 
-    logger.info('Loyalty QR token generated', { userId, expiresAt: expiresAt.toISOString() });
+    logger.info('Loyalty QR token generated', {
+      userId,
+      expiresAt: expiresAt.toISOString(),
+      tokenForTesting: process.env.NODE_ENV !== 'production' ? payload : undefined,
+    });
     return {
       token: payload,
       expiresAt: expiresAt.toISOString(),

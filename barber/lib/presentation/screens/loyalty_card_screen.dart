@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -80,7 +83,7 @@ class LoyaltyCardScreen extends ConsumerWidget {
                   width: double.infinity,
                   height: LoyaltyUIConstants.minTouchTargetSize,
                   child: FilledButton(
-                    onPressed: () => _showQrCode(context, ref),
+                    onPressed: () => _showQrCode(context, ref, data.currentVisits),
                     child: const Text('Afficher mon QR code'),
                   ),
                 ),
@@ -96,7 +99,7 @@ class LoyaltyCardScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showQrCode(BuildContext context, WidgetRef ref) async {
+  Future<void> _showQrCode(BuildContext context, WidgetRef ref, int initialPoints) async {
     try {
       final dio = ref.read(dioClientProvider).dio;
       final response = await dio.post('/api/v1/loyalty/qr');
@@ -105,51 +108,19 @@ class LoyaltyCardScreen extends ConsumerWidget {
       final token = payload?['token'] as String?;
       if (token == null || token.isEmpty) return;
       if (!context.mounted) return;
-      showDialog<void>(
+      await showDialog<void>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Mon QR code'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 200,
-                height: 200,
-                color: Colors.white,
-                padding: const EdgeInsets.all(8),
-                child: QrImageView(
-                  data: token,
-                  version: QrVersions.auto,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Colors.black,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    color: Colors.black,
-                    dataModuleShape: QrDataModuleShape.square,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'À faire scanner par le coiffeur',
-                style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Fermer'),
-            ),
-          ],
+        builder: (ctx) => _QrCodeDialog(
+          token: token,
+          initialPoints: initialPoints,
+          dio: dio,
+          onClosed: () => ref.invalidate(loyaltyCardProvider),
         ),
       );
+      if (context.mounted) {
+        ref.invalidate(loyaltyCardProvider);
+      }
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,5 +128,122 @@ class LoyaltyCardScreen extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+class _QrCodeDialog extends StatefulWidget {
+  const _QrCodeDialog({
+    required this.token,
+    required this.initialPoints,
+    required this.dio,
+    required this.onClosed,
+  });
+
+  final String token;
+  final int initialPoints;
+  final Dio dio;
+  final VoidCallback onClosed;
+
+  @override
+  State<_QrCodeDialog> createState() => _QrCodeDialogState();
+}
+
+class _QrCodeDialogState extends State<_QrCodeDialog> {
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => _checkPoints());
+  }
+
+  Future<void> _checkPoints() async {
+    try {
+      final response = await widget.dio.get('/api/v1/loyalty/me');
+      if (!mounted) return;
+      final data = response.data as Map<String, dynamic>;
+      final loyalty = data['data'] as Map<String, dynamic>? ?? {};
+      final stamps = (loyalty['stamps'] as num?)?.toInt() ?? 0;
+      if (stamps > widget.initialPoints) {
+        _pollTimer?.cancel();
+        _pollTimer = null;
+        Navigator.of(context).pop();
+        widget.onClosed();
+      }
+    } catch (_) {
+      // ignore: poll again next time
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctx = context;
+    return AlertDialog(
+      title: const Text('Mon QR code'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 200,
+            height: 200,
+            color: Colors.white,
+            padding: const EdgeInsets.all(8),
+            child: QrImageView(
+              data: widget.token,
+              version: QrVersions.auto,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Colors.black,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                color: Colors.black,
+                dataModuleShape: QrDataModuleShape.square,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'À faire scanner par le coiffeur',
+            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Pour tester dans Swagger :\n'
+            'POST /api/v1/admin/loyalty/scan\n'
+            'Body: {"token": "<coller ci-dessous>"}\n'
+            'Header: Authorization: Bearer <jeton admin>',
+            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            widget.token,
+            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Colors.white70,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Fermer'),
+        ),
+      ],
+    );
   }
 }
