@@ -6,14 +6,18 @@ import crypto from 'crypto';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import config from '../../../config';
 
+export type UserRole = 'USER' | 'ADMIN';
+
 export interface TokenPayload {
   userId: string;
+  role?: UserRole;
   type: 'access' | 'refresh';
 }
 
-export function generateAccessToken(userId: string): string {
+export function generateAccessToken(userId: string, role: UserRole = 'USER'): string {
   const payload: TokenPayload = {
     userId,
+    role,
     type: 'access',
   };
 
@@ -22,9 +26,10 @@ export function generateAccessToken(userId: string): string {
   } as SignOptions);
 }
 
-export function generateRefreshToken(userId: string): string {
+export function generateRefreshToken(userId: string, role: UserRole = 'USER'): string {
   const payload: TokenPayload = {
     userId,
+    role,
     type: 'refresh',
   };
 

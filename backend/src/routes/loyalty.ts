@@ -5,6 +5,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { loyaltyService } from '../modules/loyalty/service';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireUser } from '../middleware/requireRole';
 import { AppError, ErrorCode } from '../utils/errors';
 import { validate } from '../middleware/validate';
 import { qrScanLimiter } from '../middleware/rateLimit';
@@ -112,6 +113,25 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response, next: Ne
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+/** POST /loyalty/qr — V1 minimal: generate QR token for coiffeur to scan (USER only). */
+router.post(
+  '/qr',
+  authenticate,
+  requireUser,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) {
+        throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      }
+      const data = await loyaltyService.generateQrToken(req.userId);
+      res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** GET /loyalty/qr — legacy: generate reward redemption QR (eligible users). */
 router.get('/qr', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) {

@@ -30,6 +30,7 @@ export interface AuthResponse {
     email: string;
     phoneNumber: string;
     fullName: string | null;
+    role: 'USER' | 'ADMIN';
     createdAt: Date;
   };
   accessToken: string;
@@ -86,12 +87,14 @@ export class AuthService {
           email: true,
           phoneNumber: true,
           fullName: true,
+          role: true,
           createdAt: true,
         },
       });
 
-      const accessToken = generateAccessToken(user.id);
-      const refreshToken = generateRefreshToken(user.id);
+      const role = user.role ?? 'USER';
+      const accessToken = generateAccessToken(user.id, role);
+      const refreshToken = generateRefreshToken(user.id, role);
       const refreshTokenHash = hashToken(refreshToken);
 
       const expiresAt = new Date();
@@ -148,11 +151,13 @@ export class AuthService {
     if (input.email) {
       user = await prisma.user.findUnique({
         where: { email: input.email.toLowerCase().trim() },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, role: true, createdAt: true, isActive: true, passwordHash: true },
       });
     } else if (input.phoneNumber) {
       const normalizedPhone = validatePhoneNumber(input.phoneNumber);
       user = await prisma.user.findUnique({
         where: { phoneNumber: normalizedPhone },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, role: true, createdAt: true, isActive: true, passwordHash: true },
       });
     }
 
@@ -186,8 +191,9 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
+    const role = (user.role === 'ADMIN' ? 'ADMIN' : 'USER') as 'USER' | 'ADMIN';
+    const accessToken = generateAccessToken(user.id, role);
+    const refreshToken = generateRefreshToken(user.id, role);
     const refreshTokenHash = hashToken(refreshToken);
 
     const expiresAt = new Date();
@@ -209,6 +215,7 @@ export class AuthService {
         email: user.email,
         phoneNumber: user.phoneNumber,
         fullName: user.fullName,
+        role: role,
         createdAt: user.createdAt,
       },
       accessToken,
@@ -277,8 +284,9 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    const newAccessToken = generateAccessToken(payload.userId);
-    const newRefreshToken = generateRefreshToken(payload.userId);
+    const role = (storedToken.user.role === 'ADMIN' ? 'ADMIN' : 'USER') as 'USER' | 'ADMIN';
+    const newAccessToken = generateAccessToken(payload.userId, role);
+    const newRefreshToken = generateRefreshToken(payload.userId, role);
     const newRefreshTokenHash = hashToken(newRefreshToken);
 
     const expiresAt = new Date();
@@ -325,6 +333,7 @@ export class AuthService {
         email: true,
         phoneNumber: true,
         fullName: true,
+        role: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,

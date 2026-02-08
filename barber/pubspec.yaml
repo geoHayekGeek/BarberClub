@@ -35,6 +35,10 @@ dependencies:
   # Image caching
   cached_network_image: ^3.3.1
 
+  # QR: scan (admin) + display (user)
+  mobile_scanner: ^6.0.2
+  qr_flutter: ^4.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

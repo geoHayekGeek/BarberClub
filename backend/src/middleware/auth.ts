@@ -4,11 +4,12 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../modules/auth/utils/token';
+import { verifyToken, UserRole } from '../modules/auth/utils/token';
 import { AppError, ErrorCode } from '../utils/errors';
 
 export interface AuthRequest extends Request {
   userId?: string;
+  role?: UserRole;
 }
 
 export function authenticate(req: AuthRequest, _res: Response, next: NextFunction): void {
@@ -36,6 +37,7 @@ export function authenticate(req: AuthRequest, _res: Response, next: NextFunctio
     }
 
     req.userId = payload.userId;
+    req.role = payload.role ?? 'USER';
     next();
   } catch (error) {
     if (error instanceof AppError) {
