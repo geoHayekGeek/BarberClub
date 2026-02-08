@@ -13,7 +13,6 @@ beforeAll(async () => {
   nock.disableNetConnect();
   nock.enableNetConnect('127.0.0.1');
   await prisma.loyaltyState.deleteMany();
-  await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -23,7 +22,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.loyaltyState.deleteMany();
-  await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -40,15 +38,12 @@ afterEach(() => {
 
 const app = createApp();
 
-const TIMIFY_BASE_URL = config.TIMIFY_BASE_URL;
-
 describe('GET /api/v1/loyalty/me', () => {
   let accessToken: string;
   let userId: string;
 
   beforeEach(async () => {
     await prisma.loyaltyState.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -131,7 +126,6 @@ describe('POST /api/v1/loyalty/redeem', () => {
 
   beforeEach(async () => {
     await prisma.loyaltyState.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -224,128 +218,6 @@ describe('POST /api/v1/loyalty/redeem', () => {
   });
 });
 
-describe('Booking confirmation increments loyalty stamps', () => {
-  let accessToken: string;
-  let userId: string;
-  let reservationId: string;
-
-  beforeEach(async () => {
-    await prisma.loyaltyState.deleteMany();
-    await prisma.timifyReservation.deleteMany();
-    await prisma.booking.deleteMany();
-    await prisma.passwordResetCode.deleteMany();
-  await prisma.passwordResetToken.deleteMany();
-    await prisma.refreshToken.deleteMany();
-    await prisma.user.deleteMany();
-
-    const registerResponse = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        email: 'booking-loyalty@example.com',
-        phoneNumber: '+1234567892',
-        password: 'password123',
-        fullName: 'Test User',
-      });
-
-    expect(registerResponse.status).toBe(201);
-    accessToken = registerResponse.body.accessToken;
-    userId = registerResponse.body.user.id;
-
-    nock(TIMIFY_BASE_URL)
-      .post('/booker-services/reservations')
-      .reply(200, {
-        reservation_id: 'timify-res-123',
-        secret: 'timify-secret-456',
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      });
-
-    const reserveResponse = await request(app)
-      .post('/api/v1/booking/reserve')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        branchId: 'branch-1',
-        serviceId: 'service-1',
-        date: '2024-01-01',
-        time: '13:00',
-      });
-
-    expect(reserveResponse.status).toBe(201);
-    reservationId = reserveResponse.body.data.reservationId;
-  });
-
-  it('should increment stamps when booking is confirmed', async () => {
-    nock(TIMIFY_BASE_URL)
-      .post('/booker-services/appointments/confirm', {
-        company_id: 'branch-1',
-        reservation_id: 'timify-res-123',
-        secret: 'timify-secret-456',
-        external_customer_id: userId,
-        is_course: false,
-        region: config.TIMIFY_REGION,
-      })
-      .reply(200, {
-        appointment_id: 'timify-appt-789',
-        status: 'confirmed',
-      });
-
-    const confirmResponse = await request(app)
-      .post('/api/v1/booking/confirm')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        reservationId,
-      });
-
-    expect(confirmResponse.status).toBe(200);
-
-    const loyaltyState = await prisma.loyaltyState.findUnique({
-      where: { userId },
-    });
-
-    expect(loyaltyState).toBeTruthy();
-    expect(loyaltyState?.stamps).toBe(1);
-  });
-
-  it('should set eligibleForReward when reaching target', async () => {
-    await prisma.loyaltyState.create({
-      data: {
-        userId,
-        stamps: config.LOYALTY_TARGET - 1,
-      },
-    });
-
-    nock(TIMIFY_BASE_URL)
-      .post('/booker-services/appointments/confirm', {
-        company_id: 'branch-1',
-        reservation_id: 'timify-res-123',
-        secret: 'timify-secret-456',
-        external_customer_id: userId,
-        is_course: false,
-        region: config.TIMIFY_REGION,
-      })
-      .reply(200, {
-        appointment_id: 'timify-appt-789',
-        status: 'confirmed',
-      });
-
-    const confirmResponse = await request(app)
-      .post('/api/v1/booking/confirm')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send({
-        reservationId,
-      });
-
-    expect(confirmResponse.status).toBe(200);
-
-    const loyaltyState = await prisma.loyaltyState.findUnique({
-      where: { userId },
-    });
-
-    expect(loyaltyState).toBeTruthy();
-    expect(loyaltyState?.stamps).toBe(config.LOYALTY_TARGET);
-    expect(loyaltyState?.stamps).toBeGreaterThanOrEqual(config.LOYALTY_TARGET);
-  });
-});
-
 describe('GET /api/v1/loyalty/qr', () => {
   let accessToken: string;
   let userId: string;
@@ -354,7 +226,6 @@ describe('GET /api/v1/loyalty/qr', () => {
     await prisma.loyaltyRedemptionToken.deleteMany();
     await prisma.loyaltyRedemption.deleteMany();
     await prisma.loyaltyState.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -460,7 +331,6 @@ describe('POST /api/v1/loyalty/scan', () => {
     await prisma.loyaltyRedemptionToken.deleteMany();
     await prisma.loyaltyRedemption.deleteMany();
     await prisma.loyaltyState.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -608,7 +478,6 @@ describe('GET /api/v1/loyalty/me - updated response', () => {
 
   beforeEach(async () => {
     await prisma.loyaltyState.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();

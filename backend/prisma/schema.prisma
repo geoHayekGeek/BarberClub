@@ -21,7 +21,6 @@ model User {
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   passwordResetCodes PasswordResetCode[]
-  timifyReservations TimifyReservation[]
   bookings Booking[]
   loyaltyState LoyaltyState?
   loyaltyRedemptionTokens LoyaltyRedemptionToken[]
@@ -77,36 +76,14 @@ model PasswordResetCode {
   @@map("password_reset_codes")
 }
 
-model TimifyReservation {
-  id                  String    @id @default(uuid())
-  userId              String    @map("user_id")
-  branchId            String    @map("branch_id")
-  serviceId           String    @map("service_id")
-  resourceId          String?   @map("resource_id")
-  reservedDate        String    @map("reserved_date")
-  reservedTime        String    @map("reserved_time")
-  timifyReservationId String    @map("timify_reservation_id")
-  timifySecret        String    @map("timify_secret")
-  expiresAt           DateTime  @map("expires_at")
-  usedAt              DateTime? @map("used_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([timifyReservationId])
-  @@map("timify_reservations")
-}
-
 model Booking {
-  id                 String   @id @default(uuid())
-  userId             String   @map("user_id")
-  branchId           String   @map("branch_id")
-  serviceId          String   @map("service_id")
-  resourceId         String?  @map("resource_id")
-  startDateTime      DateTime @map("start_date_time")
-  timifyAppointmentId String? @map("timify_appointment_id")
-  status             String   @default("CONFIRMED")
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  branchId      String   @map("branch_id")
+  serviceId     String   @map("service_id")
+  resourceId    String?  @map("resource_id")
+  startDateTime DateTime @map("start_date_time")
+  status        String   @default("CONFIRMED")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

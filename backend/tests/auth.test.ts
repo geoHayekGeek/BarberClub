@@ -11,7 +11,6 @@ beforeAll(async () => {
   // Clean up all data before starting tests
   await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-  await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -21,7 +20,6 @@ afterAll(async () => {
   // Clean up all data after tests
   await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-  await prisma.timifyReservation.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
@@ -34,7 +32,6 @@ describe('POST /api/v1/auth/register', () => {
   beforeEach(async () => {
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
@@ -186,7 +183,6 @@ describe('POST /api/v1/auth/login', () => {
   beforeEach(async () => {
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
@@ -258,7 +254,6 @@ describe('GET /api/v1/auth/me', () => {
   beforeAll(async () => {
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
@@ -278,7 +273,6 @@ describe('GET /api/v1/auth/me', () => {
   afterAll(async () => {
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
@@ -317,7 +311,6 @@ describe('POST /api/v1/auth/forgot-password', () => {
     await prisma.passwordResetCode.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
@@ -430,7 +423,6 @@ describe('POST /api/v1/auth/reset-password', () => {
     await prisma.passwordResetCode.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
@@ -460,7 +452,6 @@ describe('POST /api/v1/auth/reset-password', () => {
     await prisma.passwordResetCode.deleteMany();
     await prisma.passwordResetCode.deleteMany();
   await prisma.passwordResetToken.deleteMany();
-    await prisma.timifyReservation.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();

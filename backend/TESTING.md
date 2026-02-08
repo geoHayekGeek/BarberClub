@@ -27,9 +27,8 @@ Tests:       119 passed, 119 total
 - **Salons Tests**: 8 tests covering listing, sorting, details with barbers, error handling
 - **Barbers Tests**: 11 tests covering listing, sorting, details with salons, error handling
 
-All tests use `nock` to mock external API calls (TIMIFY), so no external dependencies are required. Tests run in isolation with database cleanup between runs.
+Tests run in isolation with database cleanup between runs.
 
-**Note:** TIMIFY requests do not require authentication headers. The mocked TIMIFY requests in tests should not include Authorization headers or API keys, as the Booker Services endpoints are public.
 
 ## Running Tests
 
@@ -530,7 +529,6 @@ Expected response (200):
     "serviceId": "service-id-1",
     "resourceId": "resource-id-1",
     "startDateTime": "2026-02-01T10:00:00Z",
-    "timifyAppointmentId": "timify-appointment-id",
     "status": "CONFIRMED",
     "createdAt": "2026-01-26T..."
   }
@@ -625,7 +623,6 @@ Expected response (200):
       "name": "Haircut",
       "durationMinutes": 30
     },
-    "timifyAppointmentId": "timify-appt-123"
   }
 }
 ```
@@ -1581,18 +1578,8 @@ The test suite includes comprehensive coverage:
 - Protected endpoint access
 - Error handling for all scenarios
 
-### Booking Tests (17 tests)
-- Branch listing and filtering
-- Service retrieval
-- Availability transformation
-- Reservation creation and expiration
-- Booking confirmation
-- Error handling (expired, used, unavailable slots)
-- TIMIFY API mocking
-
-### Loyalty Tests (21 tests)
+### Loyalty Tests (19 tests)
 - Loyalty state retrieval (with eligibleForReward field)
-- Stamp accumulation on booking confirmation
 - QR code generation (success and failure cases)
 - QR code invalidation when new QR is generated
 - QR code scanning and redemption

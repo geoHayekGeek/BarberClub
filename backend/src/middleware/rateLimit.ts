@@ -57,17 +57,6 @@ export const passwordResetLimiter = createLimiter({
   },
 });
 
-export const bookingLimiter = createLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: isDevelopment ? 30 : 10,
-  message: {
-    error: {
-      code: 'RATE_LIMIT_EXCEEDED',
-      message: 'Too many booking requests, please try again later',
-    },
-  },
-});
-
 export const qrScanLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 10,

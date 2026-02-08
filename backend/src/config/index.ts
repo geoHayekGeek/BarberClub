@@ -24,15 +24,9 @@ const configSchema = z.object({
   LOG_LEVEL: z.string().optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   BACKEND_PUBLIC_URL: z.string().url().optional(),
-  TIMIFY_BASE_URL: z.string().url().default('https://api.timify.com/v1'),
-  TIMIFY_REGION: z.enum(['EUROPE', 'US', 'ASIA']).default('EUROPE'),
-  TIMIFY_COMPANY_IDS: z.string().optional(),
-  TIMIFY_TIMEOUT_MS: z.string().transform(Number).pipe(z.number().int().positive()).default('10000'),
-  TIMIFY_MAX_RETRIES: z.string().transform(Number).pipe(z.number().int().min(0).max(5)).default('2'),
   LOYALTY_TARGET: z.string().transform(Number).pipe(z.number().int().positive()).default('10'),
   LOYALTY_QR_TTL_SECONDS: z.string().transform(Number).pipe(z.number().int().positive()).default('120'),
   ENABLE_LOCAL_CANCEL: z.string().transform((val) => val === 'true').default('false'),
-  BOOKING_CANCEL_CUTOFF_MINUTES: z.string().transform(Number).pipe(z.number().int().min(0)).default('60'),
   ADMIN_SECRET: z.string().min(1).optional(),
 });
 

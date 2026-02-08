@@ -95,17 +95,10 @@ SMTP_USER=
 SMTP_PASSWORD=
 SMTP_FROM=
 
-TIMIFY_BASE_URL=https://api.timify.com/v1
-TIMIFY_REGION=EUROPE
-TIMIFY_COMPANY_IDS=
-TIMIFY_TIMEOUT_MS=10000
-TIMIFY_MAX_RETRIES=2
-
 LOYALTY_TARGET=10
 LOYALTY_QR_TTL_SECONDS=120
 
 ENABLE_LOCAL_CANCEL=false
-BOOKING_CANCEL_CUTOFF_MINUTES=60
 
 ADMIN_SECRET=change-me-in-production
 ```
@@ -126,15 +119,9 @@ ADMIN_SECRET=change-me-in-production
 - `RATE_LIMIT_MAX_REQUESTS`: Maximum requests per window (default: `100`)
 - `LOG_LEVEL`: Logging level (`error`, `warn`, `info`, `debug`, optional)
 - `FRONTEND_URL`: Frontend URL for CORS and email links (default: `http://localhost:5173`)
-- `TIMIFY_BASE_URL`: TIMIFY API base URL (default: `https://api.timify.com/v1`)
-- `TIMIFY_REGION`: TIMIFY region (`EUROPE`, `US`, or `ASIA`, default: `EUROPE`)
-- `TIMIFY_COMPANY_IDS`: Optional comma-separated list of allowed branch company IDs
-- `TIMIFY_TIMEOUT_MS`: TIMIFY request timeout in milliseconds (default: `10000`)
-- `TIMIFY_MAX_RETRIES`: Maximum retries for TIMIFY requests (default: `2`)
 - `LOYALTY_TARGET`: Number of stamps required for a reward (default: `10`)
 - `LOYALTY_QR_TTL_SECONDS`: QR code expiration in seconds (default: `120`)
 - `ENABLE_LOCAL_CANCEL`: Allow users to cancel bookings via API (`true`/`false`, default: `false`)
-- `BOOKING_CANCEL_CUTOFF_MINUTES`: Minutes before start time within which cancellation is disallowed (default: `60`)
 - `ADMIN_SECRET`: Secret for admin endpoints (required in production; see [ADMIN.md](./ADMIN.md)). Must be changed from default in production.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: Optional. When all set, password-reset emails are sent via SMTP. Otherwise, in development a dev provider stores emails in-memory (see [Email / Password Reset](#email--password-reset)).
 
@@ -320,11 +307,6 @@ backend/
 │   │   ├── barbers/
 │   │   │   ├── service.ts
 │   │   │   └── validation.ts
-│   │   ├── timify/
-│   │   │   ├── timifyClient.ts
-│   │   │   ├── schemas.ts
-│   │   │   ├── types.ts
-│   │   │   └── index.ts
 │   │   └── notifications/
 │   │       ├── emailProvider.ts
 │   │       ├── devEmailProvider.ts
@@ -342,8 +324,6 @@ backend/
 │   ├── setup.ts
 │   ├── auth.test.ts
 │   ├── admin.test.ts
-│   ├── booking.test.ts
-│   ├── bookings.test.ts
 │   ├── loyalty.test.ts
 │   ├── offers.test.ts
 │   ├── salons.test.ts
@@ -376,20 +356,6 @@ Both fields serve as unique identifiers and can be used for login. Attempting to
 - `GET /api/v1/auth/me` - Get current user profile (requires authentication)
 - `POST /api/v1/auth/forgot-password` - Request password reset (sends 6-digit OTP to email)
 - `POST /api/v1/auth/reset-password` - Reset password with OTP code (email + code + newPassword)
-
-### Booking
-
-- `GET /api/v1/booking/branches` - Get list of bookable branches
-- `GET /api/v1/booking/branches/:branchId/services` - Get services for a branch
-- `GET /api/v1/booking/availability` - Get availability for a service
-- `POST /api/v1/booking/reserve` - Reserve a booking slot (requires authentication)
-- `POST /api/v1/booking/confirm` - Confirm a reservation (requires authentication)
-
-### Bookings Management (Mes RDVs)
-
-- `GET /api/v1/bookings/me` - Get current user's bookings (requires authentication)
-- `GET /api/v1/bookings/:id` - Get booking details (requires authentication)
-- `POST /api/v1/bookings/:id/cancel` - Cancel a booking (requires authentication)
 
 ### Offers (Nos Offres)
 
@@ -455,7 +421,6 @@ The API implements multiple rate limiters based on endpoint sensitivity:
 - **General Limiter**: Applied to all routes (100 requests per 15 minutes by default)
 - **Auth Limiter**: Login, register endpoints (5 requests per 15 minutes in production, 50 in development)
 - **Password Reset Limiter**: Forgot/reset password (3 requests per 15 minutes in production, 10 in development)
-- **Booking Limiter**: Reserve and confirm endpoints (10 requests per 15 minutes in production, 30 in development)
 - **QR Scan Limiter**: Loyalty QR scan endpoint (10 requests per minute)
 - **Public Read Limiter**: Offers, salons, barbers endpoints (60 requests per minute in production, 100 in development)
 - **Admin Limiter**: Admin endpoints (5 requests per 15 minutes in production, 20 in development)
@@ -471,7 +436,6 @@ Rate limit headers are included in responses (`X-RateLimit-Limit`, `X-RateLimit-
 - **Input Validation**: All inputs validated with Zod schemas (body, query, params)
 - **Error Handling**: No stack traces exposed in production, consistent error format
 - **Token Revocation**: Refresh tokens revoked on password reset and logout
-- **Booking Security**: User ownership validated on all booking operations
 - **QR Code Security**: Single-use tokens with expiration, no user data leakage
 
 ## Logging
@@ -484,253 +448,7 @@ The application uses a structured logger that outputs JSON. Log levels:
 
 Set `LOG_LEVEL` in `.env` to control logging. Defaults to silent in production.
 
-## TIMIFY Integration
-
-The backend integrates with TIMIFY for booking management. All TIMIFY communication is server-to-server only - the mobile app never calls TIMIFY directly.
-
-### Configuration
-
-- `TIMIFY_BASE_URL`: TIMIFY API base URL (default: `https://api.timify.com/v1`)
-- `TIMIFY_REGION`: TIMIFY region (`EUROPE`, `US`, or `ASIA`, default: `EUROPE`)
-- `TIMIFY_COMPANY_IDS`: Optional comma-separated list of allowed branch company IDs. If not set, all companies from TIMIFY are returned.
-- `TIMIFY_TIMEOUT_MS`: Request timeout in milliseconds (default: `10000`)
-- `TIMIFY_MAX_RETRIES`: Maximum number of retries for transient failures (default: `2`)
-
-### TIMIFY Authentication
-
-**Important:** The backend uses TIMIFY Booker Services endpoints, which are **PUBLIC** and **DO NOT require authentication**.
-
-The following endpoints are used:
-- `/booker-services/companies` - Get available branches/companies
-- `/booker-services/availabilities` - Get available time slots
-- `/booker-services/reservations` - Create temporary reservations
-- `/booker-services/appointments/confirm` - Confirm appointments
-
-These endpoints are intentionally public and do **NOT** require:
-- API keys
-- Bearer tokens
-- Query parameter authentication
-- Any authentication headers
-
-**Warning for developers:** Do NOT add authentication headers (Authorization, X-API-Key, etc.) to TIMIFY requests. Adding authentication to public Booker Services endpoints will cause requests to fail. Authentication is only required if switching to TIMIFY private/admin APIs, which is not used in this application.
-
-### Booking Flow
-
-1. **Get Branches**: Fetch available branches/companies
-2. **Get Services**: Fetch services for a specific branch
-3. **Check Availability**: Get available time slots
-4. **Reserve**: Create a temporary reservation (expires in 10 minutes)
-5. **Confirm**: Confirm the reservation and create a permanent booking
-
-### Booking API Examples
-
-#### Get Branches
-```bash
-curl http://localhost:3000/api/v1/booking/branches
-```
-
-Response:
-```json
-{
-  "data": [
-    {
-      "id": "company-123",
-      "name": "Downtown Branch",
-      "address": "123 Main St",
-      "city": "New York",
-      "country": "USA",
-      "timezone": "America/New_York"
-    }
-  ]
-}
-```
-
-#### Get Services for a Branch
-```bash
-curl http://localhost:3000/api/v1/booking/branches/company-123/services
-```
-
-Response:
-```json
-{
-  "data": [
-    {
-      "id": "service-456",
-      "name": "Haircut",
-      "durationMinutes": 30,
-      "price": 25.00
-    }
-  ]
-}
-```
-
-#### Get Availability
-```bash
-curl "http://localhost:3000/api/v1/booking/availability?branchId=company-123&serviceId=service-456&startDate=2026-02-01&endDate=2026-02-07"
-```
-
-With optional resourceId:
-```bash
-curl "http://localhost:3000/api/v1/booking/availability?branchId=company-123&serviceId=service-456&startDate=2026-02-01&endDate=2026-02-07&resourceId=resource-789"
-```
-
-Response:
-```json
-{
-  "data": {
-    "calendarBegin": "2026-02-01",
-    "calendarEnd": "2026-02-07",
-    "onDays": ["2026-02-01", "2026-02-02", "2026-02-03"],
-    "offDays": ["2026-02-04"],
-    "timesByDay": {
-      "2026-02-01": ["09:00", "10:00", "11:00"],
-      "2026-02-02": ["14:00", "15:00", "16:00"]
-    }
-  }
-}
-```
-
-#### Reserve a Booking Slot (requires authentication)
-```bash
-curl -X POST http://localhost:3000/api/v1/booking/reserve \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "branchId": "company-123",
-    "serviceId": "service-456",
-    "date": "2026-02-01",
-    "time": "10:00",
-    "resourceId": "resource-789"
-  }'
-```
-
-Note: `resourceId` is optional.
-
-Response:
-```json
-{
-  "data": {
-    "reservationId": "uuid",
-    "expiresAt": "2026-02-01T10:10:00Z"
-  }
-}
-```
-
-#### Confirm a Reservation (requires authentication)
-```bash
-curl -X POST http://localhost:3000/api/v1/booking/confirm \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "reservationId": "uuid-from-reserve-response"
-  }'
-```
-
-Response:
-```json
-{
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "branchId": "company-123",
-    "serviceId": "service-456",
-    "resourceId": "resource-789",
-    "startDateTime": "2026-02-01T10:00:00Z",
-    "timifyAppointmentId": "timify-appt-123",
-    "status": "CONFIRMED",
-    "createdAt": "2026-01-26T..."
-  }
-}
-```
-
-#### Get My Bookings (requires authentication)
-```bash
-curl http://localhost:3000/api/v1/bookings/me \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-With query parameters:
-```bash
-curl "http://localhost:3000/api/v1/bookings/me?status=upcoming&limit=20&cursor=2026-02-01T10:00:00Z|uuid" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-Query parameters:
-- `status`: Filter by status (`upcoming`, `past`, or `all`, default: `upcoming`)
-- `limit`: Number of results (1-50, default: 20)
-- `cursor`: Pagination cursor (format: `ISO_DATE|UUID`)
-
-Response:
-```json
-{
-  "data": {
-    "items": [
-      {
-        "id": "uuid",
-        "startDateTime": "2026-02-01T10:00:00Z",
-        "status": "CONFIRMED",
-        "branch": {
-          "id": "company-123",
-          "name": "Downtown Branch",
-          "city": "New York"
-        },
-        "service": {
-          "id": "service-456",
-          "name": "Haircut"
-        }
-      }
-    ],
-    "nextCursor": "2026-02-01T10:00:00Z|uuid"
-  }
-}
-```
-
-#### Get Booking Details (requires authentication)
-```bash
-curl http://localhost:3000/api/v1/bookings/uuid \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-Response:
-```json
-{
-  "data": {
-    "id": "uuid",
-    "startDateTime": "2026-02-01T10:00:00Z",
-    "status": "CONFIRMED",
-    "branch": {
-      "id": "company-123",
-      "name": "Downtown Branch",
-      "address": "123 Main St",
-      "city": "New York",
-      "timezone": "America/New_York"
-    },
-    "service": {
-      "id": "service-456",
-      "name": "Haircut",
-      "durationMinutes": 30
-    },
-    "timifyAppointmentId": "timify-appt-123"
-  }
-}
-```
-
-#### Cancel a Booking (requires authentication)
-```bash
-curl -X POST http://localhost:3000/api/v1/bookings/uuid/cancel \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-Response:
-```json
-{
-  "data": {
-    "status": "CANCELED"
-  }
-}
-```
-
-Note: Cancellation requires `ENABLE_LOCAL_CANCEL=true` and the booking must be at least `BOOKING_CANCEL_CUTOFF_MINUTES` minutes before the start time.
+### API Examples
 
 #### Get Offers (public)
 ```bash
@@ -1054,129 +772,6 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 
 Save the `accessToken` from the response for authenticated requests.
 
-### Booking
-
-#### Get Branches
-```bash
-curl http://localhost:3000/api/v1/booking/branches
-```
-
-Response:
-```json
-{
-  "data": [
-    {
-      "id": "company-123",
-      "name": "Downtown Branch",
-      "address": "123 Main St",
-      "city": "New York",
-      "country": "USA",
-      "timezone": "America/New_York"
-    }
-  ]
-}
-```
-
-#### Get Services for a Branch
-```bash
-curl http://localhost:3000/api/v1/booking/branches/company-123/services
-```
-
-Response:
-```json
-{
-  "data": [
-    {
-      "id": "service-456",
-      "name": "Haircut",
-      "durationMinutes": 30,
-      "price": 25.00
-    }
-  ]
-}
-```
-
-#### Get Availability
-```bash
-curl "http://localhost:3000/api/v1/booking/availability?branchId=company-123&serviceId=service-456&startDate=2026-02-01&endDate=2026-02-07"
-```
-
-With optional resourceId:
-```bash
-curl "http://localhost:3000/api/v1/booking/availability?branchId=company-123&serviceId=service-456&startDate=2026-02-01&endDate=2026-02-07&resourceId=resource-789"
-```
-
-Response:
-```json
-{
-  "data": {
-    "calendarBegin": "2026-02-01",
-    "calendarEnd": "2026-02-07",
-    "onDays": ["2026-02-01", "2026-02-02", "2026-02-03"],
-    "offDays": ["2026-02-04"],
-    "timesByDay": {
-      "2026-02-01": ["09:00", "10:00", "11:00"],
-      "2026-02-02": ["14:00", "15:00", "16:00"]
-    }
-  }
-}
-```
-
-#### Reserve a Booking Slot (requires authentication)
-```bash
-curl -X POST http://localhost:3000/api/v1/booking/reserve \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "branchId": "company-123",
-    "serviceId": "service-456",
-    "date": "2026-02-01",
-    "time": "10:00",
-    "resourceId": "resource-789"
-  }'
-```
-
-Note: `resourceId` is optional.
-
-Response:
-```json
-{
-  "data": {
-    "reservationId": "uuid",
-    "expiresAt": "2026-02-01T10:10:00Z"
-  }
-}
-```
-
-Save the `reservationId` from the response for confirmation.
-
-#### Confirm a Reservation (requires authentication)
-```bash
-curl -X POST http://localhost:3000/api/v1/booking/confirm \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "reservationId": "uuid-from-reserve-response"
-  }'
-```
-
-Response:
-```json
-{
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "branchId": "company-123",
-    "serviceId": "service-456",
-    "resourceId": "resource-789",
-    "startDateTime": "2026-02-01T10:00:00Z",
-    "timifyAppointmentId": "timify-appt-123",
-    "status": "CONFIRMED",
-    "createdAt": "2026-01-26T..."
-  }
-}
-```
-
 ## Testing
 
 ### Running Tests
@@ -1197,24 +792,6 @@ The test suite includes comprehensive coverage:
 - Password reset flow (forgot password, reset password)
 - Protected endpoint access (`/me`)
 - Error handling for all scenarios (invalid credentials, duplicate users, etc.)
-
-**Booking Tests (17 tests):**
-- Branch listing and filtering by TIMIFY_COMPANY_IDS
-- Service retrieval for branches
-- Availability transformation (onDays, offDays, timesByDay)
-- Reservation creation with expiration tracking
-- Booking confirmation with database updates
-- Error handling (expired reservations, used reservations, unavailable slots)
-- TIMIFY API mocking with nock (no external API calls needed)
-
-**Bookings Management Tests (24 tests):**
-- List user's bookings with filtering (upcoming, past, all)
-- Pagination with cursor-based navigation
-- Get booking details with branch and service information
-- Cancel bookings with validation (cutoff time, status checks)
-- Access control (users can only see/cancel their own bookings)
-- Branch and service name caching
-- Error handling (not found, forbidden, not cancelable)
 
 **Offers Tests (16 tests):**
 - List active offers with filtering
@@ -1239,9 +816,8 @@ The test suite includes comprehensive coverage:
 - Create salon, barber, offer with `adminSecret`; 403 when missing or incorrect
 - Validation errors (invalid payload, non-existent salonIds, validFrom > validTo)
 
-**Loyalty Tests (21 tests):**
+**Loyalty Tests (19 tests):**
 - Loyalty state retrieval for new and existing users (with eligibleForReward field)
-- Stamp accumulation on booking confirmation
 - QR code generation (success and failure cases)
 - QR code invalidation when new QR is generated
 - QR code scanning and redemption
@@ -1250,32 +826,13 @@ The test suite includes comprehensive coverage:
 - Race condition protection (concurrent scans)
 - Legacy reward redemption endpoint
 - Target achievement detection
-- Integration with booking confirmation flow
 - Error handling (insufficient stamps, invalid QR, authentication)
 
-**Total: 130+ tests, all passing**
-
-### Testing Booking Endpoints
-
-The booking tests mock all TIMIFY API calls using `nock`. This ensures:
-- Tests run without actual TIMIFY API access
-- Tests are fast and reliable
-- Error scenarios can be tested safely
-- No external dependencies required
-
-Key test scenarios:
-- Successful reservation creation
-- Reservation expiration handling (10-minute window)
-- Used reservation prevention (double-confirmation blocked)
-- TIMIFY API error handling (5xx, 4xx, network errors)
-- Availability transformation correctness
-- Booking confirmation with proper database updates
-- Loyalty stamp integration on booking confirmation
+**Total: 89+ tests, all passing**
 
 ### Testing Loyalty Endpoints
 
 Loyalty tests verify:
-- Stamp accumulation when bookings are confirmed
 - QR code generation when eligible
 - QR code generation failure when not eligible
 - QR code invalidation when new QR is generated
@@ -1443,7 +1000,6 @@ All endpoints return consistent error codes:
 
 ### Booking Errors
 - `BOOKING_SLOT_UNAVAILABLE`: Booking slot not available or already taken
-- `BOOKING_PROVIDER_ERROR`: TIMIFY service temporarily unavailable
 - `BOOKING_VALIDATION_ERROR`: Invalid booking request, reservation expired, or reservation already used
 - `BOOKING_NOT_FOUND`: Booking not found
 - `BOOKING_NOT_CANCELABLE`: Booking cannot be canceled (already canceled, past booking, or within cutoff time)
