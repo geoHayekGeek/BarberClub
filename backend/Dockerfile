@@ -14,6 +14,8 @@ FROM base AS runner
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
+# Use generated Prisma client from builder (prisma CLI is dev-only)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 EXPOSE 3000
