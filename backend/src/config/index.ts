@@ -23,7 +23,11 @@ const configSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).pipe(z.number().int().positive()).default('100'),
   LOG_LEVEL: z.string().optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
-  BACKEND_PUBLIC_URL: z.string().url().optional(),
+  BACKEND_PUBLIC_URL: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim()) || undefined)
+    .pipe(z.union([z.string().url(), z.undefined()])),
   LOYALTY_TARGET: z.string().transform(Number).pipe(z.number().int().positive()).default('10'),
   LOYALTY_QR_TTL_SECONDS: z.string().transform(Number).pipe(z.number().int().positive()).default('120'),
   ENABLE_LOCAL_CANCEL: z.string().transform((val) => val === 'true').default('false'),
