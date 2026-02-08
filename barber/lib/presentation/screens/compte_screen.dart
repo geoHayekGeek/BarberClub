@@ -21,6 +21,10 @@ class CompteScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/home'),
+        ),
         title: const Text('Mon Profil'),
         centerTitle: true,
         elevation: 0,
