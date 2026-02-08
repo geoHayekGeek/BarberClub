@@ -1,0 +1,3 @@
+# Railway/Nixpacks: run build so dist/ exists before start
+[phases.build]
+cmds = ["npx prisma generate", "npm run build"]
