@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_center_content.dart';
-import '../widgets/home_menu_bottom_sheet.dart';
-import '../widgets/bottom_nav_bar.dart';
 
 /// Home screen (Accueil) - Premium barber experience
 class HomeScreen extends ConsumerStatefulWidget {
@@ -28,59 +25,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const HomeHeader(),
           // Center content
           const HomeCenterContent(),
-          // Menu trigger (bottom)
-          Positioned(
-            bottom: 100, // Above bottom nav
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    final currentRoute = GoRouterState.of(context).uri.path;
-                    HomeMenuBottomSheet.show(context, currentRoute);
-                  },
-                  borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.menu,
-                          color: Colors.white.withOpacity(0.9),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Menu',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
-      // Bottom navigation bar
-      bottomNavigationBar: const BottomNavBar(),
     );
   }
 }

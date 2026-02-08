@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
 import '../widgets/barber_horizontal_card.dart';
-import '../widgets/bottom_nav_bar.dart';
 
 /// Nos Coiffeurs list page.
 /// Horizontal scrolling cards (carousel), one per coiffeur.
@@ -96,7 +95,6 @@ class BarbersListScreen extends ConsumerWidget {
           },
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(),
     );
   }
 }

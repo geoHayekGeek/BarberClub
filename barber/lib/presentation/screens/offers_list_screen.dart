@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Fixes ConsumerWidget
 import '../providers/offer_providers.dart';
 import '../widgets/offer_card.dart'; // Fixes OfferCard
-import '../widgets/bottom_nav_bar.dart';
 
 
 class OffersListScreen extends ConsumerWidget {
@@ -41,7 +40,6 @@ data: (offers) => GridView.builder(
 
         ),
       ),
-   bottomNavigationBar: const BottomNavBar(),
     );
   }
 }

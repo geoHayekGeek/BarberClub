@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../constants/loyalty_ui_constants.dart';
 import '../providers/auth_providers.dart';
 import '../providers/loyalty_providers.dart';
-import '../widgets/bottom_nav_bar.dart';
 import '../widgets/loyalty_card_widget.dart';
 
 /// Carte Fidélité screen.
@@ -30,7 +29,6 @@ class LoyaltyCardScreen extends ConsumerWidget {
       body: SafeArea(
         child: isAuthenticated ? _buildCardContent(context, loyaltyAsync) : _buildLoginPrompt(context),
       ),
-      bottomNavigationBar: const BottomNavBar(),
     );
   }
 

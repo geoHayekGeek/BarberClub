@@ -8,7 +8,6 @@ import '../providers/barber_providers.dart';
 import '../widgets/barber_gallery.dart';
 import '../widgets/barber_hero_section.dart';
 import '../widgets/barber_interest_chips.dart';
-import '../widgets/bottom_nav_bar.dart';
 
 /// Profil coiffeur (barber detail) page.
 /// Hero, bio, centres d'intérêt, gallery, CTA.
@@ -38,7 +37,6 @@ class BarberDetailScreen extends ConsumerWidget {
             child: CircularProgressIndicator(),
           ),
         ),
-        bottomNavigationBar: const BottomNavBar(),
       ),
       error: (error, stackTrace) {
         final message = getBarberErrorMessage(error, stackTrace);
@@ -75,7 +73,6 @@ class BarberDetailScreen extends ConsumerWidget {
               ),
             ),
           ),
-          bottomNavigationBar: const BottomNavBar(),
         );
       },
     );
@@ -149,7 +146,6 @@ class _BarberDetailContent extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNavBar(),
     );
   }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/bottom_nav_bar.dart';
 
 /// RDV (Appointments) screen placeholder
 class RdvScreen extends StatelessWidget {
@@ -19,7 +18,6 @@ class RdvScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(),
     );
   }
 }

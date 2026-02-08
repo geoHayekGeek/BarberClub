@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/salon_providers.dart';
-import '../widgets/bottom_nav_bar.dart';
 import '../widgets/salon_card.dart';
 
 class SalonsListScreen extends ConsumerWidget {
@@ -12,9 +11,9 @@ class SalonsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final salonsAsync = ref.watch(salonsListProvider);
     
-    // 1. Check if we are in "Offers Mode"
+    // 1. Check if we are in "Offers Mode" (path /offres or query selectFor=offers)
     final state = GoRouterState.of(context);
-    final isOfferSelection = state.uri.queryParameters['selectFor'] == 'offers';
+    final isOfferSelection = state.uri.path == '/offres' || state.uri.queryParameters['selectFor'] == 'offers';
 
     return Scaffold(
       appBar: AppBar(
@@ -45,7 +44,7 @@ class SalonsListScreen extends ConsumerWidget {
                 final salon = salons[index];
                 return SalonCard(
                   salon: salon,
-                  onTap: () => context.push('/salons/${salon.id}'),
+                  onTap: () => context.push(isOfferSelection ? '/offres/${salon.id}' : '/salons/${salon.id}'),
                   // 3. Pass the flag to hide description
                   hideDescription: isOfferSelection,
                 );
@@ -85,7 +84,6 @@ class SalonsListScreen extends ConsumerWidget {
           },
         ),
       ),
-      bottomNavigationBar: const BottomNavBar(),
     );
   }
 }
