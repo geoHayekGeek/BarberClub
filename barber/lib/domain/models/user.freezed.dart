@@ -25,6 +25,7 @@ mixin _$User {
   String get email => throw _privateConstructorUsedError;
   String get phoneNumber => throw _privateConstructorUsedError;
   String? get fullName => throw _privateConstructorUsedError;
+  String get role => throw _privateConstructorUsedError;
 
   /// Serializes this User to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -40,7 +41,13 @@ abstract class $UserCopyWith<$Res> {
   factory $UserCopyWith(User value, $Res Function(User) then) =
       _$UserCopyWithImpl<$Res, User>;
   @useResult
-  $Res call({String id, String email, String phoneNumber, String? fullName});
+  $Res call({
+    String id,
+    String email,
+    String phoneNumber,
+    String? fullName,
+    String role,
+  });
 }
 
 /// @nodoc
@@ -62,6 +69,7 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
     Object? email = null,
     Object? phoneNumber = null,
     Object? fullName = freezed,
+    Object? role = null,
   }) {
     return _then(
       _value.copyWith(
@@ -81,6 +89,10 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
                 ? _value.fullName
                 : fullName // ignore: cast_nullable_to_non_nullable
                       as String?,
+            role: null == role
+                ? _value.role
+                : role // ignore: cast_nullable_to_non_nullable
+                      as String,
           )
           as $Val,
     );
@@ -95,7 +107,13 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
   ) = __$$UserImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String email, String phoneNumber, String? fullName});
+  $Res call({
+    String id,
+    String email,
+    String phoneNumber,
+    String? fullName,
+    String role,
+  });
 }
 
 /// @nodoc
@@ -114,6 +132,7 @@ class __$$UserImplCopyWithImpl<$Res>
     Object? email = null,
     Object? phoneNumber = null,
     Object? fullName = freezed,
+    Object? role = null,
   }) {
     return _then(
       _$UserImpl(
@@ -133,6 +152,10 @@ class __$$UserImplCopyWithImpl<$Res>
             ? _value.fullName
             : fullName // ignore: cast_nullable_to_non_nullable
                   as String?,
+        role: null == role
+            ? _value.role
+            : role // ignore: cast_nullable_to_non_nullable
+                  as String,
       ),
     );
   }
@@ -146,6 +169,7 @@ class _$UserImpl implements _User {
     required this.email,
     required this.phoneNumber,
     this.fullName,
+    this.role = 'USER',
   });
 
   factory _$UserImpl.fromJson(Map<String, dynamic> json) =>
@@ -159,10 +183,13 @@ class _$UserImpl implements _User {
   final String phoneNumber;
   @override
   final String? fullName;
+  @override
+  @JsonKey()
+  final String role;
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, phoneNumber: $phoneNumber, fullName: $fullName)';
+    return 'User(id: $id, email: $email, phoneNumber: $phoneNumber, fullName: $fullName, role: $role)';
   }
 
   @override
@@ -175,13 +202,14 @@ class _$UserImpl implements _User {
             (identical(other.phoneNumber, phoneNumber) ||
                 other.phoneNumber == phoneNumber) &&
             (identical(other.fullName, fullName) ||
-                other.fullName == fullName));
+                other.fullName == fullName) &&
+            (identical(other.role, role) || other.role == role));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, id, email, phoneNumber, fullName);
+      Object.hash(runtimeType, id, email, phoneNumber, fullName, role);
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -203,6 +231,7 @@ abstract class _User implements User {
     required final String email,
     required final String phoneNumber,
     final String? fullName,
+    final String role,
   }) = _$UserImpl;
 
   factory _User.fromJson(Map<String, dynamic> json) = _$UserImpl.fromJson;
@@ -215,6 +244,8 @@ abstract class _User implements User {
   String get phoneNumber;
   @override
   String? get fullName;
+  @override
+  String get role;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.

@@ -60,5 +60,7 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>Pour scanner le QR code de la carte fidélité.</string>
 	</dict>
 </plist>

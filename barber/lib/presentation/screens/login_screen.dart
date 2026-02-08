@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../domain/models/user.dart';
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
@@ -53,10 +54,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authStateProvider);
     final isLoading = authState.status == AuthStatus.authenticating;
 
-    // Navigate to home on successful login
+    // Navigate by role on successful login
     ref.listen<AuthState>(authStateProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
-        context.go('/home');
+        if (next.user?.isAdmin == true) {
+          context.go('/admin/scanner');
+        } else {
+          context.go('/home');
+        }
       }
     });
 

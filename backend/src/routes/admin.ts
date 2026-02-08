@@ -5,16 +5,24 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../middleware/adminAuth';
-import { adminLimiter } from '../middleware/rateLimit';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { requireAdmin } from '../middleware/requireRole';
+import { adminLimiter, qrScanLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { salonsService } from '../modules/salons/service';
 import { barbersService } from '../modules/barbers/service';
 import { offersService } from '../modules/offers/service';
+import { loyaltyService } from '../modules/loyalty/service';
 import { createSalonBodySchema } from '../modules/salons/validation';
 import { createBarberBodySchema } from '../modules/barbers/validation';
 import { createOfferBodySchema } from '../modules/offers/validation';
+import { z } from 'zod';
 
 const router = Router();
+
+const loyaltyScanSchema = z.object({
+  token: z.string().min(1),
+});
 
 /**
  * @swagger
@@ -228,6 +236,23 @@ router.post(
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
       });
       res.status(201).json({ data: offer });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** POST /admin/loyalty/scan — Admin scans user QR token, increments loyalty point (JWT + role ADMIN). */
+router.post(
+  '/loyalty/scan',
+  authenticate,
+  requireAdmin,
+  qrScanLimiter,
+  validate(loyaltyScanSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await loyaltyService.scanQrTokenByAdmin(req.body.token);
+      res.status(200).json({ data: result });
     } catch (error) {
       next(error);
     }

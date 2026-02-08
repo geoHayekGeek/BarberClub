@@ -1,6 +1,5 @@
 /**
- * Seed script: salons + barbers (coiffeurs) with links.
- * * Updated: Offers section simplified to only include Title, Description, Price, and Salon link.
+ * Seed script: admin user + salons + barbers (coiffeurs) with links.
  *
  * Run AFTER migrations: npx prisma migrate dev
  * Then: npx prisma db seed
@@ -8,12 +7,47 @@
 /// <reference types="node" />
 
 import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../src/modules/auth/utils/password';
 
 const prisma = new PrismaClient();
+
+const ADMIN_EMAIL = 'admin@barber-club.com';
+const ADMIN_PASSWORD = 'admin123';
+
+async function seedAdmin() {
+  const existing = await prisma.user.findUnique({
+    where: { email: ADMIN_EMAIL },
+  });
+  if (existing) {
+    if (existing.role === 'ADMIN') {
+      console.log('Admin user already exists.');
+      return;
+    }
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: { role: 'ADMIN' },
+    });
+    console.log('Existing user updated to ADMIN.');
+    return;
+  }
+  const passwordHash = await hashPassword(ADMIN_PASSWORD);
+  await prisma.user.create({
+    data: {
+      email: ADMIN_EMAIL,
+      phoneNumber: '+33000000000',
+      passwordHash,
+      fullName: 'Admin',
+      role: 'ADMIN',
+    },
+  });
+  console.log('Admin user created:', ADMIN_EMAIL);
+}
 
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400';
 
 async function main() {
+  await seedAdmin();
+
   const barberCountBefore = await prisma.barber.count();
   console.log(`Barbers in DB before seed: ${barberCountBefore}`);
 

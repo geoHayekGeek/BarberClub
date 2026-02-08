@@ -13,16 +13,41 @@ import '../screens/salons_list_screen.dart';
 import '../screens/salon_detail_screen.dart';
 import '../screens/barbers_list_screen.dart';
 import '../screens/barber_detail_screen.dart';
+import '../screens/admin_scanner_screen.dart';
+import '../screens/admin_compte_screen.dart';
+import '../widgets/admin_app_shell.dart';
+import '../providers/auth_providers.dart';
+import '../../domain/models/user.dart';
 import '../../core/network/dio_client.dart';
 import '../screens/offers_list_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 /// App router configuration.
-/// Single navigation: bottom bar with 6 tabs. No expandable menu.
+/// Role-based: ADMIN -> /admin (QR scanner only). USER -> bottom nav shell.
 final appRouterProvider = Provider<GoRouter>((ref) {
+  ref.watch(authStateProvider);
   return GoRouter(
     navigatorKey: navigatorKey,
     initialLocation: '/login',
+    redirect: (BuildContext context, GoRouterState state) {
+      final auth = ref.read(authStateProvider);
+      final loc = state.matchedLocation;
+      final isAuth = auth.status == AuthStatus.authenticated;
+      final isAdmin = auth.user?.isAdmin == true;
+
+      if (isAuth && isAdmin) {
+        if (!loc.startsWith('/admin')) return '/admin/scanner';
+        if (loc == '/admin') return '/admin/scanner';
+      } else if (isAuth && !isAdmin) {
+        if (loc == '/login' || loc == '/signup') return '/home';
+        if (loc.startsWith('/admin')) return '/home';
+      } else {
+        if (loc.startsWith('/admin') || loc == '/home' || loc.startsWith('/carte-fidelite') ||
+            loc.startsWith('/rdv') || loc.startsWith('/coiffeurs') || loc.startsWith('/salons') ||
+            loc.startsWith('/offres') || loc == '/compte') return '/login';
+      }
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/login',
@@ -54,6 +79,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/compte',
         name: 'compte',
         builder: (context, state) => const CompteScreen(),
+      ),
+      // Admin app: shell (scanner + compte), no bottom nav
+      ShellRoute(
+        builder: (context, state, child) => AdminAppShell(
+          matchedLocation: state.matchedLocation,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/admin',
+            redirect: (context, state) {
+              final path = state.uri.path;
+              if (path == '/admin' || path == '/admin/') return '/admin/scanner';
+              return null;
+            },
+            routes: [
+              GoRoute(
+                path: 'scanner',
+                name: 'admin-scanner',
+                builder: (context, state) => const AdminScannerScreen(),
+              ),
+              GoRoute(
+                path: 'compte',
+                name: 'admin-compte',
+                builder: (context, state) => const AdminCompteScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
       // Main app: 6 tabs in a shell (IndexedStack-style state preservation)
       StatefulShellRoute.indexedStack(

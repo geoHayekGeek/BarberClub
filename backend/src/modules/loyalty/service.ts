@@ -28,17 +28,17 @@ export interface ScanResponse {
 
 class LoyaltyService {
   async getState(userId: string): Promise<LoyaltyStateResponse> {
-    const loyaltyState = await prisma.loyaltyState.findUnique({
-      where: { userId },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { loyaltyPoints: true },
     });
-
-    const stamps = loyaltyState?.stamps ?? 0;
+    const points = user?.loyaltyPoints ?? 0;
     const target = config.LOYALTY_TARGET;
-    const eligibleForReward = stamps >= target;
-    const remaining = Math.max(0, target - stamps);
+    const eligibleForReward = points >= target;
+    const remaining = Math.max(0, target - points);
 
     return {
-      stamps,
+      stamps: points,
       target,
       eligibleForReward,
       remaining,
@@ -172,6 +172,74 @@ class LoyaltyService {
       qrPayload,
       expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  /** V1 minimal flow: generate short-lived QR token for loyalty point scan (USER only). */
+  async generateQrToken(userId: string): Promise<{ token: string; expiresAt: string }> {
+    const raw = randomBytes(8).toString('hex');
+    const payload = `LOYALTY_QR:${raw}`;
+    const tokenHash = this.hashToken(payload);
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+
+    await prisma.loyaltyQrToken.create({
+      data: {
+        userId,
+        tokenHash,
+        expiresAt,
+      },
+    });
+
+    logger.info('Loyalty QR token generated', {
+      userId,
+      expiresAt: expiresAt.toISOString(),
+      tokenForTesting: process.env.NODE_ENV !== 'production' ? payload : undefined,
+    });
+    return {
+      token: payload,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  /** V1 minimal flow: admin scans QR token, validate and increment user.loyaltyPoints. */
+  async scanQrTokenByAdmin(token: string): Promise<{ success: boolean }> {
+    const tokenHash = this.hashToken(token);
+
+    const record = await prisma.loyaltyQrToken.findFirst({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!record || record.usedAt || record.expiresAt <= new Date()) {
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code is invalid or expired',
+        400
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.loyaltyQrToken.findUnique({
+        where: { id: record.id },
+      });
+      if (!current || current.usedAt || current.expiresAt <= new Date()) {
+        throw new AppError(
+          ErrorCode.INVALID_OR_EXPIRED_QR,
+          'QR code is invalid or expired',
+          400
+        );
+      }
+      await tx.loyaltyQrToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { loyaltyPoints: { increment: 1 } },
+      });
+    });
+
+    logger.info('Loyalty QR token scanned', { userId: record.userId });
+    return { success: true };
   }
 
   async scanQR(qrPayload: string): Promise<ScanResponse> {
