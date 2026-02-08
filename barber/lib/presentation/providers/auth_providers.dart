@@ -246,6 +246,49 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  // --- NEW METHODS START ---
+
+  /// Update profile details
+  Future<void> updateProfile({
+    String? email,
+    String? phoneNumber,
+    String? fullName,
+  }) async {
+    // We intentionally do NOT set global 'authenticating' status 
+    // to allow the UI to handle loading locally (e.g., button spinner)
+    // or you can add a separate loading state field if preferred.
+    try {
+      final updatedUser = await _authRepository.updateProfile(
+        email: email,
+        phoneNumber: phoneNumber,
+        fullName: fullName,
+      );
+      
+      // Immediately update local state with new user info
+      state = state.copyWith(user: updatedUser);
+    } catch (e) {
+      // We rethrow so the UI (CompteScreen) can catch it and show a SnackBar
+      rethrow;
+    }
+  }
+
+  /// Change password
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _authRepository.changePassword(
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- NEW METHODS END ---
+
   /// Get friendly error message for reset password
   String _getResetPasswordErrorMessage(ApiError error) {
     switch (error.code) {

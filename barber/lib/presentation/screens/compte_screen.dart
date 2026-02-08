@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/bottom_nav_bar.dart';
 
-/// Compte (Account) screen
 class CompteScreen extends ConsumerWidget {
   const CompteScreen({super.key});
 
@@ -14,17 +13,13 @@ class CompteScreen extends ConsumerWidget {
     final user = authState.user;
     final theme = Theme.of(context);
 
-    // Placeholder initials or icon if no name
+    // Initial logic for avatar
     final initials = user?.fullName?.isNotEmpty == true
         ? user!.fullName![0].toUpperCase()
         : 'U';
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
-        ),
         title: const Text('Mon Profil'),
         centerTitle: true,
         elevation: 0,
@@ -38,7 +33,7 @@ class CompteScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
-                    // 1. Profile Avatar Section
+                    // 1. Avatar Section
                     Container(
                       width: 100,
                       height: 100,
@@ -46,15 +41,12 @@ class CompteScreen extends ConsumerWidget {
                         shape: BoxShape.circle,
                         color: const Color(0xFF1A1A1A),
                         border: Border.all(
-                          color: theme.colorScheme.primary.withOpacity(0.5),
-                          width: 2,
-                        ),
+                            color: theme.colorScheme.primary.withOpacity(0.5), width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Center(
@@ -70,28 +62,24 @@ class CompteScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
                     
-                    // 2. Name Header
+                    // Name & Badge
                     Text(
                       user.fullName ?? 'Utilisateur',
                       style: theme.textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          color: Colors.white, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Membre Barber Club',
                       style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
+                          color: theme.colorScheme.primary,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600),
                     ),
-
                     const SizedBox(height: 40),
 
-                    // 3. Information Card
+                    // 2. Info Card with EDIT Button
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A1A1A),
@@ -100,20 +88,64 @@ class CompteScreen extends ConsumerWidget {
                       ),
                       child: Column(
                         children: [
-                          _buildInfoTile(
-                            context,
-                            icon: Icons.email_outlined,
-                            title: 'Email',
-                            value: user.email,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Mes Informations',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(color: Colors.white)),
+                                // The Edit Button triggers the bottom sheet
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined,
+                                      color: Colors.white70),
+                                  onPressed: () => _showEditProfileSheet(context, ref, user),
+                                ),
+                              ],
+                            ),
                           ),
-                          Divider(color: Colors.white.withOpacity(0.05), height: 1),
-                          _buildInfoTile(
-                            context,
-                            icon: Icons.phone_outlined,
-                            title: 'Téléphone',
-                            value: user.phoneNumber,
-                          ),
+                          const Divider(color: Colors.white10),
+                          _buildInfoTile(context,
+                              icon: Icons.person_outline,
+                              title: 'Nom complet',
+                              value: user.fullName ?? '-'),
+                          _buildInfoTile(context,
+                              icon: Icons.email_outlined,
+                              title: 'Email',
+                              value: user.email),
+                          _buildInfoTile(context,
+                              icon: Icons.phone_outlined,
+                              title: 'Téléphone',
+                              value: user.phoneNumber),
+                          const SizedBox(height: 16),
                         ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 3. Security Card (Change Password)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.lock_outline, color: Colors.white70),
+                        ),
+                        title: const Text('Mot de passe',
+                            style: TextStyle(color: Colors.white)),
+                        trailing: const Icon(Icons.arrow_forward_ios,
+                            size: 16, color: Colors.white54),
+                        // Triggers password change sheet
+                        onTap: () => _showChangePasswordSheet(context, ref),
                       ),
                     ),
 
@@ -126,27 +158,22 @@ class CompteScreen extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           await ref.read(authStateProvider.notifier).logout();
-                          if (context.mounted) {
-                            context.go('/login');
-                          }
+                          if (context.mounted) context.go('/login');
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          foregroundColor: Colors.redAccent, // Red for logout action
+                          backgroundColor: Colors.white.withOpacity(0.05),
+                          foregroundColor: Colors.redAccent,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                            side: BorderSide(
+                                color: Colors.white.withOpacity(0.1)),
                           ),
                         ),
                         icon: const Icon(Icons.logout),
-                        label: const Text(
-                          'Se déconnecter',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        label: const Text('Se déconnecter',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],
@@ -157,47 +184,271 @@ class CompteScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
+  Widget _buildInfoTile(BuildContext context,
+      {required IconData icon, required String title, required String value}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: Colors.white70, size: 22),
-          ),
+          Icon(icon, color: Colors.white38, size: 20),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white38,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
+                Text(title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.white38)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- EDIT PROFILE SHEET ---
+  void _showEditProfileSheet(BuildContext context, WidgetRef ref, dynamic user) {
+    final nameCtrl = TextEditingController(text: user.fullName);
+    final emailCtrl = TextEditingController(text: user.email);
+    final phoneCtrl = TextEditingController(text: user.phoneNumber);
+    final formKey = GlobalKey<FormState>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            left: 24,
+            right: 24,
+            top: 24),
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Modifier le profil',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nom complet'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (v) => v!.contains('@') ? null : 'Email invalide',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: phoneCtrl,
+                decoration: const InputDecoration(labelText: 'Téléphone'),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    return ElevatedButton(
+                      onPressed: () async {
+                        if (!formKey.currentState!.validate()) return;
+                        try {
+                          Navigator.pop(ctx); 
+                          // Calls the new provider method you just added
+                          await ref.read(authStateProvider.notifier).updateProfile(
+                                fullName: nameCtrl.text,
+                                email: emailCtrl.text,
+                                phoneNumber: phoneCtrl.text,
+                              );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Profil mis à jour')),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Enregistrer'),
+                    );
+                  }
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- CHANGE PASSWORD SHEET ---
+void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
+    final oldPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    // MOVED VARIABLES HERE: So they don't reset when the sheet updates
+    bool isLoading = false;
+    String? localError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+                left: 24,
+                right: 24,
+                top: 24),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Changer le mot de passe',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 24),
+
+                  // --- OLD PASSWORD ---
+                  TextFormField(
+                    controller: oldPassCtrl,
+                    obscureText: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Ancien mot de passe'),
+                    validator: (v) => v!.isEmpty ? 'Requis' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // --- NEW PASSWORD ---
+                  TextFormField(
+                    controller: newPassCtrl,
+                    obscureText: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Nouveau mot de passe'),
+                    validator: (v) =>
+                        v!.length < 8 ? 'Min 8 caractères' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // --- CONFIRM PASSWORD ---
+                  TextFormField(
+                    controller: confirmPassCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                        labelText: 'Confirmer le mot de passe'),
+                    validator: (v) => v != newPassCtrl.text
+                        ? 'Les mots de passe ne correspondent pas'
+                        : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // --- ERROR MESSAGE (In Red) ---
+                  if (localError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text(
+                        localError!,
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                  // --- BUTTON ---
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+
+                              // 1. Start Loading (Update UI)
+                              setModalState(() {
+                                isLoading = true;
+                                localError = null;
+                              });
+
+                              try {
+                                await ref
+                                    .read(authStateProvider.notifier)
+                                    .changePassword(
+                                      oldPassword: oldPassCtrl.text,
+                                      newPassword: newPassCtrl.text,
+                                    );
+
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Mot de passe modifié avec succès'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                // 2. Handle Error
+                                if (ctx.mounted) {
+                                  // Clean up the messy "ApiError..." string
+                                  String cleanMessage = e.toString();
+                                  
+                                  // Remove technical prefixes
+                                  cleanMessage = cleanMessage.replaceAll('Exception:', '').trim();
+                                  if (cleanMessage.contains('message:')) {
+                                    // Extract text between 'message: ' and the next comma
+                                    cleanMessage = cleanMessage.split('message:')[1].split(',')[0].trim();
+                                  } 
+
+                                  // Update UI with the error
+                                  setModalState(() {
+                                    isLoading = false;
+                                    localError = cleanMessage;
+                                  });
+                                }
+                              }
+                            },
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.black, // Dark loader on yellow button
+                              ),
+                            )
+                          : const Text('Confirmer'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

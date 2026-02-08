@@ -120,6 +120,53 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  // --- NEW METHODS ---
+
+  @override
+  Future<User> updateProfile({
+    String? email,
+    String? phoneNumber,
+    String? fullName,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (email != null) data['email'] = email;
+      if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
+      if (fullName != null) data['fullName'] = fullName;
+
+      final response = await _dio.put(
+        '/api/v1/auth/me',
+        data: data,
+      );
+
+      final responseData = response.data as Map<String, dynamic>;
+      // The backend returns { "user": { ... } }
+      return User.fromJson(responseData['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.post(
+        '/api/v1/auth/change-password',
+        data: {
+          'oldPassword': oldPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  // -------------------
+
   /// Convert DioException to ApiError
   ApiError _handleDioError(DioException error) {
     if (error.response != null) {
