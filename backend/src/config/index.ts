@@ -26,8 +26,12 @@ const configSchema = z.object({
   BACKEND_PUBLIC_URL: z
     .string()
     .optional()
-    .transform((val) => (val && val.trim()) || undefined)
-    .pipe(z.union([z.string().url(), z.undefined()])),
+    .transform((val) => {
+      const s = (val ?? '').trim();
+      if (!s) return undefined;
+      const result = z.string().url().safeParse(s);
+      return result.success ? result.data : undefined;
+    }),
   LOYALTY_TARGET: z.string().transform(Number).pipe(z.number().int().positive()).default('10'),
   LOYALTY_QR_TTL_SECONDS: z.string().transform(Number).pipe(z.number().int().positive()).default('120'),
   ENABLE_LOCAL_CANCEL: z.string().transform((val) => val === 'true').default('false'),
