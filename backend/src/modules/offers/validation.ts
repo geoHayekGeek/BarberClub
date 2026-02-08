@@ -19,37 +19,11 @@ export const offerIdParamSchema = z.object({
 const createOfferBaseSchema = z.object({
   adminSecret: z.string(),
   title: z.string().min(1),
-  description: z.string().min(1),
-  imageUrl: z.string().url().nullable().default(null),
-  validFrom: z.string().datetime().nullable().default(null),
-  validTo: z.string().datetime().nullable().default(null),
+  price: z.number().int().positive(),
   isActive: z.boolean().default(true),
-  // Ensure creation also requires a salon link
-  salonId: z.string().uuid(), 
+  salonId: z.string().uuid(),
 });
 
-export const createOfferSchema = createOfferBaseSchema.refine(
-  (data) => {
-    if (data.validFrom && data.validTo) {
-      return new Date(data.validFrom) <= new Date(data.validTo);
-    }
-    return true;
-  },
-  {
-    message: 'validFrom must be less than or equal to validTo',
-    path: ['validTo'],
-  }
-);
+export const createOfferSchema = createOfferBaseSchema;
 
-export const createOfferBodySchema = createOfferBaseSchema.omit({ adminSecret: true }).refine(
-  (data) => {
-    if (data.validFrom && data.validTo) {
-      return new Date(data.validFrom) <= new Date(data.validTo);
-    }
-    return true;
-  },
-  {
-    message: 'validFrom must be less than or equal to validTo',
-    path: ['validTo'],
-  }
-);
+export const createOfferBodySchema = createOfferBaseSchema.omit({ adminSecret: true });

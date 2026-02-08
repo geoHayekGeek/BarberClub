@@ -5,7 +5,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../middleware/adminAuth';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireRole';
 import { adminLimiter, qrScanLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
@@ -229,10 +229,8 @@ router.post(
     try {
       const offer = await offersService.createOffer({
         title: req.body.title,
-        description: req.body.description,
-        imageUrl: req.body.imageUrl ?? null,
-        validFrom: req.body.validFrom ?? null,
-        validTo: req.body.validTo ?? null,
+        price: req.body.price,
+        salonId: req.body.salonId,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
       });
       res.status(201).json({ data: offer });
