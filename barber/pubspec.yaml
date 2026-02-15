@@ -9,7 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+  cupertino_icons: ^1.0.8
+
   # State Management
   flutter_riverpod: ^2.5.1
   
@@ -69,7 +70,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-  
+
   # Assets
   assets:
     - assets/images/barber_background.jpg

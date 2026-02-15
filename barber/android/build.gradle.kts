@@ -1,5 +1,11 @@
 allprojects {
     repositories {
+        maven {
+            url = uri("https://storage.googleapis.com/download.flutter.io")
+            content {
+                includeGroupByRegex("io\\.flutter.*")
+            }
+        }
         google()
         mavenCentral()
     }
