@@ -15,7 +15,7 @@ abstract class AuthRepository {
   });
 
   /// Login with email or phone number
-  /// 
+  ///  
   /// Throws [ApiError] on failure
   Future<AuthResponse> login({
     String? email,
@@ -44,6 +44,27 @@ abstract class AuthRepository {
   Future<void> resetPassword({
     required String email,
     required String code,
+    required String newPassword,
+  });
+
+  // --- NEW METHODS ADDED BELOW ---
+
+  /// Update user profile details
+  /// 
+  /// Returns the updated [User] object.
+  /// Throws [ApiError] on failure.
+  Future<User> updateProfile({
+    String? email,
+    String? phoneNumber,
+    String? fullName,
+  });
+
+  /// Change the current user's password
+  /// 
+  /// Requires the [oldPassword] for verification.
+  /// Throws [ApiError] on failure.
+  Future<void> changePassword({
+    required String oldPassword,
     required String newPassword,
   });
 }

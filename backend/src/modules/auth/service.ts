@@ -351,6 +351,77 @@ export class AuthService {
 
     return user;
   }
+  // ... existing imports
+// Make sure you import the password helpers at the top:
+
+// ... inside AuthService class ...
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userId: string, data: { email?: string; phoneNumber?: string; fullName?: string }) {
+    // 1. Check if email or phone is already taken by ANOTHER user
+    if (data.email || data.phoneNumber) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            data.email ? { email: data.email } : {},
+            data.phoneNumber ? { phoneNumber: data.phoneNumber } : {},
+          ],
+          NOT: { id: userId }, // Exclude the user currently requesting the update
+        },
+      });
+
+      if (existingUser) {
+        // Use existing code from errors.ts
+        throw new AppError(ErrorCode.USER_ALREADY_EXISTS, 'Email ou numéro de téléphone déjà utilisé', 409);
+      }
+    }
+
+    // 2. Update the user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        fullName: data.fullName,
+      },
+    });
+
+    // Return user without sensitive data
+    const { passwordHash, ...safeUser } = updatedUser;
+    return safeUser;
+  }
+
+  /**
+   * Change password
+   */
+// backend/src/modules/auth/service.ts
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Utilisateur introuvable', 404);
+    }
+
+    const valid = await verifyPassword(user.passwordHash, oldPassword);
+    if (!valid) {
+      // CHANGE THIS LINE: 401 -> 400
+      throw new AppError(
+        ErrorCode.INVALID_CREDENTIALS, 
+        'Ancien mot de passe incorrect', 
+        400 // <--- CHANGED FROM 401 to 400
+      );
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
 }
 
 export const authService = new AuthService();
