@@ -6,6 +6,7 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../core/storage/token_repository.dart';
 import '../../core/storage/secure_token_repository.dart';
 import '../../core/network/dio_client.dart';
+import '../../core/services/fcm_service.dart';
 
 /// Auth status enum
 enum AuthStatus {
@@ -59,14 +60,22 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(dioClient: dioClient);
 });
 
+/// FCM service provider
+final fcmServiceProvider = Provider<FcmService>((ref) {
+  final dioClient = ref.watch(dioClientProvider);
+  return FcmService(dioClient: dioClient);
+});
+
 /// Auth state provider
 final authStateProvider = StateNotifierProvider<AuthController, AuthState>(
   (ref) {
     final authRepository = ref.watch(authRepositoryProvider);
     final tokenRepository = ref.watch(tokenRepositoryProvider);
+    final fcmService = ref.watch(fcmServiceProvider);
     return AuthController(
       authRepository: authRepository,
       tokenRepository: tokenRepository,
+      fcmService: fcmService,
     );
   },
 );
@@ -76,14 +85,17 @@ class AuthController extends StateNotifier<AuthState> {
   AuthController({
     required AuthRepository authRepository,
     required TokenRepository tokenRepository,
+    required FcmService fcmService,
   })  : _authRepository = authRepository,
         _tokenRepository = tokenRepository,
+        _fcmService = fcmService,
         super(
           const AuthState(status: AuthStatus.unauthenticated),
         );
 
   final AuthRepository _authRepository;
   final TokenRepository _tokenRepository;
+  final FcmService _fcmService;
 
   /// Bootstrap session: check if user is already logged in
   Future<void> bootstrapSession() async {
@@ -101,6 +113,7 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: user,
       );
+      await _fcmService.registerWithBackend();
     } catch (e) {
       // Clear invalid tokens
       await _tokenRepository.clearTokens();
@@ -135,6 +148,7 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: response.user,
       );
+      await _fcmService.registerWithBackend();
     } catch (e) {
       final errorMessage = e is ApiError
           ? e.getFriendlyMessage()
@@ -175,6 +189,7 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: response.user,
       );
+      await _fcmService.registerWithBackend();
     } catch (e) {
       final errorMessage = e is ApiError
           ? e.getFriendlyMessage()

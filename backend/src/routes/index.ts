@@ -5,6 +5,7 @@
 
 import { Router } from 'express';
 import authRoutes from './auth';
+import usersRoutes from './users';
 import loyaltyRoutes from './loyalty';
 import offersRoutes from './offers';
 import salonsRoutes from './salons';
@@ -15,6 +16,7 @@ import adminRoutes from './admin';
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/users', usersRoutes);
 router.use('/loyalty', loyaltyRoutes);
 router.use('/offers', offersRoutes);
 router.use('/salons', salonsRoutes);

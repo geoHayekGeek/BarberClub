@@ -24,75 +24,75 @@ const router = Router();
 /**
  * @swagger
  * /api/v1/auth/register:
- * post:
- * summary: Register a new user
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - email
- * - phoneNumber
- * - password
- * properties:
- * email:
- * type: string
- * format: email
- * description: Unique email address (case-insensitive)
- * phoneNumber:
- * type: string
- * description: Unique phone number in E.164 format (e.g., +1234567890)
- * password:
- * type: string
- * minLength: 8
- * fullName:
- * type: string
- * responses:
- * 201:
- * description: User registered successfully
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * user:
- * type: object
- * accessToken:
- * type: string
- * refreshToken:
- * type: string
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 409:
- * description: Email or phone number already registered
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * error:
- * type: object
- * properties:
- * code:
- * type: string
- * example: USER_ALREADY_EXISTS
- * message:
- * type: string
- * example: Email or phone number already in use
- * fields:
- * type: object
- * properties:
- * email:
- * type: boolean
- * phoneNumber:
- * type: boolean
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - phoneNumber
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Unique email address (case-insensitive)
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Unique phone number in E.164 format
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *               fullName:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Email or phone number already registered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     code:
+ *                       type: string
+ *                       example: USER_ALREADY_EXISTS
+ *                     message:
+ *                       type: string
+ *                       example: Email or phone number already in use
+ *                     fields:
+ *                       type: object
+ *                       properties:
+ *                         email:
+ *                           type: boolean
+ *                         phoneNumber:
+ *                           type: boolean
  */
 router.post(
   '/register',
@@ -111,51 +111,51 @@ router.post(
 /**
  * @swagger
  * /api/v1/auth/login:
- * post:
- * summary: Login with email or phone number
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - password
- * properties:
- * email:
- * type: string
- * format: email
- * phoneNumber:
- * type: string
- * password:
- * type: string
- * responses:
- * 200:
- * description: Login successful
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * user:
- * type: object
- * accessToken:
- * type: string
- * refreshToken:
- * type: string
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 401:
- * description: Invalid credentials
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     summary: Login with email or phone number
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phoneNumber:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post(
   '/login',
@@ -174,44 +174,44 @@ router.post(
 /**
  * @swagger
  * /api/v1/auth/refresh:
- * post:
- * summary: Refresh access token
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - refreshToken
- * properties:
- * refreshToken:
- * type: string
- * responses:
- * 200:
- * description: Tokens refreshed successfully
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * accessToken:
- * type: string
- * refreshToken:
- * type: string
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 401:
- * description: Invalid or expired refresh token
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Tokens refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Invalid or expired refresh token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post(
   '/refresh',
@@ -229,29 +229,29 @@ router.post(
 /**
  * @swagger
  * /api/v1/auth/logout:
- * post:
- * summary: Logout and revoke refresh token
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - refreshToken
- * properties:
- * refreshToken:
- * type: string
- * responses:
- * 200:
- * description: Logged out successfully
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     summary: Logout and revoke refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post(
   '/logout',
@@ -269,27 +269,27 @@ router.post(
 /**
  * @swagger
  * /api/v1/auth/me:
- * get:
- * summary: Get current user profile
- * tags: [Auth]
- * security:
- * - bearerAuth: []
- * responses:
- * 200:
- * description: User profile
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * user:
- * type: object
- * 401:
- * description: Unauthorized
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get(
   '/me',
@@ -310,53 +310,53 @@ router.get(
 /**
  * @swagger
  * /api/v1/auth/me:
- * put:
- * summary: Update user profile
- * tags: [Auth]
- * security:
- * - bearerAuth: []
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * email:
- * type: string
- * format: email
- * phoneNumber:
- * type: string
- * fullName:
- * type: string
- * responses:
- * 200:
- * description: Profile updated successfully
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * user:
- * type: object
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 401:
- * description: Unauthorized
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 409:
- * description: Email or phone already in use
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   put:
+ *     summary: Update user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phoneNumber:
+ *                 type: string
+ *               fullName:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Email or phone already in use
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.put(
   '/me',
@@ -378,48 +378,48 @@ router.put(
 /**
  * @swagger
  * /api/v1/auth/change-password:
- * post:
- * summary: Change password
- * tags: [Auth]
- * security:
- * - bearerAuth: []
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - oldPassword
- * - newPassword
- * properties:
- * oldPassword:
- * type: string
- * newPassword:
- * type: string
- * minLength: 8
- * responses:
- * 200:
- * description: Password updated successfully
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * message:
- * type: string
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 401:
- * description: Unauthorized or invalid old password
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     summary: Change password
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 8
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized or invalid old password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post(
   '/change-password',
@@ -445,31 +445,31 @@ router.post(
 /**
  * @swagger
  * /api/v1/auth/forgot-password:
- * post:
- * summary: Request password reset
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - email
- * properties:
- * email:
- * type: string
- * format: email
- * responses:
- * 200:
- * description: If the email exists, a 6-digit code has been sent (no enumeration)
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * message:
- * type: string
+ *   post:
+ *     summary: Request password reset
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: If the email exists, a 6-digit code has been sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
  */
 router.post(
   '/forgot-password',
@@ -490,58 +490,58 @@ router.post(
 /**
  * @swagger
  * /api/v1/auth/reset-password:
- * post:
- * summary: Reset password with OTP code
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - email
- * - code
- * - newPassword
- * properties:
- * email:
- * type: string
- * format: email
- * code:
- * type: string
- * pattern: '^\d{6}$'
- * description: 6-digit OTP code from email
- * newPassword:
- * type: string
- * minLength: 8
- * responses:
- * 200:
- * description: Password reset successfully
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * message:
- * type: string
- * 400:
- * description: Validation error
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 401:
- * description: Invalid or expired code
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
- * 429:
- * description: Too many failed attempts
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     summary: Reset password with OTP code
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - code
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               code:
+ *                 type: string
+ *                 pattern: '^\d{6}$'
+ *                 description: 6-digit OTP code from email
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 8
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Invalid or expired code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       429:
+ *         description: Too many failed attempts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post(
   '/reset-password',

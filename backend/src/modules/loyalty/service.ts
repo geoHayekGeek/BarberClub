@@ -5,6 +5,7 @@
 
 import { randomBytes, createHash } from 'crypto';
 import prisma from '../../db/client';
+import { getMessaging } from '../../config/firebase';
 import { AppError, ErrorCode } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import config from '../../config';
@@ -239,6 +240,29 @@ class LoyaltyService {
     });
 
     logger.info('Loyalty QR token scanned', { userId: record.userId });
+
+    const fcmToken = record.user?.fcmToken;
+    if (fcmToken) {
+      try {
+        const messaging = getMessaging();
+        if (messaging) {
+          await messaging.send({
+            token: fcmToken,
+            notification: {
+              title: 'Point fidélité ajouté',
+              body: 'Votre carte fidélité a été mise à jour.',
+            },
+            data: {
+              type: 'LOYALTY_POINT',
+              increment: '1',
+            },
+          });
+        }
+      } catch {
+        // Do not fail scan if push fails
+      }
+    }
+
     return { success: true };
   }
 
