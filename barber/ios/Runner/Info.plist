@@ -62,5 +62,9 @@
 		<false/>
 		<key>NSCameraUsageDescription</key>
 		<string>Pour scanner le QR code de la carte fidélité.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 	</dict>
 </plist>

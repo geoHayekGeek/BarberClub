@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'presentation/theme/app_theme.dart';
@@ -13,10 +14,10 @@ import 'core/network/dio_client.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await FcmService.initialize();
   } catch (_) {
-    // Firebase not configured (missing google-services.json / GoogleService-Info.plist)
+    // Firebase init failed
   }
   runApp(
     const ProviderScope(

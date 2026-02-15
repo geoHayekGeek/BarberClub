@@ -1,6 +1,6 @@
 /**
  * Firebase Admin SDK initialization
- * Initialized once using service account JSON from FIREBASE_SERVICE_ACCOUNT_PATH
+ * Uses FIREBASE_SERVICE_ACCOUNT (JSON string) or FIREBASE_SERVICE_ACCOUNT_PATH (file path)
  */
 
 import * as admin from 'firebase-admin';
@@ -14,21 +14,36 @@ export function initializeFirebase(): admin.app.App | null {
     return admin.app();
   }
 
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  if (!serviceAccountPath) {
-    return null;
+  let serviceAccount: object | null = null;
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountJson) {
+    try {
+      serviceAccount = JSON.parse(serviceAccountJson) as object;
+    } catch {
+      serviceAccount = null;
+    }
   }
 
-  const resolvedPath = path.isAbsolute(serviceAccountPath)
-    ? serviceAccountPath
-    : path.resolve(process.cwd(), serviceAccountPath);
-
-  if (!fs.existsSync(resolvedPath)) {
-    return null;
+  if (!serviceAccount) {
+    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+    if (!serviceAccountPath) {
+      return null;
+    }
+    const resolvedPath = path.isAbsolute(serviceAccountPath)
+      ? serviceAccountPath
+      : path.resolve(process.cwd(), serviceAccountPath);
+    if (!fs.existsSync(resolvedPath)) {
+      return null;
+    }
+    try {
+      serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8')) as object;
+    } catch {
+      return null;
+    }
   }
 
   try {
-    const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     initialized = true;
     return admin.app();

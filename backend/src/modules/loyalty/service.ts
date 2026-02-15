@@ -242,10 +242,14 @@ class LoyaltyService {
     logger.info('Loyalty QR token scanned', { userId: record.userId });
 
     const fcmToken = record.user?.fcmToken;
-    if (fcmToken) {
+    if (!fcmToken) {
+      logger.info('No FCM token for user, skip push', { userId: record.userId });
+    } else {
       try {
         const messaging = getMessaging();
-        if (messaging) {
+        if (!messaging) {
+          logger.warn('Firebase not configured (FIREBASE_SERVICE_ACCOUNT_PATH missing or invalid), skip push');
+        } else {
           await messaging.send({
             token: fcmToken,
             notification: {
@@ -257,9 +261,10 @@ class LoyaltyService {
               increment: '1',
             },
           });
+          logger.info('FCM push sent', { userId: record.userId });
         }
-      } catch {
-        // Do not fail scan if push fails
+      } catch (err) {
+        logger.warn('FCM push failed', { userId: record.userId, error: err instanceof Error ? err.message : err });
       }
     }
 
