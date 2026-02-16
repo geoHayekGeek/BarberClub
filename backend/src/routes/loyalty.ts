@@ -69,6 +69,30 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response, next: Ne
   }
 });
 
+router.get('/coupons', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+    }
+    const coupons = await loyaltyService.getCoupons(req.userId);
+    res.json({ data: coupons });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/coupons/:id/qr', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+    }
+    const data = await loyaltyService.generateCouponQr(req.userId, req.params.id);
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+});
+
 /**
  * @swagger
  * /api/v1/loyalty/qr:

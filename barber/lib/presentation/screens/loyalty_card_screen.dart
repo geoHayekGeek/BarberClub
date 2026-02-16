@@ -88,6 +88,8 @@ class LoyaltyCardScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: LoyaltyUIConstants.sectionSpacing),
+              _buildCouponsSection(context, ref),
             ],
           ),
         );
@@ -96,6 +98,57 @@ class LoyaltyCardScreen extends ConsumerWidget {
         child: CircularProgressIndicator(),
       ),
       error: (_, __) => _buildLoginPrompt(context),
+    );
+  }
+
+  Widget _buildCouponsSection(BuildContext context, WidgetRef ref) {
+    final couponsAsync = ref.watch(loyaltyCouponsProvider);
+
+    return couponsAsync.when(
+      data: (coupons) {
+        if (coupons.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: LoyaltyUIConstants.cardPadding),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mes coupes offertes',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                ...coupons.map((coupon) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _showCouponQr(context, ref, coupon.id),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            foregroundColor: Colors.black,
+                          ),
+                          child: const Text('Utiliser cette coupe'),
+                        ),
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -139,6 +192,84 @@ class LoyaltyCardScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  Future<void> _showCouponQr(BuildContext context, WidgetRef ref, String couponId) async {
+    try {
+      final dio = ref.read(dioClientProvider).dio;
+      final response = await dio.post('/api/v1/loyalty/coupons/$couponId/qr');
+      final data = response.data as Map<String, dynamic>;
+      final payload = data['data'] as Map<String, dynamic>?;
+      final token = payload?['token'] as String?;
+      if (token == null || token.isEmpty) return;
+      if (!context.mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => _CouponQrDialog(token: token),
+      );
+      if (context.mounted) {
+        ref.invalidate(loyaltyCouponsProvider);
+        ref.invalidate(loyaltyCardProvider);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de générer le QR code')),
+        );
+      }
+    }
+  }
+}
+
+class _CouponQrDialog extends StatelessWidget {
+  const _CouponQrDialog({required this.token});
+
+  final String token;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Coupe offerte'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 200,
+            height: 200,
+            color: Colors.white,
+            padding: const EdgeInsets.all(8),
+            child: QrImageView(
+              data: token,
+              version: QrVersions.auto,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Colors.black,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                color: Colors.black,
+                dataModuleShape: QrDataModuleShape.square,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'À faire scanner pour valider votre coupe offerte',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Fermer'),
+        ),
+      ],
+    );
   }
 }
 

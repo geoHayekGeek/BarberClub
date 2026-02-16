@@ -257,4 +257,19 @@ router.post(
   }
 );
 
+router.post(
+  '/loyalty/redeem',
+  authenticate,
+  requireAdmin,
+  validate(loyaltyScanSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await loyaltyService.redeemCoupon(req.body.token);
+      res.status(200).json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

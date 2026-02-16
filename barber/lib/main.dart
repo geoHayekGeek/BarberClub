@@ -7,6 +7,7 @@ import 'presentation/routing/app_router.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/loyalty_providers.dart';
 import 'presentation/widgets/loyalty_reward_modal.dart';
+import 'presentation/widgets/loyalty_reward_celebration_modal.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/services/fcm_service.dart';
 import 'core/network/dio_client.dart';
@@ -42,16 +43,33 @@ class _MainAppState extends ConsumerState<MainApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authStateProvider.notifier).bootstrapSession();
       final fcmService = ref.read(fcmServiceProvider);
-      fcmService.setupListeners(() {
+      fcmService.setupListeners((String type) {
         ref.read(qrDialogCloserProvider)?.call();
         ref.read(qrDialogCloserProvider.notifier).state = null;
-        _showLoyaltyRewardModal();
+
+        if (type == 'LOYALTY_REWARD') {
+          _showRewardCelebration();
+        } else {
+          _showLoyaltyPointModal();
+        }
+
         ref.invalidate(loyaltyCardProvider);
+        ref.invalidate(loyaltyCouponsProvider);
       });
     });
   }
 
-  void _showLoyaltyRewardModal() {
+  void _showRewardCelebration() {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => const LoyaltyRewardCelebrationModal(),
+    );
+  }
+
+  void _showLoyaltyPointModal() {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     showDialog<void>(

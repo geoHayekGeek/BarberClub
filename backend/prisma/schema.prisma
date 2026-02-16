@@ -34,6 +34,7 @@ model User {
   loyaltyRedemptionTokens LoyaltyRedemptionToken[]
   loyaltyRedemptions LoyaltyRedemption[]
   loyaltyQrTokens LoyaltyQrToken[]
+  loyaltyCoupons LoyaltyCoupon[]
 
   @@map("users")
 }
@@ -171,6 +172,23 @@ model LoyaltyQrToken {
   @@index([tokenHash])
   @@index([expiresAt, usedAt])
   @@map("loyalty_qr_tokens")
+}
+
+model LoyaltyCoupon {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  redeemedAt  DateTime? @map("redeemed_at")
+  qrTokenHash String?   @map("qr_token_hash")
+  qrExpiresAt DateTime? @map("qr_expires_at")
+  qrUsedAt    DateTime? @map("qr_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([qrTokenHash])
+  @@index([redeemedAt])
+  @@map("loyalty_coupons")
 }
 
 model Offer {

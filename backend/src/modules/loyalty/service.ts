@@ -11,10 +11,9 @@ import { logger } from '../../utils/logger';
 import config from '../../config';
 
 export interface LoyaltyStateResponse {
-  stamps: number;
+  points: number;
   target: number;
-  remaining: number;
-  eligibleForReward: boolean;
+  availableCoupons: number;
 }
 
 export interface QRCodeResponse {
@@ -33,17 +32,128 @@ class LoyaltyService {
       where: { id: userId },
       select: { loyaltyPoints: true },
     });
-    const points = user?.loyaltyPoints ?? 0;
-    const target = config.LOYALTY_TARGET;
-    const eligibleForReward = points >= target;
-    const remaining = Math.max(0, target - points);
+    
+    const availableCouponsCount = await prisma.loyaltyCoupon.count({
+      where: {
+        userId,
+        redeemedAt: null,
+      },
+    });
 
     return {
-      stamps: points,
-      target,
-      eligibleForReward,
-      remaining,
+      points: user?.loyaltyPoints ?? 0,
+      target: config.LOYALTY_TARGET,
+      availableCoupons: availableCouponsCount,
     };
+  }
+
+  async getCoupons(userId: string) {
+    return prisma.loyaltyCoupon.findMany({
+      where: {
+        userId,
+        redeemedAt: null,
+      },
+      select: {
+        id: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async generateCouponQr(userId: string, couponId: string): Promise<{ token: string; expiresAt: string }> {
+    const coupon = await prisma.loyaltyCoupon.findFirst({
+      where: {
+        id: couponId,
+        userId,
+        redeemedAt: null,
+      },
+    });
+
+    if (!coupon) {
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'Coupon introuvable ou déjà utilisé',
+        404
+      );
+    }
+
+    const raw = randomBytes(16).toString('hex');
+    const payload = `COUPON_QR:${raw}`;
+    const tokenHash = this.hashToken(payload);
+    const expiresAt = new Date(Date.now() + config.LOYALTY_QR_TTL_SECONDS * 1000);
+
+    await prisma.loyaltyCoupon.update({
+      where: { id: couponId },
+      data: {
+        qrTokenHash: tokenHash,
+        qrExpiresAt: expiresAt,
+        qrUsedAt: null,
+      },
+    });
+
+    logger.info('Coupon QR generated', {
+      userId,
+      couponId,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    return {
+      token: payload,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async redeemCoupon(token: string): Promise<{ success: boolean }> {
+    const tokenHash = this.hashToken(token);
+
+    const coupon = await prisma.loyaltyCoupon.findFirst({
+      where: {
+        qrTokenHash: tokenHash,
+        redeemedAt: null,
+      },
+    });
+
+    if (!coupon) {
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code invalide ou déjà utilisé',
+        400
+      );
+    }
+
+    if (!coupon.qrExpiresAt || coupon.qrExpiresAt <= new Date()) {
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code expiré',
+        400
+      );
+    }
+
+    if (coupon.qrUsedAt) {
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code déjà utilisé',
+        400
+      );
+    }
+
+    await prisma.loyaltyCoupon.update({
+      where: { id: coupon.id },
+      data: {
+        redeemedAt: new Date(),
+        qrUsedAt: new Date(),
+      },
+    });
+
+    logger.info('Coupon redeemed', {
+      userId: coupon.userId,
+      couponId: coupon.id,
+    });
+
+    return { success: true };
   }
 
   async redeem(userId: string): Promise<LoyaltyStateResponse> {
@@ -202,7 +312,7 @@ class LoyaltyService {
   }
 
   /** V1 minimal flow: admin scans QR token, validate and increment user.loyaltyPoints. */
-  async scanQrTokenByAdmin(token: string): Promise<{ success: boolean }> {
+  async scanQrTokenByAdmin(token: string): Promise<{ success: boolean; rewardEarned: boolean }> {
     const tokenHash = this.hashToken(token);
 
     const record = await prisma.loyaltyQrToken.findFirst({
@@ -218,6 +328,9 @@ class LoyaltyService {
       );
     }
 
+    let rewardEarned = false;
+    let newPoints = 0;
+
     await prisma.$transaction(async (tx) => {
       const current = await tx.loyaltyQrToken.findUnique({
         where: { id: record.id },
@@ -229,64 +342,85 @@ class LoyaltyService {
           400
         );
       }
+      
       await tx.loyaltyQrToken.update({
         where: { id: record.id },
         data: { usedAt: new Date() },
       });
-      await tx.user.update({
+
+      const updatedUser = await tx.user.update({
         where: { id: record.userId },
         data: { loyaltyPoints: { increment: 1 } },
+        select: { loyaltyPoints: true },
       });
+
+      newPoints = updatedUser.loyaltyPoints;
+
+      if (newPoints >= config.LOYALTY_TARGET) {
+        await tx.loyaltyCoupon.create({
+          data: {
+            userId: record.userId,
+          },
+        });
+
+        await tx.user.update({
+          where: { id: record.userId },
+          data: { loyaltyPoints: 0 },
+        });
+
+        rewardEarned = true;
+        newPoints = 0;
+      }
     });
 
-    logger.info('Loyalty QR token scanned', { userId: record.userId });
+    logger.info('Loyalty QR token scanned', {
+      userId: record.userId,
+      newPoints,
+      rewardEarned,
+    });
 
     const fcmToken = record.user?.fcmToken;
-    // #region agent log
-    import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:244',message:'Check fcmToken from DB',data:{userId:record.userId,fcmTokenExists:!!fcmToken,fcmTokenLength:fcmToken?.length??0,fcmTokenPreview:fcmToken?.substring(0,20)??null},timestamp:Date.now(),hypothesisId:'B'})+'\n')).catch(()=>{});
-    // #endregion
-    if (!fcmToken) {
-      logger.info('No FCM token for user, skip push', { userId: record.userId });
-    } else {
+    if (fcmToken) {
       try {
-        // #region agent log
-        import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:249',message:'Calling getMessaging()',data:{},timestamp:Date.now(),hypothesisId:'A'})+'\n')).catch(()=>{});
-        // #endregion
         const messaging = getMessaging();
-        // #region agent log
-        import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:250',message:'getMessaging() result',data:{messagingExists:!!messaging},timestamp:Date.now(),hypothesisId:'A'})+'\n')).catch(()=>{});
-        // #endregion
-        if (!messaging) {
-          logger.warn('Firebase not configured (FIREBASE_SERVICE_ACCOUNT_PATH missing or invalid), skip push');
-        } else {
-          // #region agent log
-          import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:253',message:'Calling messaging.send()',data:{fcmToken:fcmToken},timestamp:Date.now(),hypothesisId:'E'})+'\n')).catch(()=>{});
-          // #endregion
+        if (messaging) {
+          const notificationData = rewardEarned
+            ? {
+                title: 'Récompense débloquée',
+                body: 'Votre coupe offerte est disponible.',
+                type: 'LOYALTY_REWARD',
+              }
+            : {
+                title: 'Point fidélité ajouté',
+                body: 'Votre carte fidélité a été mise à jour.',
+                type: 'LOYALTY_POINT',
+              };
+
           await messaging.send({
             token: fcmToken,
             notification: {
-              title: 'Point fidélité ajouté',
-              body: 'Votre carte fidélité a été mise à jour.',
+              title: notificationData.title,
+              body: notificationData.body,
             },
             data: {
-              type: 'LOYALTY_POINT',
-              increment: '1',
+              type: notificationData.type,
             },
           });
-          // #region agent log
-          import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:264',message:'messaging.send() SUCCESS',data:{},timestamp:Date.now(),hypothesisId:'E'})+'\n')).catch(()=>{});
-          // #endregion
-          logger.info('FCM push sent', { userId: record.userId });
+          
+          logger.info('FCM push sent', {
+            userId: record.userId,
+            type: notificationData.type,
+          });
         }
       } catch (err) {
-        // #region agent log
-        import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:267',message:'FCM push EXCEPTION',data:{error:err instanceof Error?err.message:String(err),stack:err instanceof Error?err.stack:null},timestamp:Date.now(),hypothesisId:'E'})+'\n')).catch(()=>{});
-        // #endregion
-        logger.warn('FCM push failed', { userId: record.userId, error: err instanceof Error ? err.message : err });
+        logger.warn('FCM push failed', {
+          userId: record.userId,
+          error: err instanceof Error ? err.message : err,
+        });
       }
     }
 
-    return { success: true };
+    return { success: true, rewardEarned };
   }
 
   async scanQR(qrPayload: string): Promise<ScanResponse> {

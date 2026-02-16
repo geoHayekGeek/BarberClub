@@ -15,7 +15,7 @@ class FcmService {
   FcmService({required DioClient dioClient}) : _dio = dioClient.dio;
 
   final dynamic _dio;
-  VoidCallback? _onLoyaltyPoint;
+  void Function(String type)? _onLoyaltyEvent;
   static bool _initialized = false;
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
@@ -79,9 +79,9 @@ class FcmService {
   }
 
   /// Setup foreground and opened-from-notification handlers
-  void setupListeners(VoidCallback onLoyaltyPoint) {
+  void setupListeners(void Function(String type) onLoyaltyEvent) {
     if (!_initialized) return;
-    _onLoyaltyPoint = onLoyaltyPoint;
+    _onLoyaltyEvent = onLoyaltyEvent;
 
     // #region agent log
     debugPrint('[FCM LOG] fcm_service.dart:50 - Setting up FCM listeners');
@@ -103,11 +103,12 @@ class FcmService {
       }
       
       final data = message.data;
-      if (data['type'] == 'LOYALTY_POINT') {
+      final type = data['type'] as String?;
+      if (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD') {
         // #region agent log
-        debugPrint('[FCM LOG] fcm_service.dart:65 - LOYALTY_POINT detected, calling callback');
+        debugPrint('[FCM LOG] fcm_service.dart:65 - Loyalty event detected: $type');
         // #endregion
-        _onLoyaltyPoint?.call();
+        _onLoyaltyEvent?.call(type);
       }
     });
 
@@ -116,8 +117,9 @@ class FcmService {
       debugPrint('[FCM LOG] fcm_service.dart:73 - FCM onMessageOpenedApp (from background) - dataType="${message.data['type']}"');
       // #endregion
       final data = message.data;
-      if (data['type'] == 'LOYALTY_POINT') {
-        _onLoyaltyPoint?.call();
+      final type = data['type'] as String?;
+      if (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD') {
+        _onLoyaltyEvent?.call(type);
       }
     });
     
