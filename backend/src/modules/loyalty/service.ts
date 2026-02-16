@@ -156,7 +156,7 @@ class LoyaltyService {
     return { success: true };
   }
 
-  async redeem(userId: string): Promise<LoyaltyStateResponse> {
+  async redeem(userId: string): Promise<{ success: boolean }> {
     const loyaltyState = await prisma.loyaltyState.findUnique({
       where: { userId },
     });
@@ -174,7 +174,7 @@ class LoyaltyService {
 
     const newStamps = stamps - target;
 
-    const updated = await prisma.loyaltyState.upsert({
+    await prisma.loyaltyState.upsert({
       where: { userId },
       update: {
         stamps: newStamps,
@@ -188,15 +188,10 @@ class LoyaltyService {
     logger.info('Loyalty reward redeemed', {
       userId,
       oldStamps: stamps,
-      newStamps: updated.stamps,
+      newStamps,
     });
 
-    return {
-      stamps: updated.stamps,
-      target,
-      eligibleForReward: updated.stamps >= target,
-      remaining: Math.max(0, target - updated.stamps),
-    };
+    return { success: true };
   }
 
   async incrementStamps(userId: string): Promise<void> {

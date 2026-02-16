@@ -86,7 +86,8 @@ router.post('/coupons/:id/qr', authenticate, async (req: AuthRequest, res: Respo
     if (!req.userId) {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
     }
-    const data = await loyaltyService.generateCouponQr(req.userId, req.params.id);
+    const couponId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const data = await loyaltyService.generateCouponQr(req.userId, couponId);
     res.json({ data });
   } catch (error) {
     next(error);
