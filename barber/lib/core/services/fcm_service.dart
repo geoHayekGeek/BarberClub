@@ -31,14 +31,28 @@ class FcmService {
   /// Register FCM token with backend (call after login success)
   Future<void> registerWithBackend() async {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/63b71ee3-5927-4ca9-971f-9e0480755780',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fcm_service.dart:34',message:'FCM getToken called',data:{},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       final token = await FirebaseMessaging.instance.getToken();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/63b71ee3-5927-4ca9-971f-9e0480755780',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fcm_service.dart:35',message:'FCM token retrieved',data:{tokenExists:token!=null,tokenLength:token?.length??0,tokenPreview:token?.substring(0,20)??"null"},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       if (token == null || token.isEmpty) return;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/63b71ee3-5927-4ca9-971f-9e0480755780',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fcm_service.dart:38',message:'Calling backend to save token',data:{endpoint:'/api/v1/users/device-token'},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       await _dio.post(
         '/api/v1/users/device-token',
         data: {'token': token},
       );
-    } catch (_) {
-      // Silently ignore
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/63b71ee3-5927-4ca9-971f-9e0480755780',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fcm_service.dart:42',message:'Backend token save SUCCESS',data:{},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+    } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/63b71ee3-5927-4ca9-971f-9e0480755780',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fcm_service.dart:44',message:'registerWithBackend FAILED',data:{error:e.toString()},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
     }
   }
 

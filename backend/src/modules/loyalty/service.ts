@@ -242,14 +242,26 @@ class LoyaltyService {
     logger.info('Loyalty QR token scanned', { userId: record.userId });
 
     const fcmToken = record.user?.fcmToken;
+    // #region agent log
+    import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:244',message:'Check fcmToken from DB',data:{userId:record.userId,fcmTokenExists:!!fcmToken,fcmTokenLength:fcmToken?.length??0,fcmTokenPreview:fcmToken?.substring(0,20)??null},timestamp:Date.now(),hypothesisId:'B'})+'\n')).catch(()=>{});
+    // #endregion
     if (!fcmToken) {
       logger.info('No FCM token for user, skip push', { userId: record.userId });
     } else {
       try {
+        // #region agent log
+        import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:249',message:'Calling getMessaging()',data:{},timestamp:Date.now(),hypothesisId:'A'})+'\n')).catch(()=>{});
+        // #endregion
         const messaging = getMessaging();
+        // #region agent log
+        import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:250',message:'getMessaging() result',data:{messagingExists:!!messaging},timestamp:Date.now(),hypothesisId:'A'})+'\n')).catch(()=>{});
+        // #endregion
         if (!messaging) {
           logger.warn('Firebase not configured (FIREBASE_SERVICE_ACCOUNT_PATH missing or invalid), skip push');
         } else {
+          // #region agent log
+          import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:253',message:'Calling messaging.send()',data:{fcmToken:fcmToken},timestamp:Date.now(),hypothesisId:'E'})+'\n')).catch(()=>{});
+          // #endregion
           await messaging.send({
             token: fcmToken,
             notification: {
@@ -261,9 +273,15 @@ class LoyaltyService {
               increment: '1',
             },
           });
+          // #region agent log
+          import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:264',message:'messaging.send() SUCCESS',data:{},timestamp:Date.now(),hypothesisId:'E'})+'\n')).catch(()=>{});
+          // #endregion
           logger.info('FCM push sent', { userId: record.userId });
         }
       } catch (err) {
+        // #region agent log
+        import('fs').then(fs => fs.appendFileSync('c:\\Users\\GeorgioHayek\\Dev\\Applications\\Barber\\.cursor\\debug.log', JSON.stringify({location:'service.ts:267',message:'FCM push EXCEPTION',data:{error:err instanceof Error?err.message:String(err),stack:err instanceof Error?err.stack:null},timestamp:Date.now(),hypothesisId:'E'})+'\n')).catch(()=>{});
+        // #endregion
         logger.warn('FCM push failed', { userId: record.userId, error: err instanceof Error ? err.message : err });
       }
     }
