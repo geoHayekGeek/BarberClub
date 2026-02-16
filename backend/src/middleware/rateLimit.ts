@@ -68,6 +68,18 @@ export const qrScanLimiter = createLimiter({
   },
 });
 
+/** Admin loyalty scan: 1 request per 5 seconds per IP (prevents spamming). */
+export const adminLoyaltyScanLimiter = createLimiter({
+  windowMs: 5 * 1000,
+  max: 1,
+  message: {
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Veuillez attendre 5 secondes entre chaque scan',
+    },
+  },
+});
+
 export const publicReadLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: isDevelopment ? 100 : 60,

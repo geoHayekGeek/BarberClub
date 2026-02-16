@@ -7,7 +7,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../middleware/adminAuth';
 import { authenticate } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireRole';
-import { adminLimiter, qrScanLimiter } from '../middleware/rateLimit';
+import { adminLimiter, adminLoyaltyScanLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { salonsService } from '../modules/salons/service';
 import { barbersService } from '../modules/barbers/service';
@@ -240,12 +240,12 @@ router.post(
   }
 );
 
-/** POST /admin/loyalty/scan — Admin scans user QR token, increments loyalty point (JWT + role ADMIN). */
+/** POST /admin/loyalty/scan — Admin scans user QR token, increments loyalty point (JWT + role ADMIN). Max 1 scan per 5 seconds. */
 router.post(
   '/loyalty/scan',
   authenticate,
   requireAdmin,
-  qrScanLimiter,
+  adminLoyaltyScanLimiter,
   validate(loyaltyScanSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
