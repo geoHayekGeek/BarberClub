@@ -302,7 +302,7 @@ class _SalonDetailContent extends StatelessWidget {
     }
   }
 
-  Widget _buildCtaButton(BuildContext context) {
+Widget _buildCtaButton(BuildContext context) {
     final theme = Theme.of(context);
 
     return Padding(
@@ -311,10 +311,41 @@ class _SalonDetailContent extends StatelessWidget {
         width: double.infinity,
         height: 52,
         child: ElevatedButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Bientôt disponible')),
-            );
+          onPressed: () async {
+            // 1. Get the URL from the salon object
+            final url = salon.timifyUrl;
+
+            // 2. Check if URL exists
+            if (url == null || url.isEmpty) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Réservation en ligne indisponible pour ce salon.'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+              return;
+            }
+
+            // 3. Launch the URL
+            final uri = Uri.parse(url);
+            try {
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else {
+                throw 'Could not launch $url';
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Impossible d\'ouvrir le lien de réservation.'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: theme.colorScheme.secondary,

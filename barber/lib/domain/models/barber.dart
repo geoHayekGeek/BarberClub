@@ -73,11 +73,13 @@ class BarberSalon {
   final String id;
   final String name;
   final String city;
+  final String? timifyUrl; 
 
   const BarberSalon({
     required this.id,
     required this.name,
     required this.city,
+    this.timifyUrl,
   });
 
   factory BarberSalon.fromJson(Map<String, dynamic> json) {
@@ -85,8 +87,9 @@ class BarberSalon {
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       city: json['city'] as String? ?? '',
+      timifyUrl: json['timifyUrl'] as String? ?? json['timify_url'] as String?, // <--- MAPPED HERE
     );
   }
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'city': city};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'city': city,'timifyUrl': timifyUrl,};
 }

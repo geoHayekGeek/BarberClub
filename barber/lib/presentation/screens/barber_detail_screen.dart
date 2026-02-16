@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart'; // <--- Added for links
 
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
@@ -50,7 +51,8 @@ class BarberDetailScreen extends ConsumerWidget {
           body: SafeArea(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
+                padding:
+                    const EdgeInsets.all(BarberUIConstants.horizontalGutter),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -161,6 +163,7 @@ class _BarberDetailContent extends StatelessWidget {
     );
   }
 
+  // --- UPDATED CTA BUTTON ---
   Widget _buildCtaButton(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -168,20 +171,105 @@ class _BarberDetailContent extends StatelessWidget {
       width: double.infinity,
       height: BarberUIConstants.ctaHeight,
       child: ElevatedButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text(BarberStrings.ctaSoon)),
-          );
-        },
+        onPressed: () => _handleBooking(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: theme.colorScheme.secondary,
           foregroundColor: Colors.black,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(BarberUIConstants.ctaBorderRadius),
+            borderRadius:
+                BorderRadius.circular(BarberUIConstants.ctaBorderRadius),
           ),
         ),
-        child: const Text(BarberStrings.ctaRdv),
+        child: const Text(
+          'Prendre RDV avec ce coiffeur',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
     );
+  }
+
+  // --- BOOKING LOGIC ---
+  void _handleBooking(BuildContext context) {
+    if (barber.salons.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun salon associé à ce coiffeur.')),
+      );
+      return;
+    }
+
+    // CASE 1: Single Salon -> Open directly
+    if (barber.salons.length == 1) {
+      _launchTimify(context, barber.salons.first.timifyUrl);
+      return;
+    }
+
+    // CASE 2: Multiple Salons -> Show Bottom Sheet to choose
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Où voulez-vous prendre RDV ?',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            ...barber.salons.map((salon) => ListTile(
+                  leading: const Icon(Icons.storefront, color: Colors.white70),
+                  title: Text(
+                    '${salon.name} (${salon.city})',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios,
+                      size: 16, color: Colors.white54),
+                  onTap: () {
+                    Navigator.pop(ctx); // Close sheet
+                    _launchTimify(context, salon.timifyUrl);
+                  },
+                )),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- URL LAUNCHER ---
+  Future<void> _launchTimify(BuildContext context, String? url) async {
+    if (url == null || url.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Réservation en ligne indisponible pour ce lieu.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible d\'ouvrir le lien.')),
+        );
+      }
+    }
   }
 }

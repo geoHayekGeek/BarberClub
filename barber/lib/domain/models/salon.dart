@@ -10,6 +10,7 @@ class Salon {
   final List<String> images;
   final String openingHours;
   final List<String> services;
+  final String? timifyUrl;
 
   const Salon({
     required this.id,
@@ -21,6 +22,7 @@ class Salon {
     required this.images,
     required this.openingHours,
     required this.services,
+    this.timifyUrl, // 2. Add to constructor
   });
 
   /// Backend may use camelCase, snake_case, or single "description"; all supported.
@@ -47,6 +49,7 @@ class Salon {
       services:
           (json['services'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               [],
+              timifyUrl: json['timifyUrl'] as String? ?? json['timify_url'] as String?,
     );
   }
 
@@ -61,6 +64,7 @@ class Salon {
       'images': images,
       'openingHours': openingHours,
       'services': services,
+      'timifyUrl': timifyUrl,
     };
   }
 }
