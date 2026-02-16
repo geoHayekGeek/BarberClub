@@ -43,6 +43,8 @@ class _MainAppState extends ConsumerState<MainApp> {
       ref.read(authStateProvider.notifier).bootstrapSession();
       final fcmService = ref.read(fcmServiceProvider);
       fcmService.setupListeners(() {
+        ref.read(qrDialogCloserProvider)?.call();
+        ref.read(qrDialogCloserProvider.notifier).state = null;
         _showLoyaltyRewardModal();
         ref.invalidate(loyaltyCardProvider);
       });

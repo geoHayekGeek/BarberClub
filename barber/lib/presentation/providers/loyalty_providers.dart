@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/loyalty_card_data.dart';
 import 'auth_providers.dart';
 
+/// Optional callback to close the QR code dialog when a loyalty point is received via FCM.
+/// Set when the QR dialog is shown, cleared when dialog closes or after FCM triggers close.
+final qrDialogCloserProvider = StateProvider<void Function()?>((ref) => null);
+
 /// Loyalty card data from GET /api/v1/loyalty/me (stamps = user.loyaltyPoints, target from config).
 final loyaltyCardProvider = FutureProvider.autoDispose<LoyaltyCardData?>((ref) async {
   final authState = ref.watch(authStateProvider);

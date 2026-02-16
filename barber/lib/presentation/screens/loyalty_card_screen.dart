@@ -111,14 +111,25 @@ class LoyaltyCardScreen extends ConsumerWidget {
       await showDialog<void>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => _QrCodeDialog(
-          token: token,
-          initialPoints: initialPoints,
-          dio: dio,
-          onClosed: () => ref.invalidate(loyaltyCardProvider),
-        ),
+        builder: (ctx) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ctx.mounted) {
+              ref.read(qrDialogCloserProvider.notifier).state = () => Navigator.of(ctx).pop();
+            }
+          });
+          return _QrCodeDialog(
+            token: token,
+            initialPoints: initialPoints,
+            dio: dio,
+            onClosed: () {
+              ref.read(qrDialogCloserProvider.notifier).state = null;
+              ref.invalidate(loyaltyCardProvider);
+            },
+          );
+        },
       );
       if (context.mounted) {
+        ref.read(qrDialogCloserProvider.notifier).state = null;
         ref.invalidate(loyaltyCardProvider);
       }
     } catch (_) {
