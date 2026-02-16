@@ -104,7 +104,7 @@ class FcmService {
       
       final data = message.data;
       final type = data['type'] as String?;
-      if (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD') {
+      if (type != null && (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD')) {
         // #region agent log
         debugPrint('[FCM LOG] fcm_service.dart:65 - Loyalty event detected: $type');
         // #endregion
@@ -118,7 +118,7 @@ class FcmService {
       // #endregion
       final data = message.data;
       final type = data['type'] as String?;
-      if (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD') {
+      if (type != null && (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD')) {
         _onLoyaltyEvent?.call(type);
       }
     });

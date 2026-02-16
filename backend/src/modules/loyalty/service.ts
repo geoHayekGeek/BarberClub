@@ -375,6 +375,12 @@ class LoyaltyService {
     });
 
     const fcmToken = record.user?.fcmToken;
+    logger.info('FCM notification check', {
+      userId: record.userId,
+      hasFcmToken: !!fcmToken,
+      rewardEarned,
+    });
+
     if (fcmToken) {
       try {
         const messaging = getMessaging();
@@ -391,6 +397,12 @@ class LoyaltyService {
                 type: 'LOYALTY_POINT',
               };
 
+          logger.info('Sending FCM notification', {
+            userId: record.userId,
+            type: notificationData.type,
+            title: notificationData.title,
+          });
+
           await messaging.send({
             token: fcmToken,
             notification: {
@@ -406,6 +418,8 @@ class LoyaltyService {
             userId: record.userId,
             type: notificationData.type,
           });
+        } else {
+          logger.warn('Firebase messaging not initialized');
         }
       } catch (err) {
         logger.warn('FCM push failed', {
@@ -413,6 +427,8 @@ class LoyaltyService {
           error: err instanceof Error ? err.message : err,
         });
       }
+    } else {
+      logger.info('No FCM token for user, skip push', { userId: record.userId });
     }
 
     return { success: true, rewardEarned };
