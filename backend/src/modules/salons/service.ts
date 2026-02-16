@@ -14,6 +14,7 @@ export interface SalonListItem {
   description: string;
   openingHours: string;
   images: string[];
+  timifyUrl: string | null;
 }
 
 export interface SalonDetail extends SalonListItem {
@@ -44,6 +45,7 @@ class SalonsService {
       description: salon.description,
       openingHours: salon.openingHours,
       images: salon.images,
+      timifyUrl: salon.timifyUrl,
     }));
   }
 
@@ -82,6 +84,7 @@ class SalonsService {
       description: salon.description,
       openingHours: salon.openingHours,
       images: salon.images,
+      timifyUrl: salon.timifyUrl,
       barbers: salon.barbers.map((bs) => ({
         id: bs.barber.id,
         firstName: bs.barber.firstName,
@@ -98,6 +101,7 @@ class SalonsService {
     openingHours: string;
     images: string[];
     isActive: boolean;
+    timifyUrl?: string; // Optional input
   }): Promise<SalonListItem> {
     const salon = await prisma.salon.create({
       data: {
@@ -108,6 +112,7 @@ class SalonsService {
         openingHours: data.openingHours,
         images: data.images,
         isActive: data.isActive,
+        timifyUrl: data.timifyUrl,
       },
     });
 
@@ -119,6 +124,7 @@ class SalonsService {
       description: salon.description,
       openingHours: salon.openingHours,
       images: salon.images,
+      timifyUrl: salon.timifyUrl,
     };
   }
 }

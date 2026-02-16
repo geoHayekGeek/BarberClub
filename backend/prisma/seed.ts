@@ -53,10 +53,20 @@ async function main() {
   console.log(`Barbers in DB before seed: ${barberCountBefore}`);
 
   // 1. Ensure salons exist (find or create by name)
-  let salonGrenoble = await prisma.salon.findFirst({
+let salonGrenoble = await prisma.salon.findFirst({
     where: { name: 'Barber Club Grenoble' },
   });
-  if (!salonGrenoble) {
+
+  if (salonGrenoble) {
+    // Update existing salon with Timify URL
+    salonGrenoble = await prisma.salon.update({
+      where: { id: salonGrenoble.id },
+      data: {
+        timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
+      },
+    });
+  } else {
+    // Create new salon
     salonGrenoble = await prisma.salon.create({
       data: {
         name: 'Barber Club Grenoble',
@@ -67,14 +77,24 @@ async function main() {
         openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
         images: [PLACEHOLDER_IMAGE],
         isActive: true,
+        timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
       },
     });
   }
 
+  // --- 2. SALON VOIRON ---
   let salonVoiron = await prisma.salon.findFirst({
     where: { name: 'Barber Club Voiron' },
   });
-  if (!salonVoiron) {
+
+  if (salonVoiron) {
+    salonVoiron = await prisma.salon.update({
+      where: { id: salonVoiron.id },
+      data: {
+        timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
+      },
+    });
+  } else {
     salonVoiron = await prisma.salon.create({
       data: {
         name: 'Barber Club Voiron',
@@ -85,14 +105,24 @@ async function main() {
         openingHours: 'Mar–Ven 9h30–19h, Sam 9h–18h, Dim–Lun fermé',
         images: [PLACEHOLDER_IMAGE],
         isActive: true,
+        timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
       },
     });
   }
 
+  // --- 3. SALON MEYLAN ---
   let salonMeylan = await prisma.salon.findFirst({
     where: { name: 'Barber Club Meylan' },
   });
-  if (!salonMeylan) {
+
+  if (salonMeylan) {
+    salonMeylan = await prisma.salon.update({
+      where: { id: salonMeylan.id },
+      data: {
+        timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
+      },
+    });
+  } else {
     salonMeylan = await prisma.salon.create({
       data: {
         name: 'Barber Club Meylan',
@@ -103,6 +133,7 @@ async function main() {
         openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
         images: [PLACEHOLDER_IMAGE],
         isActive: true,
+        timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
       },
     });
   }

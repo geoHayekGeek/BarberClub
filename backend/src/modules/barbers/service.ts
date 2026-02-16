@@ -19,6 +19,7 @@ export interface BarberListItem {
     id: string;
     name: string;
     city: string;
+    timifyUrl: string | null; // <--- ADDED THIS
   }>;
 }
 
@@ -55,6 +56,7 @@ class BarbersService {
                 id: true,
                 name: true,
                 city: true,
+                timifyUrl: true, // <--- ADDED THIS
               },
             },
           },
@@ -75,6 +77,7 @@ class BarbersService {
         id: bs.salon.id,
         name: bs.salon.name,
         city: bs.salon.city,
+        timifyUrl: bs.salon.timifyUrl, // <--- MAPPED HERE
       })),
     }));
   }
@@ -95,6 +98,7 @@ class BarbersService {
                 id: true,
                 name: true,
                 city: true,
+                timifyUrl: true, // <--- ADDED THIS
               },
             },
           },
@@ -120,6 +124,7 @@ class BarbersService {
         id: bs.salon.id,
         name: bs.salon.name,
         city: bs.salon.city,
+        timifyUrl: bs.salon.timifyUrl, // <--- MAPPED HERE
       })),
     };
   }
@@ -181,6 +186,7 @@ class BarbersService {
                 id: true,
                 name: true,
                 city: true,
+                timifyUrl: true, // <--- THIS WAS MISSING
               },
             },
           },
@@ -202,6 +208,7 @@ class BarbersService {
         id: bs.salon.id,
         name: bs.salon.name,
         city: bs.salon.city,
+        timifyUrl: bs.salon.timifyUrl, // <--- NOW IT WORKS
       })),
     };
   }
