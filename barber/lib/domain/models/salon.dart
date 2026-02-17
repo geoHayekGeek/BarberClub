@@ -28,6 +28,7 @@ class Salon {
   });
 
   /// Backend may use camelCase, snake_case, or single "description"; all supported.
+  /// Backend v2 returns imageUrl + gallery instead of images, and openingHours as object; we normalize.
   factory Salon.fromJson(Map<String, dynamic> json) {
     final description = json['description'] as String? ??
         json['descriptionShort'] as String? ??
@@ -36,6 +37,34 @@ class Salon {
     final longDesc = json['descriptionLong'] as String? ??
         json['description_long'] as String? ??
         description;
+
+    List<String> imagesList = const [];
+    if (json['images'] is List) {
+      imagesList = (json['images'] as List<dynamic>)
+          .map((e) => e is String ? e : e?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } else if (json['imageUrl'] != null || json['gallery'] is List) {
+      final hero = json['imageUrl'] as String? ?? json['image_url'] as String?;
+      final gallery = (json['gallery'] as List<dynamic>?)
+              ?.map((e) => e is String ? e : e?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .toList() ??
+          [];
+      if (hero != null && hero.isNotEmpty) {
+        imagesList = [hero, ...gallery];
+      } else {
+        imagesList = gallery;
+      }
+    }
+
+    Object? rawHours = json['openingHours'] ?? json['opening_hours'];
+    String openingHoursStr = '';
+    if (rawHours is String) {
+      openingHoursStr = rawHours;
+    }
+    // When backend sends structured openingHours (Map), keep empty string; UI can use structured data later
+
     return Salon(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -43,11 +72,8 @@ class Salon {
       descriptionShort: description,
       descriptionLong: longDesc,
       address: json['address'] as String? ?? '',
-      images: (json['images'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
-      openingHours: json['openingHours'] as String? ?? json['opening_hours'] as String? ?? '',
+      images: imagesList,
+      openingHours: openingHoursStr,
       services:
           (json['services'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               [],

@@ -536,19 +536,6 @@ final _weekDays = [
   'Dimanche',
 ];
 
-bool _isOpenNow(String openingHours) {
-  final now = DateTime.now();
-  final weekday = now.weekday;
-  final hour = now.hour + now.minute / 60.0;
-  if (weekday == DateTime.sunday) return false;
-  final lower = openingHours.toLowerCase();
-  final has19 = lower.contains('19') || lower.contains('18');
-  final has9 = lower.contains('9');
-  if (has9 && has19) return hour >= 9 && hour < 19;
-  if (has9) return hour >= 9 && hour < 20;
-  return hour >= 8 && hour < 19;
-}
-
 List<({String day, String hours, bool isOpen})> _parseHoraires(String openingHours) {
   final result = <({String day, String hours, bool isOpen})>[];
   final lower = openingHours.toLowerCase();
@@ -571,7 +558,6 @@ class _HorairesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOpen = _isOpenNow(openingHours);
     final rows = _parseHoraires(openingHours);
 
     return Container(
@@ -613,42 +599,6 @@ class _HorairesCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: isOpen
-                  ? Colors.green.withOpacity(0.2)
-                  : Colors.red.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: isOpen ? Colors.green : Colors.red,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: isOpen ? Colors.green : Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isOpen ? 'OUVERT' : 'FERMÉ',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 16),
           ...rows.map((row) => Padding(
