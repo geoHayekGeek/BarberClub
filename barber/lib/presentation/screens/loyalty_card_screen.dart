@@ -206,17 +206,32 @@ class LoyaltyCardScreen extends ConsumerWidget {
       final expiresAt = payload?['expiresAt'] as String?;
       if (qrPayload == null || qrPayload.isEmpty) return;
       if (!context.mounted) return;
-      await showDialog<void>(
+      final redeemed = await showDialog<bool>(
         context: context,
         barrierDismissible: true,
         builder: (ctx) => _CouponQrDialog(
           qrPayload: qrPayload,
           expiresAt: expiresAt,
+          couponId: couponId,
+          dio: dio,
+          onClosed: () {
+            ref.invalidate(loyaltyCouponsProvider);
+            ref.invalidate(loyaltyCardProvider);
+          },
         ),
       );
       if (context.mounted) {
         ref.invalidate(loyaltyCouponsProvider);
         ref.invalidate(loyaltyCardProvider);
+        if (redeemed == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Coupe offerte utilisée. Merci, à bientôt.'),
+              backgroundColor: Color(0xFFD4AF37),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (_) {
       if (context.mounted) {
@@ -228,18 +243,63 @@ class LoyaltyCardScreen extends ConsumerWidget {
   }
 }
 
-class _CouponQrDialog extends StatelessWidget {
+class _CouponQrDialog extends StatefulWidget {
   const _CouponQrDialog({
     required this.qrPayload,
     required this.expiresAt,
+    required this.couponId,
+    required this.dio,
+    required this.onClosed,
   });
 
   final String qrPayload;
   final String? expiresAt;
+  final String couponId;
+  final Dio dio;
+  final VoidCallback onClosed;
+
+  @override
+  State<_CouponQrDialog> createState() => _CouponQrDialogState();
+}
+
+class _CouponQrDialogState extends State<_CouponQrDialog> {
+  Timer? _pollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => _checkRedeemed());
+  }
+
+  Future<void> _checkRedeemed() async {
+    try {
+      final response = await widget.dio.get('/api/v1/loyalty/coupons');
+      if (!mounted) return;
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>? ?? [];
+      final stillHasCoupon = list.any((c) => (c as Map<String, dynamic>)['id'] == widget.couponId);
+      if (!stillHasCoupon) {
+        _pollTimer?.cancel();
+        _pollTimer = null;
+        if (mounted) {
+          widget.onClosed();
+          Navigator.of(context).pop(true);
+        }
+      }
+    } catch (_) {
+      // ignore: poll again next time
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final expiryDate = expiresAt != null ? DateTime.tryParse(expiresAt!) : null;
+    final expiryDate = widget.expiresAt != null ? DateTime.tryParse(widget.expiresAt!) : null;
     final isExpired = expiryDate != null && expiryDate.isBefore(DateTime.now());
 
     return AlertDialog(
@@ -253,7 +313,7 @@ class _CouponQrDialog extends StatelessWidget {
             color: Colors.white,
             padding: const EdgeInsets.all(16),
             child: QrImageView(
-              data: qrPayload,
+              data: widget.qrPayload,
               version: QrVersions.auto,
               backgroundColor: Colors.white,
               errorCorrectionLevel: QrErrorCorrectLevel.H,
@@ -301,7 +361,9 @@ class _CouponQrDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
           child: const Text('Fermer'),
         ),
       ],
@@ -347,12 +409,14 @@ class _QrCodeDialogState extends State<_QrCodeDialog> {
       if (!mounted) return;
       final data = response.data as Map<String, dynamic>;
       final loyalty = data['data'] as Map<String, dynamic>? ?? {};
-      final stamps = (loyalty['stamps'] as num?)?.toInt() ?? 0;
-      if (stamps > widget.initialPoints) {
+      final points = (loyalty['points'] as num?)?.toInt() ?? 0;
+      if (points != widget.initialPoints) {
         _pollTimer?.cancel();
         _pollTimer = null;
-        Navigator.of(context).pop();
-        widget.onClosed();
+        if (mounted) {
+          Navigator.of(context).pop();
+          widget.onClosed();
+        }
       }
     } catch (_) {
       // ignore: poll again next time

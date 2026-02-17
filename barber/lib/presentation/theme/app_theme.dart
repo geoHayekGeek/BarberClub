@@ -1,5 +1,22 @@
 import 'package:flutter/material.dart';
 
+/// Uses [GlowingOverscrollIndicator] to avoid "Build scheduled during frame"
+/// from [StretchingOverscrollIndicator] when scroll ends during layout.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return GlowingOverscrollIndicator(
+      axisDirection: details.direction,
+      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+      child: child,
+    );
+  }
+}
+
 /// Premium dark theme for Barber Club
 class AppTheme {
   static ThemeData get darkTheme {

@@ -169,6 +169,36 @@ class LoyaltyService {
       couponId: coupon.id,
     });
 
+    const user = await prisma.user.findUnique({
+      where: { id: coupon.userId },
+      select: { fcmToken: true },
+    });
+
+    const fcmToken = user?.fcmToken;
+    if (fcmToken) {
+      try {
+        const messaging = getMessaging();
+        if (messaging) {
+          await messaging.send({
+            token: fcmToken,
+            notification: {
+              title: 'Coupe offerte utilisée',
+              body: 'Merci, à bientôt.',
+            },
+            data: {
+              type: 'COUPON_REDEEMED',
+            },
+          });
+          logger.info('FCM push sent COUPON_REDEEMED', { userId: coupon.userId });
+        }
+      } catch (err) {
+        logger.warn('FCM push failed COUPON_REDEEMED', {
+          userId: coupon.userId,
+          error: err instanceof Error ? err.message : err,
+        });
+      }
+    }
+
     return { success: true };
   }
 

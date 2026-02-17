@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/routing/app_router.dart';
+import 'domain/models/user.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/loyalty_providers.dart';
 import 'presentation/widgets/loyalty_reward_modal.dart';
@@ -44,13 +45,18 @@ class _MainAppState extends ConsumerState<MainApp> {
       ref.read(authStateProvider.notifier).bootstrapSession();
       final fcmService = ref.read(fcmServiceProvider);
       fcmService.setupListeners((String type) {
+        final user = ref.read(authStateProvider).user;
+        if (user?.isAdmin == true) return;
+
         ref.read(qrDialogCloserProvider)?.call();
         ref.read(qrDialogCloserProvider.notifier).state = null;
 
         if (type == 'LOYALTY_REWARD') {
           _showRewardCelebration();
-        } else {
+        } else if (type == 'LOYALTY_POINT') {
           _showLoyaltyPointModal();
+        } else if (type == 'COUPON_REDEEMED') {
+          _showCouponRedeemedMessage();
         }
 
         ref.invalidate(loyaltyCardProvider);
@@ -79,6 +85,18 @@ class _MainAppState extends ConsumerState<MainApp> {
     );
   }
 
+  void _showCouponRedeemedMessage() {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Coupe offerte utilisée. Merci, à bientôt.'),
+        backgroundColor: Color(0xFFD4AF37),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _deepLinkService.dispose();
@@ -98,6 +116,7 @@ class _MainAppState extends ConsumerState<MainApp> {
     return MaterialApp.router(
       title: 'Barber Club',
       theme: AppTheme.darkTheme,
+      scrollBehavior: AppScrollBehavior(),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
