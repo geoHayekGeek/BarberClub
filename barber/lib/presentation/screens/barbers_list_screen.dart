@@ -20,18 +20,8 @@ class BarbersListScreen extends ConsumerWidget {
     final crossAxisCount = width < 360 ? 1 : 2;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFF0E0E10),
-              Color(0xFF1C1C22),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
+      backgroundColor: const Color(0xFF121212),
+      body: SafeArea(
           child: barbersAsync.when(
             data: (barbers) {
               if (barbers.isEmpty) {
@@ -122,7 +112,6 @@ class BarbersListScreen extends ConsumerWidget {
             },
           ),
         ),
-      ),
     );
   }
 
@@ -195,16 +184,7 @@ class _BarberGridCardState extends State<_BarberGridCard> {
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.8),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
+                    color: Colors.black.withOpacity(0.75),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,

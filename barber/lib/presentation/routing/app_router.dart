@@ -20,6 +20,7 @@ import '../providers/auth_providers.dart';
 import '../../domain/models/user.dart';
 import '../../core/network/dio_client.dart';
 import '../screens/offers_list_screen.dart';
+import '../screens/salon_offers_detail_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 /// Notifier used to refresh router redirect logic when auth changes.
@@ -204,14 +205,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/offres',
                 name: 'offres-base',
-                builder: (context, state) => const SalonsListScreen(),
+                builder: (context, state) => const OffersListScreen(),
                 routes: [
                   GoRoute(
                     path: ':salonId',
                     name: 'salon-offres',
                     builder: (context, state) {
                       final salonId = state.pathParameters['salonId'] ?? '';
-                      return OffersListScreen(salonId: salonId);
+                      final salonName = state.uri.queryParameters['name'] != null
+                          ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                          : 'Salon';
+                      return SalonOffersDetailScreen(
+                        salonId: salonId,
+                        salonName: salonName,
+                      );
                     },
                   ),
                 ],

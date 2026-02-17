@@ -19,7 +19,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [
-          // Fullscreen background image with gradient overlay
+          // Fullscreen background image with dark overlay
           _BackgroundWithOverlay(),
           // Header (transparent overlay)
           const HomeHeader(),
@@ -31,7 +31,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-/// Background image with dark gradient overlay
+/// Background image with dark overlay
 class _BackgroundWithOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -46,33 +46,11 @@ class _BackgroundWithOverlay extends StatelessWidget {
           width: double.infinity,
           height: double.infinity,
           errorBuilder: (context, error, stackTrace) {
-            // Placeholder gradient if image not found
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    const Color(0xFF1A1A1A),
-                    const Color(0xFF121212),
-                  ],
-                ),
-              ),
-            );
+            return Container(color: const Color(0xFF121212));
           },
         ),
-        // Dark gradient overlay (top → bottom)
         Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withOpacity(0.35), // Top
-                Colors.black.withOpacity(0.75), // Bottom
-              ],
-            ),
-          ),
+          color: Colors.black.withOpacity(0.5),
         ),
       ],
     );

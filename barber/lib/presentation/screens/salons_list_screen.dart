@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
-import '../widgets/salon_card.dart';
 
 class SalonsListScreen extends ConsumerWidget {
   const SalonsListScreen({super.key});
@@ -12,20 +11,6 @@ class SalonsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salonsAsync = ref.watch(salonsListProvider);
-    final state = GoRouterState.of(context);
-    final isOfferSelection =
-        state.uri.path == '/offres' || state.uri.queryParameters['selectFor'] == 'offers';
-
-    if (isOfferSelection) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Nos offres'),
-        ),
-        body: SafeArea(
-          child: _buildSalonsBody(context, ref, salonsAsync, isOfferSelection: true),
-        ),
-      );
-    }
 
     return Scaffold(
       body: Container(
@@ -99,73 +84,6 @@ class SalonsListScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _buildSalonsBody(
-    BuildContext context,
-    WidgetRef ref,
-    AsyncValue<List<Salon>> salonsAsync, {
-    required bool isOfferSelection,
-  }) {
-    return salonsAsync.when(
-      data: (salons) {
-        if (salons.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'Aucun salon disponible pour le moment.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white70,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.only(top: 8, bottom: 24),
-          itemCount: salons.length,
-          itemBuilder: (context, index) {
-            final salon = salons[index];
-            return SalonCard(
-              salon: salon,
-              onTap: () => context.push(
-                isOfferSelection ? '/offres/${salon.id}' : '/salons/${salon.id}',
-              ),
-              hideDescription: isOfferSelection,
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) {
-        final message = getSalonErrorMessage(error, stackTrace);
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white70,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: () => ref.invalidate(salonsListProvider),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Réessayer'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _SalonSectionWidget extends StatefulWidget {
@@ -182,8 +100,6 @@ class _SalonSectionWidget extends StatefulWidget {
 }
 
 class _SalonSectionWidgetState extends State<_SalonSectionWidget> {
-  bool _imageLoaded = false;
-
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height * 0.5;
@@ -206,17 +122,9 @@ class _SalonSectionWidgetState extends State<_SalonSectionWidget> {
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
-                    frameBuilder: (context, child, frame, loaded) {
-                      if (loaded) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) setState(() => _imageLoaded = true);
-                        });
-                      }
-                      return AnimatedOpacity(
-                        opacity: _imageLoaded ? 1 : 0,
-                        duration: const Duration(milliseconds: 400),
-                        child: child,
-                      );
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return _placeholder();
                     },
                     errorBuilder: (_, __, ___) => _placeholder(),
                   )
@@ -224,16 +132,7 @@ class _SalonSectionWidgetState extends State<_SalonSectionWidget> {
           ),
           Positioned.fill(
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.5),
-                    Colors.black.withOpacity(0.8),
-                  ],
-                ),
-              ),
+              color: Colors.black.withOpacity(0.6),
             ),
           ),
           Positioned(

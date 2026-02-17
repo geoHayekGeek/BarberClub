@@ -240,16 +240,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
           ),
         Positioned.fill(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.9),
-                ],
-              ),
-            ),
+            color: Colors.black.withOpacity(0.6),
           ),
         ),
         Positioned(

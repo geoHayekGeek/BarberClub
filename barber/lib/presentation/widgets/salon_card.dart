@@ -70,16 +70,7 @@ class SalonCard extends StatelessWidget {
   }
 
   Widget _buildGradientOverlay() => Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withOpacity(0.1), // Lighter top for better visibility
-              Colors.black.withOpacity(0.8), // Darker bottom for text contrast
-            ],
-          ),
-        ),
+        color: Colors.black.withOpacity(0.5),
       );
 
   Widget _buildCardContent(ThemeData theme) => Positioned(

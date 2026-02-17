@@ -114,16 +114,7 @@ class _SalonDetailContent extends StatelessWidget {
                   ),
                   Positioned.fill(
                     child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.85),
-                          ],
-                        ),
-                      ),
+                      color: Colors.black.withOpacity(0.6),
                     ),
                   ),
                   Positioned(
@@ -482,14 +473,7 @@ class _SalonInfoCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1A1F),
-            Color(0xFF111113),
-          ],
-        ),
+        color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
@@ -564,14 +548,7 @@ class _HorairesCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1A1F),
-            Color(0xFF111113),
-          ],
-        ),
+        color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),

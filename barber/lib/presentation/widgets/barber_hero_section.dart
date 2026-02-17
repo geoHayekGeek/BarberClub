@@ -53,16 +53,7 @@ class BarberHeroSection extends StatelessWidget {
           else
             _placeholder(),
           Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(BarberUIConstants.heroOverlayOpacity),
-                ],
-              ),
-            ),
+            color: Colors.black.withOpacity(BarberUIConstants.heroOverlayOpacity),
           ),
           if (!forSliverAppBar && onBack != null)
             Positioned(
