@@ -45,6 +45,14 @@ async function seedAdmin() {
 }
 
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400';
+const PLACEHOLDER_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+const GALLERY_IMAGES = [
+  'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400',
+  'https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=400',
+  'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400',
+  'https://images.unsplash.com/photo-1605499466077-3385ab955905?w=400',
+  'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
+];
 
 async function main() {
   await seedAdmin();
@@ -138,7 +146,7 @@ let salonGrenoble = await prisma.salon.findFirst({
     });
   }
 
-  // 2. Create barbers (coiffeurs) – 4–6 with French names, levels, bios
+  // 2. Create barbers (coiffeurs) with age, origin, bio, videoUrl, gallery, salonId
   const barbersData = [
     {
       firstName: 'Alexandre',
@@ -150,6 +158,11 @@ let salonGrenoble = await prisma.salon.findFirst({
       interests: ['Coupe classique', 'Rasage à la lame', 'Barbe'],
       images: [PLACEHOLDER_IMAGE],
       salonIds: [salonGrenoble.id],
+      age: 32,
+      origin: 'Lyon',
+      videoUrl: PLACEHOLDER_VIDEO,
+      imageUrl: PLACEHOLDER_IMAGE,
+      gallery: GALLERY_IMAGES.slice(0, 4),
     },
     {
       firstName: 'Lucas',
@@ -161,6 +174,11 @@ let salonGrenoble = await prisma.salon.findFirst({
       interests: ['Coupe dégradé', 'Barbe', 'Soins'],
       images: [PLACEHOLDER_IMAGE],
       salonIds: [salonGrenoble.id, salonMeylan.id],
+      age: 28,
+      origin: 'Grenoble',
+      videoUrl: PLACEHOLDER_VIDEO,
+      imageUrl: PLACEHOLDER_IMAGE,
+      gallery: GALLERY_IMAGES.slice(0, 5),
     },
     {
       firstName: 'Thomas',
@@ -172,6 +190,11 @@ let salonGrenoble = await prisma.salon.findFirst({
       interests: ['Coupe homme', 'Barbe'],
       images: [PLACEHOLDER_IMAGE],
       salonIds: [salonGrenoble.id],
+      age: 24,
+      origin: 'Saint-Martin-d\'Hères',
+      videoUrl: PLACEHOLDER_VIDEO,
+      imageUrl: PLACEHOLDER_IMAGE,
+      gallery: GALLERY_IMAGES.slice(0, 3),
     },
     {
       firstName: 'Hugo',
@@ -183,6 +206,11 @@ let salonGrenoble = await prisma.salon.findFirst({
       interests: ['Rasage traditionnel', 'Coupe structurée', 'Coloration barbe'],
       images: [PLACEHOLDER_IMAGE],
       salonIds: [salonVoiron.id],
+      age: 30,
+      origin: 'Voiron',
+      videoUrl: PLACEHOLDER_VIDEO,
+      imageUrl: PLACEHOLDER_IMAGE,
+      gallery: GALLERY_IMAGES.slice(0, 5),
     },
     {
       firstName: 'Enzo',
@@ -194,6 +222,11 @@ let salonGrenoble = await prisma.salon.findFirst({
       interests: ['Dégradé', 'Coupe tendance', 'Soins'],
       images: [PLACEHOLDER_IMAGE],
       salonIds: [salonMeylan.id],
+      age: 26,
+      origin: 'Meylan',
+      videoUrl: PLACEHOLDER_VIDEO,
+      imageUrl: PLACEHOLDER_IMAGE,
+      gallery: GALLERY_IMAGES.slice(0, 6),
     },
     {
       firstName: 'Jules',
@@ -205,6 +238,11 @@ let salonGrenoble = await prisma.salon.findFirst({
       interests: ['Rasage à l\'ancienne', 'Coupe vintage', 'Barbe'],
       images: [PLACEHOLDER_IMAGE],
       salonIds: [salonGrenoble.id, salonVoiron.id],
+      age: 38,
+      origin: 'Chambéry',
+      videoUrl: PLACEHOLDER_VIDEO,
+      imageUrl: PLACEHOLDER_IMAGE,
+      gallery: GALLERY_IMAGES.slice(0, 4),
     },
   ];
 
@@ -217,6 +255,7 @@ let salonGrenoble = await prisma.salon.findFirst({
         lastName: barberData.lastName,
       },
     });
+    const firstSalonId = salonIds[0];
     if (existing) {
       await prisma.barber.update({
         where: { id: existing.id },
@@ -224,8 +263,26 @@ let salonGrenoble = await prisma.salon.findFirst({
           displayName: existing.displayName ?? barberData.displayName,
           level: existing.level || barberData.level,
           isActive: true,
+          age: barberData.age,
+          origin: barberData.origin,
+          bio: barberData.bio,
+          videoUrl: barberData.videoUrl,
+          imageUrl: barberData.imageUrl,
+          gallery: barberData.gallery,
+          salonId: firstSalonId,
         },
       });
+      const existingLinks = await prisma.barberSalon.findMany({
+        where: { barberId: existing.id },
+      });
+      const existingSalonIds = new Set(existingLinks.map((l) => l.salonId));
+      for (const salonId of salonIds) {
+        if (!existingSalonIds.has(salonId)) {
+          await prisma.barberSalon.create({
+            data: { barberId: existing.id, salonId },
+          });
+        }
+      }
       continue;
     }
 
@@ -240,6 +297,12 @@ let salonGrenoble = await prisma.salon.findFirst({
         interests: barberData.interests,
         images: barberData.images,
         isActive: true,
+        age: barberData.age,
+        origin: barberData.origin,
+        videoUrl: barberData.videoUrl,
+        imageUrl: barberData.imageUrl,
+        gallery: barberData.gallery,
+        salonId: firstSalonId,
         salons: {
           create: salonIds.map((salonId) => ({ salonId })),
         },

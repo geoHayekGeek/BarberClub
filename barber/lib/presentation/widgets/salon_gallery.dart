@@ -7,12 +7,12 @@ const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
 /// Horizontal scroll of salon photos (rounded thumbnails).
 /// Supports network URLs and asset paths.
 class SalonGallery extends StatelessWidget {
-  final List<String> imageUrls;
 
   const SalonGallery({
     super.key,
     required this.imageUrls,
   });
+  final List<String> imageUrls;
 
   @override
   Widget build(BuildContext context) {

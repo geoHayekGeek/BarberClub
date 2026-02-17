@@ -16,47 +16,55 @@ const router = Router();
  *   get:
  *     summary: Get list of active barbers
  *     tags: [Barbers]
+ *     parameters:
+ *       - in: query
+ *         name: salonId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filter by salon ID (optional)
  *     responses:
  *       200:
- *         description: List of active barbers
+ *         description: List of active barbers (light payload, no bio/gallery)
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [data]
  *               properties:
  *                 data:
  *                   type: array
  *                   items:
  *                     type: object
+ *                     required: [id, name, role]
  *                     properties:
  *                       id:
  *                         type: string
  *                         format: uuid
- *                       firstName:
+ *                       name:
  *                         type: string
- *                       lastName:
+ *                       role:
  *                         type: string
- *                       bio:
- *                         type: string
- *                       experienceYears:
+ *                         example: BARBER
+ *                       age:
  *                         type: integer
  *                         nullable: true
- *                       images:
- *                         type: array
- *                         items:
- *                           type: string
- *                       salons:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             id:
- *                               type: string
- *                               format: uuid
- *                             name:
- *                               type: string
- *                             city:
- *                               type: string
+ *                       origin:
+ *                         type: string
+ *                         nullable: true
+ *                       imageUrl:
+ *                         type: string
+ *                         format: uri
+ *                         nullable: true
+ *                       salon:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           name:
+ *                             type: string
  *       500:
  *         description: Server error
  *         content:
@@ -78,7 +86,7 @@ router.get('/', publicReadLimiter, async (req: Request, res: Response, next: Nex
  * @swagger
  * /api/v1/barbers/{id}:
  *   get:
- *     summary: Get barber details
+ *     summary: Get barber details (full object for detail screen)
  *     tags: [Barbers]
  *     parameters:
  *       - in: path
@@ -89,47 +97,58 @@ router.get('/', publicReadLimiter, async (req: Request, res: Response, next: Nex
  *           format: uuid
  *     responses:
  *       200:
- *         description: Barber details with associated salons
+ *         description: Full barber details including bio, videoUrl, gallery, salon
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [data]
  *               properties:
  *                 data:
  *                   type: object
+ *                   required: [id, name, role]
  *                   properties:
  *                     id:
  *                       type: string
  *                       format: uuid
- *                     firstName:
+ *                     name:
  *                       type: string
- *                     lastName:
+ *                     role:
  *                       type: string
- *                     bio:
- *                       type: string
- *                     experienceYears:
+ *                       example: BARBER
+ *                     age:
  *                       type: integer
  *                       nullable: true
- *                     interests:
+ *                     origin:
+ *                       type: string
+ *                       nullable: true
+ *                     bio:
+ *                       type: string
+ *                       nullable: true
+ *                     videoUrl:
+ *                       type: string
+ *                       format: uri
+ *                       nullable: true
+ *                     imageUrl:
+ *                       type: string
+ *                       format: uri
+ *                       nullable: true
+ *                     gallery:
  *                       type: array
  *                       items:
  *                         type: string
- *                     images:
- *                       type: array
- *                       items:
- *                         type: string
- *                     salons:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: string
- *                             format: uuid
- *                           name:
- *                             type: string
- *                           city:
- *                             type: string
+ *                         format: uri
+ *                     salon:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         name:
+ *                           type: string
+ *                         address:
+ *                           type: string
  *       400:
  *         description: Invalid barber ID format
  *         content:

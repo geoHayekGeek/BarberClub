@@ -84,7 +84,7 @@ class HomeHeader extends StatelessWidget {
                   child: InkWell(
                     onTap: () => _openWebsite(context),
                     borderRadius: BorderRadius.circular(22),
-                    child: Container(
+                    child: SizedBox(
                       width: 44,
                       height: 44,
                       child: Icon(
@@ -101,7 +101,7 @@ class HomeHeader extends StatelessWidget {
                   child: InkWell(
                     onTap: () => _openInstagram(context),
                     borderRadius: BorderRadius.circular(22),
-                    child: Container(
+                    child: SizedBox(
                       width: 44,
                       height: 44,
                       child: Icon(

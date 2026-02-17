@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 /// One row: icon + text (address, hours, services).
 class SalonInfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
 
   const SalonInfoRow({
     super.key,
     required this.icon,
     required this.text,
   });
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {

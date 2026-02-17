@@ -39,9 +39,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResponse> login({
-    String? email,
+    required String password, String? email,
     String? phoneNumber,
-    required String password,
   }) async {
     try {
       final data = <String, dynamic>{

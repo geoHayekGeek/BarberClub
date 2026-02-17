@@ -6,25 +6,52 @@
 import prisma from '../../db/client';
 import { AppError, ErrorCode } from '../../utils/errors';
 
-export interface BarberListItem {
+export interface BarberListSalon {
   id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  bio: string;
-  experienceYears: number | null;
-  level: string;
-  images: string[];
-  salons: Array<{
-    id: string;
-    name: string;
-    city: string;
-    timifyUrl: string | null; // <--- ADDED THIS
-  }>;
+  name: string;
 }
 
-export interface BarberDetail extends BarberListItem {
-  interests: string[];
+export interface BarberListItem {
+  id: string;
+  name: string;
+  role: string;
+  age: number | null;
+  origin: string | null;
+  imageUrl: string | null;
+  salon: BarberListSalon | null;
+}
+
+export interface BarberDetailSalon {
+  id: string;
+  name: string;
+  address: string;
+}
+
+export interface BarberDetail {
+  id: string;
+  name: string;
+  role: string;
+  age: number | null;
+  origin: string | null;
+  bio: string | null;
+  videoUrl: string | null;
+  imageUrl: string | null;
+  gallery: string[];
+  salon: BarberDetailSalon | null;
+}
+
+function barberName(barber: { firstName: string; lastName: string; displayName: string | null }): string {
+  const full = `${barber.firstName} ${barber.lastName}`.trim();
+  return (barber.displayName ?? full) || barber.firstName;
+}
+
+function primarySalonFromBarber(barber: {
+  salon: { id: string; name: string; address?: string } | null;
+  salons: Array<{ salon: { id: string; name: string; address?: string } }>;
+}): { id: string; name: string; address?: string } | null {
+  if (barber.salon) return barber.salon;
+  const first = barber.salons[0]?.salon;
+  return first ?? null;
 }
 
 class BarbersService {
@@ -34,72 +61,55 @@ class BarbersService {
         isActive: true,
         ...(salonId
           ? {
-              salons: {
-                some: { salonId },
-              },
+              OR: [
+                { salonId },
+                { salons: { some: { salonId } } },
+              ],
             }
           : {}),
       },
-      orderBy: {
-        firstName: 'asc',
-      },
+      orderBy: { firstName: 'asc' },
       include: {
+        salon: {
+          select: { id: true, name: true },
+        },
         salons: {
-          where: {
-            salon: {
-              isActive: true,
-            },
-          },
+          where: { salon: { isActive: true } },
           include: {
             salon: {
-              select: {
-                id: true,
-                name: true,
-                city: true,
-                timifyUrl: true, // <--- ADDED THIS
-              },
+              select: { id: true, name: true },
             },
           },
         },
       },
     });
 
-    return barbers.map((barber) => ({
-      id: barber.id,
-      firstName: barber.firstName,
-      lastName: barber.lastName,
-      displayName: barber.displayName ?? barber.firstName,
-      bio: barber.bio,
-      experienceYears: barber.experienceYears,
-      level: barber.level,
-      images: barber.images,
-      salons: barber.salons.map((bs) => ({
-        id: bs.salon.id,
-        name: bs.salon.name,
-        city: bs.salon.city,
-        timifyUrl: bs.salon.timifyUrl, // <--- MAPPED HERE
-      })),
-    }));
+    return barbers.map((barber) => {
+      const salon = primarySalonFromBarber(barber);
+      return {
+        id: barber.id,
+        name: barberName(barber),
+        role: barber.role,
+        age: barber.age,
+        origin: barber.origin,
+        imageUrl: barber.imageUrl ?? barber.images[0] ?? null,
+        salon: salon ? { id: salon.id, name: salon.name } : null,
+      };
+    });
   }
 
   async getBarberById(barberId: string): Promise<BarberDetail> {
     const barber = await prisma.barber.findUnique({
       where: { id: barberId },
       include: {
+        salon: {
+          select: { id: true, name: true, address: true },
+        },
         salons: {
-          where: {
-            salon: {
-              isActive: true,
-            },
-          },
+          where: { salon: { isActive: true } },
           include: {
             salon: {
-              select: {
-                id: true,
-                name: true,
-                city: true,
-                timifyUrl: true, // <--- ADDED THIS
-              },
+              select: { id: true, name: true, address: true },
             },
           },
         },
@@ -110,22 +120,20 @@ class BarbersService {
       throw new AppError(ErrorCode.BARBER_NOT_FOUND, 'Barber not found', 404);
     }
 
+    const salon = primarySalonFromBarber(barber);
+    const gallery = barber.gallery.length > 0 ? barber.gallery : barber.images.slice(1);
+
     return {
       id: barber.id,
-      firstName: barber.firstName,
-      lastName: barber.lastName,
-      displayName: barber.displayName ?? barber.firstName,
+      name: barberName(barber),
+      role: barber.role,
+      age: barber.age,
+      origin: barber.origin,
       bio: barber.bio,
-      experienceYears: barber.experienceYears,
-      level: barber.level,
-      interests: barber.interests,
-      images: barber.images,
-      salons: barber.salons.map((bs) => ({
-        id: bs.salon.id,
-        name: bs.salon.name,
-        city: bs.salon.city,
-        timifyUrl: bs.salon.timifyUrl, // <--- MAPPED HERE
-      })),
+      videoUrl: barber.videoUrl,
+      imageUrl: barber.imageUrl ?? barber.images[0] ?? null,
+      gallery,
+      salon: salon ? { id: salon.id, name: salon.name, address: salon.address ?? '' } : null,
     };
   }
 
@@ -133,24 +141,23 @@ class BarbersService {
     firstName: string;
     lastName: string;
     displayName?: string;
-    bio: string;
+    bio?: string | null;
     experienceYears: number | null;
     level?: string;
     interests: string[];
     images: string[];
     salonIds: string[];
     isActive: boolean;
+    age?: number | null;
+    origin?: string | null;
+    videoUrl?: string | null;
+    imageUrl?: string | null;
+    gallery?: string[];
   }): Promise<BarberDetail> {
-    // Dedupe salonIds to avoid unique constraint violation and misleading validation
     const uniqueSalonIds = [...new Set(data.salonIds)];
 
-    // Validate all salonIds exist
     const salons = await prisma.salon.findMany({
-      where: {
-        id: {
-          in: uniqueSalonIds,
-        },
-      },
+      where: { id: { in: uniqueSalonIds } },
     });
 
     if (salons.length !== uniqueSalonIds.length) {
@@ -166,50 +173,50 @@ class BarbersService {
         firstName: data.firstName,
         lastName: data.lastName,
         displayName: data.displayName ?? undefined,
-        bio: data.bio,
+        bio: data.bio ?? undefined,
         experienceYears: data.experienceYears,
         level: data.level ?? 'senior',
         interests: data.interests,
         images: data.images,
         isActive: data.isActive,
+        salonId: uniqueSalonIds[0] ?? undefined,
+        age: data.age ?? undefined,
+        origin: data.origin ?? undefined,
+        videoUrl: data.videoUrl ?? undefined,
+        imageUrl: data.imageUrl ?? undefined,
+        gallery: data.gallery ?? [],
         salons: {
-          create: uniqueSalonIds.map((salonId) => ({
-            salonId,
-          })),
+          create: uniqueSalonIds.map((salonId) => ({ salonId })),
         },
       },
       include: {
+        salon: {
+          select: { id: true, name: true, address: true },
+        },
         salons: {
           include: {
             salon: {
-              select: {
-                id: true,
-                name: true,
-                city: true,
-                timifyUrl: true, // <--- THIS WAS MISSING
-              },
+              select: { id: true, name: true, address: true },
             },
           },
         },
       },
     });
 
+    const salon = primarySalonFromBarber(barber);
+    const gallery = barber.gallery.length > 0 ? barber.gallery : barber.images.slice(1);
+
     return {
       id: barber.id,
-      firstName: barber.firstName,
-      lastName: barber.lastName,
-      displayName: barber.displayName ?? barber.firstName,
+      name: barberName(barber),
+      role: barber.role,
+      age: barber.age,
+      origin: barber.origin,
       bio: barber.bio,
-      experienceYears: barber.experienceYears,
-      level: barber.level,
-      interests: barber.interests,
-      images: barber.images,
-      salons: barber.salons.map((bs) => ({
-        id: bs.salon.id,
-        name: bs.salon.name,
-        city: bs.salon.city,
-        timifyUrl: bs.salon.timifyUrl, // <--- NOW IT WORKS
-      })),
+      videoUrl: barber.videoUrl,
+      imageUrl: barber.imageUrl ?? barber.images[0] ?? null,
+      gallery,
+      salon: salon ? { id: salon.id, name: salon.name, address: salon.address ?? '' } : null,
     };
   }
 }

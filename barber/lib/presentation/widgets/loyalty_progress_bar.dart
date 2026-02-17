@@ -6,8 +6,6 @@ import '../constants/loyalty_ui_constants.dart';
 /// Shows numbered scale (1 to totalRequiredVisits), filled segments in gold/beige.
 /// Configurable via [currentVisits] and [totalRequiredVisits].
 class LoyaltyProgressBar extends StatelessWidget {
-  final int currentVisits;
-  final int totalRequiredVisits;
 
   const LoyaltyProgressBar({
     super.key,
@@ -16,6 +14,8 @@ class LoyaltyProgressBar extends StatelessWidget {
   })  : assert(currentVisits >= 0),
         assert(totalRequiredVisits > 0),
         assert(currentVisits <= totalRequiredVisits);
+  final int currentVisits;
+  final int totalRequiredVisits;
 
   @override
   Widget build(BuildContext context) {

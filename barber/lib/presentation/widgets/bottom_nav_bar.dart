@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 /// Uses [navigationShell] when inside [StatefulShellRoute] (preserves tab state).
 /// When [navigationShell] is null, uses [context.go] for tab switches (e.g. on Compte page).
 class BottomNavBar extends StatelessWidget {
-  final StatefulNavigationShell? navigationShell;
 
   const BottomNavBar({super.key, this.navigationShell});
+  final StatefulNavigationShell? navigationShell;
 
   static const _tabs = [
     (_NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Accueil', path: '/home')),
@@ -131,9 +131,9 @@ class BottomNavBar extends StatelessWidget {
 }
 
 class _NavItem {
+  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.path});
   final IconData icon;
   final IconData activeIcon;
   final String label;
   final String path;
-  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.path});
 }

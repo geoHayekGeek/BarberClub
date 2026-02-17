@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../../domain/models/offer.dart';
 
 class OfferCard extends StatelessWidget {
-  final Offer offer;
-  final VoidCallback onTap;
 
   const OfferCard({super.key, required this.offer, required this.onTap});
+  final Offer offer;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

@@ -8,12 +8,12 @@ import 'loyalty_progress_bar.dart';
 /// Displays member info, progress gauge, and reward.
 /// Reads data from [data]; no logic inside.
 class LoyaltyCardWidget extends StatelessWidget {
-  final LoyaltyCardData data;
 
   const LoyaltyCardWidget({
     super.key,
     required this.data,
   });
+  final LoyaltyCardData data;
 
   @override
   Widget build(BuildContext context) {

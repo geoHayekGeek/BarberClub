@@ -6,9 +6,6 @@ import '../../domain/models/salon.dart';
 const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
 
 class SalonCard extends StatelessWidget {
-  final Salon salon;
-  final VoidCallback onTap;
-  final bool hideDescription;
 
   const SalonCard({
     super.key,
@@ -16,6 +13,9 @@ class SalonCard extends StatelessWidget {
     required this.onTap,
     this.hideDescription = false,
   });
+  final Salon salon;
+  final VoidCallback onTap;
+  final bool hideDescription;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +49,7 @@ class SalonCard extends StatelessWidget {
                 children: [
                   if (isNetworkUrl)
                     CachedNetworkImage(
-                      imageUrl: imageUrl!,
+                      imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => _imageLoadingPlaceholder(),
                       errorWidget: (_, __, ___) => _placeholderImage(),

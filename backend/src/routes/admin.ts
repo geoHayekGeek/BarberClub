@@ -165,12 +165,18 @@ router.post(
       const barber = await barbersService.createBarber({
         firstName: req.body.firstName,
         lastName: req.body.lastName,
+        displayName: req.body.displayName,
         bio: req.body.bio,
         experienceYears: req.body.experienceYears ?? null,
         interests: req.body.interests || [],
         images: req.body.images || [],
         salonIds: req.body.salonIds,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        age: req.body.age,
+        origin: req.body.origin,
+        videoUrl: req.body.videoUrl,
+        imageUrl: req.body.imageUrl,
+        gallery: req.body.gallery,
       });
       res.status(201).json({ data: barber });
     } catch (error) {

@@ -221,8 +221,9 @@ model Salon {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  barbers BarberSalon[]
-  offers  Offer[] // Add this line
+  barbers         BarberSalon[]
+  primaryBarbers  Barber[]     @relation("PrimarySalon")
+  offers          Offer[]
 
   @@index([isActive])
   @@map("salons")
@@ -233,7 +234,7 @@ model Barber {
   firstName       String       @map("first_name")
   lastName        String       @map("last_name")
   displayName     String?      @map("display_name")
-  bio             String       @db.Text
+  bio             String?      @db.Text
   experienceYears Int?         @map("experience_years")
   level           String       @default("senior")
   interests       String[]
@@ -242,9 +243,18 @@ model Barber {
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  salons BarberSalon[]
+  role       String   @default("BARBER")
+  age        Int?
+  origin     String?
+  videoUrl   String?  @map("video_url")
+  imageUrl   String?  @map("image_url")
+  gallery    String[] @default([])
+  salonId    String?   @map("salon_id")
+  salon      Salon?   @relation("PrimarySalon", fields: [salonId], references: [id])
+  salons     BarberSalon[]
 
   @@index([isActive])
+  @@index([salonId])
   @@map("barbers")
 }
 
