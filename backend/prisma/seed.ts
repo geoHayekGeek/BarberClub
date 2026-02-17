@@ -54,6 +54,16 @@ const GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
 ];
 
+const OPENING_HOURS_STRUCTURED = {
+  monday: { open: '09:00', close: '19:00', closed: false },
+  tuesday: { open: '09:00', close: '19:00', closed: false },
+  wednesday: { open: '09:00', close: '19:00', closed: false },
+  thursday: { open: '09:00', close: '19:00', closed: false },
+  friday: { open: '09:00', close: '19:00', closed: false },
+  saturday: { open: '09:00', close: '19:00', closed: false },
+  sunday: { closed: true },
+};
+
 async function main() {
   await seedAdmin();
 
@@ -66,15 +76,19 @@ let salonGrenoble = await prisma.salon.findFirst({
   });
 
   if (salonGrenoble) {
-    // Update existing salon with Timify URL
     salonGrenoble = await prisma.salon.update({
       where: { id: salonGrenoble.id },
       data: {
         timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
+        phone: '04 76 12 34 56',
+        imageUrl: PLACEHOLDER_IMAGE,
+        gallery: GALLERY_IMAGES.slice(0, 4),
+        openingHoursStructured: OPENING_HOURS_STRUCTURED,
+        latitude: 45.1885,
+        longitude: 5.7245,
       },
     });
   } else {
-    // Create new salon
     salonGrenoble = await prisma.salon.create({
       data: {
         name: 'Barber Club Grenoble',
@@ -86,6 +100,12 @@ let salonGrenoble = await prisma.salon.findFirst({
         images: [PLACEHOLDER_IMAGE],
         isActive: true,
         timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
+        phone: '04 76 12 34 56',
+        imageUrl: PLACEHOLDER_IMAGE,
+        gallery: GALLERY_IMAGES.slice(0, 4),
+        openingHoursStructured: OPENING_HOURS_STRUCTURED,
+        latitude: 45.1885,
+        longitude: 5.7245,
       },
     });
   }
@@ -100,6 +120,10 @@ let salonGrenoble = await prisma.salon.findFirst({
       where: { id: salonVoiron.id },
       data: {
         timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
+        phone: '04 76 05 12 34',
+        imageUrl: PLACEHOLDER_IMAGE,
+        gallery: GALLERY_IMAGES.slice(0, 3),
+        openingHoursStructured: OPENING_HOURS_STRUCTURED,
       },
     });
   } else {
@@ -114,6 +138,10 @@ let salonGrenoble = await prisma.salon.findFirst({
         images: [PLACEHOLDER_IMAGE],
         isActive: true,
         timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
+        phone: '04 76 05 12 34',
+        imageUrl: PLACEHOLDER_IMAGE,
+        gallery: GALLERY_IMAGES.slice(0, 3),
+        openingHoursStructured: OPENING_HOURS_STRUCTURED,
       },
     });
   }
@@ -128,6 +156,12 @@ let salonGrenoble = await prisma.salon.findFirst({
       where: { id: salonMeylan.id },
       data: {
         timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
+        phone: '09 56 30 93 86',
+        imageUrl: PLACEHOLDER_IMAGE,
+        gallery: GALLERY_IMAGES.slice(0, 5),
+        openingHoursStructured: OPENING_HOURS_STRUCTURED,
+        latitude: 45.2092,
+        longitude: 5.7814,
       },
     });
   } else {
@@ -142,6 +176,12 @@ let salonGrenoble = await prisma.salon.findFirst({
         images: [PLACEHOLDER_IMAGE],
         isActive: true,
         timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
+        phone: '09 56 30 93 86',
+        imageUrl: PLACEHOLDER_IMAGE,
+        gallery: GALLERY_IMAGES.slice(0, 5),
+        openingHoursStructured: OPENING_HOURS_STRUCTURED,
+        latitude: 45.2092,
+        longitude: 5.7814,
       },
     });
   }

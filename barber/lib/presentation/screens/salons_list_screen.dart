@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
 import '../widgets/salon_card.dart';
 
@@ -10,79 +12,264 @@ class SalonsListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salonsAsync = ref.watch(salonsListProvider);
-    
-    // 1. Check if we are in "Offers Mode" (path /offres or query selectFor=offers)
     final state = GoRouterState.of(context);
-    final isOfferSelection = state.uri.path == '/offres' || state.uri.queryParameters['selectFor'] == 'offers';
+    final isOfferSelection =
+        state.uri.path == '/offres' || state.uri.queryParameters['selectFor'] == 'offers';
+
+    if (isOfferSelection) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Nos offres'),
+        ),
+        body: SafeArea(
+          child: _buildSalonsBody(context, ref, salonsAsync, isOfferSelection: true),
+        ),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        // 2. Dynamic Title
-        title: Text(isOfferSelection ? 'Nos offres' : 'Nos salons'),
-      ),
-      body: SafeArea(
-        child: salonsAsync.when(
-          data: (salons) {
-            if (salons.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Aucun salon disponible pour le moment.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white70,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              );
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: salons.length,
-              itemBuilder: (context, index) {
-                final salon = salons[index];
-                return SalonCard(
-                  salon: salon,
-                  onTap: () => context.push(isOfferSelection ? '/offres/${salon.id}' : '/salons/${salon.id}'),
-                  // 3. Pass the flag to hide description
-                  hideDescription: isOfferSelection,
-                );
-              },
-            );
-          },
-          
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
-          ),
-
-          error: (error, stackTrace) {
-            final message = getSalonErrorMessage(error, stackTrace);
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      message,
+      body: Container(
+        color: Colors.black,
+        child: SafeArea(
+          child: salonsAsync.when(
+            data: (salons) {
+              if (salons.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Aucun salon disponible pour le moment.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.white70,
                           ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      onPressed: () => ref.invalidate(salonsListProvider),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Réessayer'),
+                  ),
+                );
+              }
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (int i = 0; i < salons.length; i++) ...[
+                      _SalonSectionWidget(
+                        salon: salons[i],
+                        onTap: () => context.push('/salons/${salons[i].id}'),
+                      ),
+                      if (i < salons.length - 1)
+                        Container(
+                          height: 1,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                    ],
+                  ],
+                ),
+              );
+            },
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: Colors.white70),
+            ),
+            error: (error, stackTrace) {
+              final message = getSalonErrorMessage(error, stackTrace);
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        message,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Colors.white70,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: () => ref.invalidate(salonsListProvider),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSalonsBody(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<Salon>> salonsAsync, {
+    required bool isOfferSelection,
+  }) {
+    return salonsAsync.when(
+      data: (salons) {
+        if (salons.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Aucun salon disponible pour le moment.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white70,
                     ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 8, bottom: 24),
+          itemCount: salons.length,
+          itemBuilder: (context, index) {
+            final salon = salons[index];
+            return SalonCard(
+              salon: salon,
+              onTap: () => context.push(
+                isOfferSelection ? '/offres/${salon.id}' : '/salons/${salon.id}',
+              ),
+              hideDescription: isOfferSelection,
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) {
+        final message = getSalonErrorMessage(error, stackTrace);
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.white70,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () => ref.invalidate(salonsListProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Réessayer'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SalonSectionWidget extends StatefulWidget {
+  final Salon salon;
+  final VoidCallback onTap;
+
+  const _SalonSectionWidget({
+    required this.salon,
+    required this.onTap,
+  });
+
+  @override
+  State<_SalonSectionWidget> createState() => _SalonSectionWidgetState();
+}
+
+class _SalonSectionWidgetState extends State<_SalonSectionWidget> {
+  bool _imageLoaded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.5;
+    final imageUrl = widget.salon.imageUrl;
+
+    return SizedBox(
+      height: height,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+          Positioned.fill(
+            child: Container(color: const Color(0xFF1A1A1A)),
+          ),
+          Positioned.fill(
+            child: imageUrl != null && imageUrl.startsWith('http')
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    frameBuilder: (context, child, frame, loaded) {
+                      if (loaded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _imageLoaded = true);
+                        });
+                      }
+                      return AnimatedOpacity(
+                        opacity: _imageLoaded ? 1 : 0,
+                        duration: const Duration(milliseconds: 400),
+                        child: child,
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                  )
+                : _placeholder(),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.5),
+                    Colors.black.withOpacity(0.8),
                   ],
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+          Positioned(
+            left: 24,
+            bottom: 60,
+            right: 24,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.salon.name.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4,
+                    color: Colors.white,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      ),
+    ),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      color: const Color(0xFF1A1A1A),
+      child: const Center(
+        child: Icon(Icons.store, size: 64, color: Colors.white24),
       ),
     );
   }

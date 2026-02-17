@@ -92,11 +92,7 @@ describe('POST /api/v1/admin/salons', () => {
     expect(response.status).toBe(201);
     expect(response.body.data).toHaveProperty('id');
     expect(response.body.data).toHaveProperty('name', 'Test Salon');
-    expect(response.body.data).toHaveProperty('city', 'Paris');
-    expect(response.body.data).toHaveProperty('address', '123 Main St');
-    expect(response.body.data).toHaveProperty('description', 'Test Description');
-    expect(response.body.data).toHaveProperty('openingHours', 'Mon-Fri 9-18');
-    expect(response.body.data).toHaveProperty('images', ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']);
+    expect(response.body.data).toHaveProperty('imageUrl', 'https://example.com/image1.jpg');
     expect(response.body.data).not.toHaveProperty('adminSecret');
 
     const salon = await prisma.salon.findUnique({

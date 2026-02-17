@@ -14,38 +14,32 @@ const router = Router();
  * @swagger
  * /api/v1/salons:
  *   get:
- *     summary: Get list of active salons
+ *     summary: Get list of active salons (lightweight)
  *     tags: [Salons]
  *     responses:
  *       200:
- *         description: List of active salons
+ *         description: List of salons with id, name, imageUrl only
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [data]
  *               properties:
  *                 data:
  *                   type: array
  *                   items:
  *                     type: object
+ *                     required: [id, name]
  *                     properties:
  *                       id:
  *                         type: string
  *                         format: uuid
  *                       name:
  *                         type: string
- *                       city:
+ *                       imageUrl:
  *                         type: string
- *                       address:
- *                         type: string
- *                       description:
- *                         type: string
- *                       openingHours:
- *                         type: string
- *                       images:
- *                         type: array
- *                         items:
- *                           type: string
+ *                         format: uri
+ *                         nullable: true
  *       500:
  *         description: Server error
  *         content:
@@ -66,7 +60,7 @@ router.get('/', publicReadLimiter, async (_req: Request, res: Response, next: Ne
  * @swagger
  * /api/v1/salons/{id}:
  *   get:
- *     summary: Get salon details
+ *     summary: Get full salon details
  *     tags: [Salons]
  *     parameters:
  *       - in: path
@@ -77,44 +71,64 @@ router.get('/', publicReadLimiter, async (_req: Request, res: Response, next: Ne
  *           format: uuid
  *     responses:
  *       200:
- *         description: Salon details with associated barbers
+ *         description: Full salon with description, imageUrl, gallery, address, phone, openingHours (structured), lat/long
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required: [data]
  *               properties:
  *                 data:
  *                   type: object
+ *                   required: [id, name, address, phone, openingHours]
  *                   properties:
  *                     id:
  *                       type: string
  *                       format: uuid
  *                     name:
  *                       type: string
- *                     city:
- *                       type: string
- *                     address:
- *                       type: string
  *                     description:
  *                       type: string
- *                     openingHours:
+ *                       nullable: true
+ *                     imageUrl:
  *                       type: string
- *                     images:
+ *                       format: uri
+ *                       nullable: true
+ *                     gallery:
  *                       type: array
  *                       items:
  *                         type: string
- *                     barbers:
- *                       type: array
- *                       items:
+ *                         format: uri
+ *                     address:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     latitude:
+ *                       type: number
+ *                       format: float
+ *                       nullable: true
+ *                     longitude:
+ *                       type: number
+ *                       format: float
+ *                       nullable: true
+ *                     openingHours:
+ *                       type: object
+ *                       description: Structured hours per day (monday..sunday). Each day has open, close (HH:mm) and/or closed boolean. Frontend computes open/closed from current time.
+ *                       additionalProperties:
  *                         type: object
  *                         properties:
- *                           id:
+ *                           open:
  *                             type: string
- *                             format: uuid
- *                           firstName:
+ *                             example: "09:00"
+ *                           close:
  *                             type: string
- *                           lastName:
- *                             type: string
+ *                             example: "19:00"
+ *                           closed:
+ *                             type: boolean
+ *                     timifyUrl:
+ *                       type: string
+ *                       format: uri
+ *                       nullable: true
  *       400:
  *         description: Invalid salon ID format
  *         content:

@@ -89,8 +89,15 @@ router.post(
         address: req.body.address,
         description: req.body.description,
         openingHours: req.body.openingHours,
+        openingHoursStructured: req.body.openingHoursStructured,
         images: req.body.images || [],
+        imageUrl: req.body.imageUrl,
+        gallery: req.body.gallery,
+        phone: req.body.phone,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        timifyUrl: req.body.timifyUrl,
       });
       res.status(201).json({ data: salon });
     } catch (error) {

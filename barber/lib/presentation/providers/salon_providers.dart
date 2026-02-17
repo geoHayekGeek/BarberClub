@@ -12,6 +12,10 @@ final salonRepositoryProvider = Provider<SalonRepository>((ref) {
   return SalonRepositoryImpl(dioClient: dioClient);
 });
 
+/// Selected salon ID when navigating to RDV tab (e.g. from Nos salons RÉSERVER).
+/// RDV screen can read this to open Timify for that salon.
+final selectedSalonIdForRdvProvider = StateProvider<String?>((ref) => null);
+
 /// Salons list provider. Cached; refetch only on refresh.
 final salonsListProvider =
     FutureProvider.autoDispose<List<Salon>>((ref) async {

@@ -11,6 +11,7 @@ class Salon {
   final String openingHours;
   final List<String> services;
   final String? timifyUrl;
+  final String? phone;
 
   const Salon({
     required this.id,
@@ -22,7 +23,8 @@ class Salon {
     required this.images,
     required this.openingHours,
     required this.services,
-    this.timifyUrl, // 2. Add to constructor
+    this.timifyUrl,
+    this.phone,
   });
 
   /// Backend may use camelCase, snake_case, or single "description"; all supported.
@@ -49,9 +51,13 @@ class Salon {
       services:
           (json['services'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               [],
-              timifyUrl: json['timifyUrl'] as String? ?? json['timify_url'] as String?,
+      timifyUrl: json['timifyUrl'] as String? ?? json['timify_url'] as String?,
+      phone: json['phone'] as String?,
     );
   }
+
+  /// First image URL for hero/cover; null if none.
+  String? get imageUrl => images.isNotEmpty ? images.first : null;
 
   Map<String, dynamic> toJson() {
     return {
@@ -65,6 +71,7 @@ class Salon {
       'openingHours': openingHours,
       'services': services,
       'timifyUrl': timifyUrl,
+      'phone': phone,
     };
   }
 }

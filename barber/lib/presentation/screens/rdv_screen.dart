@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
 import '../widgets/salon_card.dart';
 
@@ -43,6 +44,24 @@ class RdvScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salonsAsync = ref.watch(salonsListProvider);
+    final selectedId = ref.watch(selectedSalonIdForRdvProvider);
+
+    if (selectedId != null && salonsAsync.hasValue) {
+      final salons = salonsAsync.value!;
+      Salon? salon;
+      for (final s in salons) {
+        if (s.id == selectedId) {
+          salon = s;
+          break;
+        }
+      }
+      if (salon != null) {
+        ref.read(selectedSalonIdForRdvProvider.notifier).state = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _launchTimify(context, salon!.timifyUrl);
+        });
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
