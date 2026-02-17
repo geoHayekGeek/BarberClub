@@ -34,6 +34,7 @@ const configSchema = z.object({
     }),
   LOYALTY_TARGET: z.string().transform(Number).pipe(z.number().int().positive()).default('10'),
   LOYALTY_QR_TTL_SECONDS: z.string().transform(Number).pipe(z.number().int().positive()).default('120'),
+  QR_TOKEN_PEPPER: z.string().min(32),
   ENABLE_LOCAL_CANCEL: z.string().transform((val) => val === 'true').default('false'),
   ADMIN_SECRET: z.string().min(1).optional(),
 });

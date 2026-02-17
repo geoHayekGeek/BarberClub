@@ -41,21 +41,34 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_isSubmitting || _isInCooldown) return;
     final barcode = capture.barcodes.firstOrNull;
-    final token = barcode?.rawValue?.trim();
-    if (token == null || token.isEmpty) return;
+    final qrPayload = barcode?.rawValue?.trim();
+    if (qrPayload == null || qrPayload.isEmpty) return;
 
     setState(() => _isSubmitting = true);
     try {
       final dio = ref.read(dioClientProvider).dio;
+      
+      String endpoint;
+      String successMessage;
+      
+      if (qrPayload.startsWith('BC|v1|C|')) {
+        endpoint = '/api/v1/admin/loyalty/redeem';
+        successMessage = 'Coupe offerte validée';
+      } else {
+        endpoint = '/api/v1/admin/loyalty/scan';
+        successMessage = 'Point ajouté';
+      }
+
       await dio.post(
-        '/api/v1/admin/loyalty/scan',
-        data: {'token': token},
+        endpoint,
+        data: {'qrPayload': qrPayload},
       );
+
       if (mounted) {
         _lastScanAt = DateTime.now();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Point ajouté'),
+          SnackBar(
+            content: Text(successMessage),
             backgroundColor: Colors.green,
           ),
         );
@@ -106,6 +119,11 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
             controller: _controller,
             onDetect: _onDetect,
           ),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _ScannerOverlayPainter(),
+            ),
+          ),
           if (_isSubmitting)
             Container(
               color: Colors.black54,
@@ -134,4 +152,45 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
       ),
     );
   }
+}
+
+class _ScannerOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    final rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: size.width * 0.7,
+      height: size.width * 0.7,
+    );
+
+    canvas.drawRect(rect, paint);
+
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'Scannez le QR code',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        (size.width - textPainter.width) / 2,
+        rect.top - 40,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

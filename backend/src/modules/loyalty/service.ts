@@ -3,12 +3,13 @@
  * Handles loyalty card business logic and QR code redemption
  */
 
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 import prisma from '../../db/client';
 import { getMessaging } from '../../config/firebase';
 import { AppError, ErrorCode } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import config from '../../config';
+import { generateToken, hashToken, encodeQRPayload, parseQRPayload, QRType } from '../../utils/qr';
 
 export interface LoyaltyStateResponse {
   points: number;
@@ -63,7 +64,7 @@ class LoyaltyService {
     });
   }
 
-  async generateCouponQr(userId: string, couponId: string): Promise<{ token: string; expiresAt: string }> {
+  async generateCouponQr(userId: string, couponId: string): Promise<{ qrPayload: string; expiresAt: string }> {
     const coupon = await prisma.loyaltyCoupon.findFirst({
       where: {
         id: couponId,
@@ -80,9 +81,8 @@ class LoyaltyService {
       );
     }
 
-    const raw = randomBytes(16).toString('hex');
-    const payload = `COUPON_QR:${raw}`;
-    const tokenHash = this.hashToken(payload);
+    const token = generateToken();
+    const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + config.LOYALTY_QR_TTL_SECONDS * 1000);
 
     await prisma.loyaltyCoupon.update({
@@ -94,6 +94,8 @@ class LoyaltyService {
       },
     });
 
+    const qrPayload = encodeQRPayload(QRType.COUPON, token);
+
     logger.info('Coupon QR generated', {
       userId,
       couponId,
@@ -101,13 +103,24 @@ class LoyaltyService {
     });
 
     return {
-      token: payload,
+      qrPayload,
       expiresAt: expiresAt.toISOString(),
     };
   }
 
-  async redeemCoupon(token: string): Promise<{ success: boolean }> {
-    const tokenHash = this.hashToken(token);
+  async redeemCoupon(qrPayload: string): Promise<{ success: boolean }> {
+    const parsed = parseQRPayload(qrPayload);
+
+    if (!parsed || parsed.type !== QRType.COUPON) {
+      logger.warn('COUPON_REDEEM invalid_format', { payloadLength: qrPayload.length });
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code invalide',
+        400
+      );
+    }
+
+    const tokenHash = this.hashToken(parsed.token);
 
     const coupon = await prisma.loyaltyCoupon.findFirst({
       where: {
@@ -117,25 +130,28 @@ class LoyaltyService {
     });
 
     if (!coupon) {
+      logger.warn('COUPON_REDEEM token_not_found_or_used');
       throw new AppError(
         ErrorCode.INVALID_OR_EXPIRED_QR,
-        'QR code invalide ou déjà utilisé',
+        'QR code invalide',
         400
       );
     }
 
     if (!coupon.qrExpiresAt || coupon.qrExpiresAt <= new Date()) {
+      logger.warn('COUPON_REDEEM token_expired', { userId: coupon.userId });
       throw new AppError(
         ErrorCode.INVALID_OR_EXPIRED_QR,
-        'QR code expiré',
+        'QR code invalide',
         400
       );
     }
 
     if (coupon.qrUsedAt) {
+      logger.warn('COUPON_REDEEM qr_already_used', { userId: coupon.userId });
       throw new AppError(
         ErrorCode.INVALID_OR_EXPIRED_QR,
-        'QR code déjà utilisé',
+        'QR code invalide',
         400
       );
     }
@@ -221,7 +237,7 @@ class LoyaltyService {
   }
 
   private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    return hashToken(token);
   }
 
   async generateQR(userId: string): Promise<QRCodeResponse> {
@@ -281,11 +297,10 @@ class LoyaltyService {
   }
 
   /** V1 minimal flow: generate short-lived QR token for loyalty point scan (USER only). */
-  async generateQrToken(userId: string): Promise<{ token: string; expiresAt: string }> {
-    const raw = randomBytes(8).toString('hex');
-    const payload = `LOYALTY_QR:${raw}`;
-    const tokenHash = this.hashToken(payload);
-    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+  async generateQrToken(userId: string): Promise<{ qrPayload: string; expiresAt: string }> {
+    const token = generateToken();
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + config.LOYALTY_QR_TTL_SECONDS * 1000);
 
     await prisma.loyaltyQrToken.create({
       data: {
@@ -295,30 +310,62 @@ class LoyaltyService {
       },
     });
 
+    const qrPayload = encodeQRPayload(QRType.POINT, token);
+
     logger.info('Loyalty QR token generated', {
       userId,
       expiresAt: expiresAt.toISOString(),
-      tokenForTesting: process.env.NODE_ENV !== 'production' ? payload : undefined,
     });
+
     return {
-      token: payload,
+      qrPayload,
       expiresAt: expiresAt.toISOString(),
     };
   }
 
   /** V1 minimal flow: admin scans QR token, validate and increment user.loyaltyPoints. */
-  async scanQrTokenByAdmin(token: string): Promise<{ success: boolean; rewardEarned: boolean }> {
-    const tokenHash = this.hashToken(token);
+  async scanQrTokenByAdmin(qrPayload: string): Promise<{ success: boolean; rewardEarned: boolean }> {
+    const parsed = parseQRPayload(qrPayload);
+
+    if (!parsed || parsed.type !== QRType.POINT) {
+      logger.warn('LOYALTY_SCAN invalid_format', { payloadLength: qrPayload.length });
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code invalide',
+        400
+      );
+    }
+
+    const tokenHash = this.hashToken(parsed.token);
 
     const record = await prisma.loyaltyQrToken.findFirst({
       where: { tokenHash },
       include: { user: true },
     });
 
-    if (!record || record.usedAt || record.expiresAt <= new Date()) {
+    if (!record) {
+      logger.warn('LOYALTY_SCAN token_not_found');
       throw new AppError(
         ErrorCode.INVALID_OR_EXPIRED_QR,
-        'QR code is invalid or expired',
+        'QR code invalide',
+        400
+      );
+    }
+
+    if (record.usedAt) {
+      logger.warn('LOYALTY_SCAN token_used', { userId: record.userId });
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code invalide',
+        400
+      );
+    }
+
+    if (record.expiresAt <= new Date()) {
+      logger.warn('LOYALTY_SCAN token_expired', { userId: record.userId });
+      throw new AppError(
+        ErrorCode.INVALID_OR_EXPIRED_QR,
+        'QR code invalide',
         400
       );
     }
@@ -327,17 +374,6 @@ class LoyaltyService {
     let newPoints = 0;
 
     await prisma.$transaction(async (tx) => {
-      const current = await tx.loyaltyQrToken.findUnique({
-        where: { id: record.id },
-      });
-      if (!current || current.usedAt || current.expiresAt <= new Date()) {
-        throw new AppError(
-          ErrorCode.INVALID_OR_EXPIRED_QR,
-          'QR code is invalid or expired',
-          400
-        );
-      }
-      
       await tx.loyaltyQrToken.update({
         where: { id: record.id },
         data: { usedAt: new Date() },

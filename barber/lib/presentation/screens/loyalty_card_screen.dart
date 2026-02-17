@@ -158,8 +158,9 @@ class LoyaltyCardScreen extends ConsumerWidget {
       final response = await dio.post('/api/v1/loyalty/qr');
       final data = response.data as Map<String, dynamic>;
       final payload = data['data'] as Map<String, dynamic>?;
-      final token = payload?['token'] as String?;
-      if (token == null || token.isEmpty) return;
+      final qrPayload = payload?['qrPayload'] as String?;
+      final expiresAt = payload?['expiresAt'] as String?;
+      if (qrPayload == null || qrPayload.isEmpty) return;
       if (!context.mounted) return;
       await showDialog<void>(
         context: context,
@@ -171,7 +172,8 @@ class LoyaltyCardScreen extends ConsumerWidget {
             }
           });
           return _QrCodeDialog(
-            token: token,
+            qrPayload: qrPayload,
+            expiresAt: expiresAt,
             initialPoints: initialPoints,
             dio: dio,
             onClosed: () {
@@ -200,13 +202,17 @@ class LoyaltyCardScreen extends ConsumerWidget {
       final response = await dio.post('/api/v1/loyalty/coupons/$couponId/qr');
       final data = response.data as Map<String, dynamic>;
       final payload = data['data'] as Map<String, dynamic>?;
-      final token = payload?['token'] as String?;
-      if (token == null || token.isEmpty) return;
+      final qrPayload = payload?['qrPayload'] as String?;
+      final expiresAt = payload?['expiresAt'] as String?;
+      if (qrPayload == null || qrPayload.isEmpty) return;
       if (!context.mounted) return;
       await showDialog<void>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => _CouponQrDialog(token: token),
+        builder: (ctx) => _CouponQrDialog(
+          qrPayload: qrPayload,
+          expiresAt: expiresAt,
+        ),
       );
       if (context.mounted) {
         ref.invalidate(loyaltyCouponsProvider);
@@ -223,26 +229,35 @@ class LoyaltyCardScreen extends ConsumerWidget {
 }
 
 class _CouponQrDialog extends StatelessWidget {
-  const _CouponQrDialog({required this.token});
+  const _CouponQrDialog({
+    required this.qrPayload,
+    required this.expiresAt,
+  });
 
-  final String token;
+  final String qrPayload;
+  final String? expiresAt;
 
   @override
   Widget build(BuildContext context) {
+    final expiryDate = expiresAt != null ? DateTime.tryParse(expiresAt!) : null;
+    final isExpired = expiryDate != null && expiryDate.isBefore(DateTime.now());
+
     return AlertDialog(
       title: const Text('Coupe offerte'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 200,
-            height: 200,
+            width: 300,
+            height: 300,
             color: Colors.white,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(16),
             child: QrImageView(
-              data: token,
+              data: qrPayload,
               version: QrVersions.auto,
               backgroundColor: Colors.white,
+              errorCorrectionLevel: QrErrorCorrectLevel.H,
+              padding: const EdgeInsets.all(8),
               eyeStyle: const QrEyeStyle(
                 eyeShape: QrEyeShape.square,
                 color: Colors.black,
@@ -254,13 +269,34 @@ class _CouponQrDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'À faire scanner pour valider votre coupe offerte',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
-                ),
-            textAlign: TextAlign.center,
-          ),
+          if (isExpired)
+            Text(
+              'QR code expiré',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.redAccent,
+                  ),
+              textAlign: TextAlign.center,
+            )
+          else
+            Text(
+              'À faire scanner pour valider votre coupe offerte',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          if (expiryDate != null && !isExpired)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Valable jusqu\'à ${_formatExpiry(expiryDate)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
       actions: [
@@ -271,17 +307,23 @@ class _CouponQrDialog extends StatelessWidget {
       ],
     );
   }
+
+  String _formatExpiry(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 class _QrCodeDialog extends StatefulWidget {
   const _QrCodeDialog({
-    required this.token,
+    required this.qrPayload,
+    required this.expiresAt,
     required this.initialPoints,
     required this.dio,
     required this.onClosed,
   });
 
-  final String token;
+  final String qrPayload;
+  final String? expiresAt;
   final int initialPoints;
   final Dio dio;
   final VoidCallback onClosed;
@@ -326,20 +368,25 @@ class _QrCodeDialogState extends State<_QrCodeDialog> {
   @override
   Widget build(BuildContext context) {
     final ctx = context;
+    final expiresAt = widget.expiresAt != null ? DateTime.tryParse(widget.expiresAt!) : null;
+    final isExpired = expiresAt != null && expiresAt.isBefore(DateTime.now());
+
     return AlertDialog(
       title: const Text('Mon QR code'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 200,
-            height: 200,
+            width: 300,
+            height: 300,
             color: Colors.white,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(16),
             child: QrImageView(
-              data: widget.token,
+              data: widget.qrPayload,
               version: QrVersions.auto,
               backgroundColor: Colors.white,
+              errorCorrectionLevel: QrErrorCorrectLevel.H,
+              padding: const EdgeInsets.all(8),
               eyeStyle: const QrEyeStyle(
                 eyeShape: QrEyeShape.square,
                 color: Colors.black,
@@ -351,33 +398,34 @@ class _QrCodeDialogState extends State<_QrCodeDialog> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'À faire scanner par le coiffeur',
-            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
-                ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Pour tester dans Swagger :\n'
-            'POST /api/v1/admin/loyalty/scan\n'
-            'Body: {"token": "<coller ci-dessous>"}\n'
-            'Header: Authorization: Bearer <jeton admin>',
-            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  color: Colors.white54,
-                  fontSize: 10,
-                ),
-          ),
-          const SizedBox(height: 4),
-          SelectableText(
-            widget.token,
-            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                ),
-          ),
+          if (isExpired)
+            Text(
+              'QR code expiré',
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                    color: Colors.redAccent,
+                  ),
+              textAlign: TextAlign.center,
+            )
+          else
+            Text(
+              'Présentez ce QR code au coiffeur',
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          if (expiresAt != null && !isExpired)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Valable jusqu\'à ${_formatExpiry(expiresAt)}',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
       actions: [
@@ -387,5 +435,9 @@ class _QrCodeDialogState extends State<_QrCodeDialog> {
         ),
       ],
     );
+  }
+
+  String _formatExpiry(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }

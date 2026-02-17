@@ -21,8 +21,12 @@ import { z } from 'zod';
 const router = Router();
 
 const loyaltyScanSchema = z.object({
-  token: z.string().min(1),
-});
+  qrPayload: z.string().min(1).optional(),
+  token: z.string().min(1).optional(),
+}).refine(
+  (data) => data.qrPayload || data.token,
+  { message: 'Either qrPayload or token must be provided' }
+);
 
 /**
  * @swagger
@@ -249,7 +253,8 @@ router.post(
   validate(loyaltyScanSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await loyaltyService.scanQrTokenByAdmin(req.body.token);
+      const payload = req.body.qrPayload || req.body.token;
+      const result = await loyaltyService.scanQrTokenByAdmin(payload);
       res.status(200).json({ data: result });
     } catch (error) {
       next(error);
@@ -264,7 +269,8 @@ router.post(
   validate(loyaltyScanSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await loyaltyService.redeemCoupon(req.body.token);
+      const payload = req.body.qrPayload || req.body.token;
+      const result = await loyaltyService.redeemCoupon(payload);
       res.status(200).json({ data: result });
     } catch (error) {
       next(error);

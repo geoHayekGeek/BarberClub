@@ -22,13 +22,29 @@ import '../../core/network/dio_client.dart';
 import '../screens/offers_list_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
+/// Notifier used to refresh router redirect logic when auth changes.
+/// Using refreshListenable avoids recreating the entire GoRouter (which would
+/// reset navigation to initialLocation) when auth state changes during
+/// forgot-password, login, etc.
+class _AuthRefreshNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
+
+final _authRefreshNotifierProvider = Provider<_AuthRefreshNotifier>((ref) {
+  return _AuthRefreshNotifier();
+});
+
 /// App router configuration.
 /// Role-based: ADMIN -> /admin (QR scanner only). USER -> bottom nav shell.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  ref.watch(authStateProvider);
+  final refreshNotifier = ref.watch(_authRefreshNotifierProvider);
+  ref.listen<AuthState>(authStateProvider, (_, __) {
+    refreshNotifier.refresh();
+  });
   return GoRouter(
     navigatorKey: navigatorKey,
     initialLocation: '/login',
+    refreshListenable: refreshNotifier,
     redirect: (BuildContext context, GoRouterState state) {
       final auth = ref.read(authStateProvider);
       final loc = state.matchedLocation;
