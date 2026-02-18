@@ -12,11 +12,18 @@ final barberRepositoryProvider = Provider<BarberRepository>((ref) {
   return BarberRepositoryImpl(dioClient: dioClient);
 });
 
-/// Barbers list provider. Pass salonId to filter by salon (optional).
+/// Barbers list provider (all barbers). Prefer barbersBySalonProvider for salon-scoped list.
 final barbersListProvider =
     FutureProvider.autoDispose<List<Barber>>((ref) async {
   final repository = ref.watch(barberRepositoryProvider);
   return repository.getBarbers();
+});
+
+/// Barbers list filtered by salon. Server-side filtering. Pass salonId.
+final barbersBySalonProvider =
+    FutureProvider.autoDispose.family<List<Barber>, String>((ref, salonId) async {
+  final repository = ref.watch(barberRepositoryProvider);
+  return repository.getBarbers(salonId: salonId);
 });
 
 /// Barber detail by id.

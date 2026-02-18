@@ -16,10 +16,16 @@ class BarberRepositoryImpl implements BarberRepository {
   Future<List<Barber>> getBarbers({String? salonId}) async {
     try {
       final queryParams = salonId != null ? {'salonId': salonId} : null;
+      if (salonId != null) {
+        // ignore: avoid_print
+        print('BarberRepository: getBarbers salonId=$salonId');
+      }
       final response = await _dio.get(
         '/api/v1/barbers',
         queryParameters: queryParams,
       );
+      // ignore: avoid_print
+      print('BarberRepository: response.data=${response.data}');
       final data = response.data;
       List<dynamic> list = const [];
       if (data is List) {

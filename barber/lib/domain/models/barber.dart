@@ -18,30 +18,69 @@ class Barber {
     required this.salons,
   });
 
-  /// Backend may use "interests" for specialties; both supported.
+  /// Maps backend JSON. Backend returns: id, name, role, age, origin, imageUrl, salon, bio?, videoUrl?, gallery?.
   factory Barber.fromJson(Map<String, dynamic> json) {
     final specialties = (json['interests'] as List<dynamic>?)
             ?.map((e) => e as String)
             .toList() ??
         (json['specialties'] as List<dynamic>?)?.map((e) => e as String).toList() ??
         [];
-    final salonsList = (json['salons'] as List<dynamic>?)
+    String displayName = json['name'] as String? ??
+        json['displayName'] as String? ??
+        json['display_name'] as String? ??
+        (json['firstName'] as String?) ??
+        '';
+    final parts = displayName.split(' ');
+    final firstName = json['firstName'] as String? ?? json['first_name'] as String? ?? (parts.isNotEmpty ? parts.first : '');
+    final lastName = json['lastName'] as String? ?? json['last_name'] as String? ?? (parts.length > 1 ? parts.sublist(1).join(' ') : '');
+    if (displayName.isEmpty) displayName = firstName;
+
+    List<String> images = (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [];
+    final imageUrl = json['imageUrl'] as String? ?? json['image_url'] as String?;
+    if (imageUrl != null && imageUrl.isNotEmpty && images.isEmpty) {
+      images = [imageUrl];
+    }
+    final galleryRaw = json['gallery'] as List<dynamic>?;
+    if (galleryRaw != null && galleryRaw.isNotEmpty) {
+      final gallery = galleryRaw.map((e) => e as String).toList();
+      if (images.isEmpty) {
+        images = gallery;
+      } else if (gallery.isNotEmpty) {
+        images = [images.first, ...gallery];
+      }
+    }
+
+    List<BarberSalon> salonsList = (json['salons'] as List<dynamic>?)
         ?.map((e) => BarberSalon.fromJson(e as Map<String, dynamic>))
-        .toList();
+        .toList() ?? [];
+    final salonObj = json['salon'] as Map<String, dynamic>?;
+    if (salonObj != null && salonsList.isEmpty) {
+      salonsList = [
+        BarberSalon(
+          id: salonObj['id'] as String? ?? '',
+          name: salonObj['name'] as String? ?? '',
+          city: salonObj['city'] as String? ?? '',
+          timifyUrl: salonObj['timifyUrl'] as String? ?? salonObj['timify_url'] as String?,
+        ),
+      ];
+    }
+
+    final level = json['role'] as String? ?? json['level'] as String? ?? 'senior';
+
     return Barber(
       id: json['id'] as String? ?? '',
-      firstName: json['firstName'] as String? ?? json['first_name'] as String? ?? '',
-      lastName: json['lastName'] as String? ?? json['last_name'] as String? ?? '',
-      displayName: json['displayName'] as String? ?? json['display_name'] as String? ?? (json['firstName'] as String?) ?? '',
+      firstName: firstName,
+      lastName: lastName,
+      displayName: displayName,
       bio: json['bio'] as String? ?? '',
       experienceYears: json['experienceYears'] as int? ?? json['experience_years'] as int?,
       age: json['age'] as int?,
       origin: json['origin'] as String?,
-      level: json['level'] as String? ?? 'senior',
+      level: level,
       specialties: specialties,
-      images: (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      images: images,
       videoUrl: json['videoUrl'] as String? ?? json['video_url'] as String?,
-      salons: salonsList ?? [],
+      salons: salonsList,
     );
   }
   final String id;

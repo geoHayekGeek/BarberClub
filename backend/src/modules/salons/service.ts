@@ -22,6 +22,7 @@ export interface SalonListItem {
   id: string;
   name: string;
   imageUrl: string | null;
+  timifyUrl: string | null;
 }
 
 export interface SalonDetail {
@@ -55,6 +56,7 @@ class SalonsService {
         name: true,
         imageUrl: true,
         images: true,
+        timifyUrl: true,
       },
     });
 
@@ -62,6 +64,7 @@ class SalonsService {
       id: s.id,
       name: s.name,
       imageUrl: s.imageUrl ?? (s.images.length > 0 ? s.images[0] : null),
+      timifyUrl: s.timifyUrl ?? null,
     }));
   }
 

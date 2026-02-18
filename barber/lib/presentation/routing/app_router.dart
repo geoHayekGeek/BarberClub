@@ -11,7 +11,8 @@ import '../screens/compte_screen.dart';
 import '../screens/loyalty_card_screen.dart';
 import '../screens/salons_list_screen.dart';
 import '../screens/salon_detail_screen.dart';
-import '../screens/barbers_list_screen.dart';
+import '../screens/salon_barber_selection_screen.dart';
+import '../screens/barbers_by_salon_screen.dart';
 import '../screens/barber_detail_screen.dart';
 import '../screens/admin_scanner_screen.dart';
 import '../screens/admin_compte_screen.dart';
@@ -158,15 +159,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/coiffeurs',
                 name: 'coiffeurs',
-                builder: (context, state) => const BarbersListScreen(),
+                builder: (context, state) => const SalonBarberSelectionScreen(),
                 routes: [
                   GoRoute(
-                    path: ':id',
-                    name: 'barber-detail',
+                    path: 'salon/:salonId',
+                    name: 'barbers-by-salon',
                     builder: (context, state) {
-                      final id = state.pathParameters['id'] ?? '';
-                      return BarberDetailScreen(barberId: id);
+                      final salonId = state.pathParameters['salonId'] ?? '';
+                      final salonName = state.uri.queryParameters['name'] != null
+                          ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                          : 'Salon';
+                      return BarbersBySalonScreen(
+                        salonId: salonId,
+                        salonName: salonName,
+                      );
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'barber/:id',
+                        name: 'barber-detail',
+                        builder: (context, state) {
+                          final id = state.pathParameters['id'] ?? '';
+                          final salonId = state.pathParameters['salonId'] ?? '';
+                          final salonName = state.uri.queryParameters['name'] != null
+                              ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                              : null;
+                          return BarberDetailScreen(
+                            barberId: id,
+                            salonId: salonId,
+                            salonName: salonName,
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

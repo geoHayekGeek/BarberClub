@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
-import '../widgets/salon_card.dart';
 
 class RdvScreen extends ConsumerWidget {
   const RdvScreen({super.key});
 
-  /// Function to open Timify URL
   Future<void> _launchTimify(BuildContext context, String? url) async {
     if (url == null || url.isEmpty) {
       if (context.mounted) {
@@ -56,59 +55,200 @@ class RdvScreen extends ConsumerWidget {
         }
       }
       if (salon != null) {
-        ref.read(selectedSalonIdForRdvProvider.notifier).state = null;
+        final timifyUrl = salon.timifyUrl;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _launchTimify(context, salon!.timifyUrl);
+          ref.read(selectedSalonIdForRdvProvider.notifier).state = null;
+          _launchTimify(context, timifyUrl);
         });
       }
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Prendre RDV'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 24, 0, 16),
-              child: Text(
-                'Choisissez votre salon',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w400,
+      body: Container(
+        color: Colors.black,
+        child: SafeArea(
+          child: salonsAsync.when(
+            data: (salons) {
+              if (salons.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Aucun salon disponible pour le moment.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.white70,
+                          ),
+                      textAlign: TextAlign.center,
                     ),
-              ),
+                  ),
+                );
+              }
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (int i = 0; i < salons.length; i++) ...[
+                      _RdvSalonSectionWidget(
+                        salon: salons[i],
+                        onReserve: () => _launchTimify(context, salons[i].timifyUrl),
+                      ),
+                      if (i < salons.length - 1)
+                        Container(
+                          height: 1,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                    ],
+                  ],
+                ),
+              );
+            },
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: Colors.white70),
             ),
-            
-            Expanded(
-              child: salonsAsync.when(
-                data: (salons) {
-                  if (salons.isEmpty) {
-                    return const Center(child: Text('Aucun salon trouvé.'));
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 24),
-                    itemCount: salons.length,
-                    itemBuilder: (context, index) {
-                      final salon = salons[index];
-                      return SalonCard(
-                        salon: salon,
-                        onTap: () => _launchTimify(context, salon.timifyUrl),
-                        // CHANGED: Set to true to hide description like in Offers
-                        hideDescription: true, 
-                      );
-                    },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(
-                  child: Text('Erreur: $err', style: const TextStyle(color: Colors.red)),
+            error: (err, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Erreur: $err',
+                  style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RdvSalonSectionWidget extends StatefulWidget {
+  final Salon salon;
+  final VoidCallback onReserve;
+
+  const _RdvSalonSectionWidget({
+    required this.salon,
+    required this.onReserve,
+  });
+
+  @override
+  State<_RdvSalonSectionWidget> createState() => _RdvSalonSectionWidgetState();
+}
+
+class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.5;
+    final imageUrl = widget.salon.imageUrl;
+
+    return SizedBox(
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Container(color: const Color(0xFF1A1A1A)),
+          ),
+          Positioned.fill(
+            child: imageUrl != null && imageUrl.startsWith('http')
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return _placeholder();
+                    },
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                  )
+                : _placeholder(),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.4),
+                    Colors.black.withOpacity(0.85),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 24,
+            bottom: 60,
+            right: 24,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.salon.name.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4,
+                    color: Colors.white,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 24),
+                _ReserveButton(onTap: widget.onReserve),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      color: const Color(0xFF1A1A1A),
+      child: const Center(
+        child: Icon(Icons.store, size: 64, color: Colors.white24),
+      ),
+    );
+  }
+}
+
+class _ReserveButton extends StatelessWidget {
+  const _ReserveButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white.withOpacity(0.6)),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'RÉSERVER',
+                style: TextStyle(
+                  color: Colors.white,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+            ],
+          ),
         ),
       ),
     );

@@ -8,14 +8,19 @@ import 'package:video_player/video_player.dart';
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
+import '../providers/salon_providers.dart';
 
 /// Single Barber Detail: fullscreen video hero, info cards, à propos, CTA, gallery.
 class BarberDetailScreen extends ConsumerWidget {
   final String barberId;
+  final String salonId;
+  final String? salonName;
 
   const BarberDetailScreen({
     super.key,
     required this.barberId,
+    this.salonId = '',
+    this.salonName,
   });
 
   @override
@@ -23,7 +28,11 @@ class BarberDetailScreen extends ConsumerWidget {
     final barberAsync = ref.watch(barberDetailProvider(barberId));
 
     return barberAsync.when(
-      data: (barber) => _BarberDetailContent(barber: barber),
+      data: (barber) => _BarberDetailContent(
+        barber: barber,
+        salonId: salonId,
+        salonName: salonName,
+      ),
       loading: () => Scaffold(
         backgroundColor: const Color(0xFF0E0E10),
         appBar: AppBar(
@@ -84,8 +93,14 @@ class BarberDetailScreen extends ConsumerWidget {
 
 class _BarberDetailContent extends StatefulWidget {
   final Barber barber;
+  final String salonId;
+  final String? salonName;
 
-  const _BarberDetailContent({required this.barber});
+  const _BarberDetailContent({
+    required this.barber,
+    this.salonId = '',
+    this.salonName,
+  });
 
   @override
   State<_BarberDetailContent> createState() => _BarberDetailContentState();
@@ -107,6 +122,7 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
               height: headerHeight,
               child: _BarberVideoHeader(
                 barber: widget.barber,
+                salonName: widget.salonName,
                 onBack: () => context.pop(),
               ),
             ),
@@ -119,14 +135,17 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
                 paddingH,
                 0,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _InfoCardsRow(barber: widget.barber),
-                  const SizedBox(height: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _InfoCardsRow(barber: widget.barber),
+                      const SizedBox(height: 24),
                   _AProposSection(barber: widget.barber),
                   const SizedBox(height: 24),
-                  _CtaButton(barber: widget.barber),
+                  _CtaButton(
+                    barber: widget.barber,
+                    salonId: widget.salonId,
+                  ),
                   const SizedBox(height: 32),
                   _SectionTitleWithDivider(title: 'SES RÉALISATIONS'),
                   const SizedBox(height: 16),
@@ -144,10 +163,12 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
 
 class _BarberVideoHeader extends StatefulWidget {
   final Barber barber;
+  final String? salonName;
   final VoidCallback onBack;
 
   const _BarberVideoHeader({
     required this.barber,
+    this.salonName,
     required this.onBack,
   });
 
@@ -207,9 +228,11 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
   Widget build(BuildContext context) {
     super.build(context);
     final barber = widget.barber;
-    final salonLabel = barber.salons.isNotEmpty
-        ? barber.salons.first.name.toUpperCase()
-        : 'SALON DE GRENOBLE';
+    final salonLabel = widget.salonName != null && widget.salonName!.isNotEmpty
+        ? widget.salonName!.toUpperCase()
+        : (barber.salons.isNotEmpty
+            ? barber.salons.first.name.toUpperCase()
+            : '');
 
     return Stack(
       fit: StackFit.expand,
@@ -325,41 +348,43 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
               ),
               const SizedBox(height: 8),
               Text(
-                'BARBER',
+                'COIFFEUR',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.7),
                   fontSize: 14,
                   letterSpacing: 3,
                 ),
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      salonLabel,
-                      style: const TextStyle(
+              if (salonLabel.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
                         color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        salonLabel,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -500,13 +525,14 @@ class _AProposSection extends StatelessWidget {
   }
 }
 
-class _CtaButton extends StatelessWidget {
+class _CtaButton extends ConsumerWidget {
   final Barber barber;
+  final String salonId;
 
-  const _CtaButton({required this.barber});
+  const _CtaButton({required this.barber, required this.salonId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
       height: 56,
       child: Material(
@@ -515,6 +541,9 @@ class _CtaButton extends StatelessWidget {
         child: InkWell(
           onTap: () {
             HapticFeedback.mediumImpact();
+            if (salonId.isNotEmpty) {
+              ref.read(selectedSalonIdForRdvProvider.notifier).state = salonId;
+            }
             context.go('/rdv');
           },
           borderRadius: BorderRadius.circular(16),

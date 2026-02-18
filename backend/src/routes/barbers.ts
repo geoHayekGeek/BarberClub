@@ -75,7 +75,11 @@ const router = Router();
 router.get('/', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const salonId = req.query.salonId as string | undefined;
+    // eslint-disable-next-line no-console
+    console.log('Barbers list - salonId filter:', salonId);
     const barbers = await barbersService.listBarbers(salonId);
+    // eslint-disable-next-line no-console
+    console.log('Barbers count:', barbers.length);
     res.json({ data: barbers });
   } catch (error) {
     next(error);
