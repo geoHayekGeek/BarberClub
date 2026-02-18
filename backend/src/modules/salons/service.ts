@@ -21,6 +21,7 @@ export type OpeningHoursStructure = typeof DEFAULT_OPENING_HOURS;
 export interface SalonListItem {
   id: string;
   name: string;
+  city: string;
   imageUrl: string | null;
   timifyUrl: string | null;
 }
@@ -28,6 +29,7 @@ export interface SalonListItem {
 export interface SalonDetail {
   id: string;
   name: string;
+  city: string;
   description: string | null;
   imageUrl: string | null;
   gallery: string[];
@@ -54,6 +56,7 @@ class SalonsService {
       select: {
         id: true,
         name: true,
+        city: true,
         imageUrl: true,
         images: true,
         timifyUrl: true,
@@ -63,6 +66,7 @@ class SalonsService {
     return salons.map((s) => ({
       id: s.id,
       name: s.name,
+      city: s.city,
       imageUrl: s.imageUrl ?? (s.images.length > 0 ? s.images[0] : null),
       timifyUrl: s.timifyUrl ?? null,
     }));
@@ -74,6 +78,7 @@ class SalonsService {
       select: {
         id: true,
         name: true,
+        city: true,
         description: true,
         imageUrl: true,
         images: true,
@@ -94,6 +99,7 @@ class SalonsService {
     return {
       id: salon.id,
       name: salon.name,
+      city: salon.city,
       description: salon.description,
       imageUrl: salon.imageUrl ?? (salon.images.length > 0 ? salon.images[0] : null),
       gallery: salon.gallery.length > 0 ? salon.gallery : salon.images,
@@ -146,7 +152,9 @@ class SalonsService {
     return {
       id: salon.id,
       name: salon.name,
+      city: salon.city,
       imageUrl: salon.imageUrl ?? (salon.images.length > 0 ? salon.images[0] : null),
+      timifyUrl: salon.timifyUrl ?? null,
     };
   }
 }

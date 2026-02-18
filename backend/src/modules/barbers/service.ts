@@ -15,6 +15,8 @@ export interface BarberListItem {
   id: string;
   name: string;
   role: string;
+  level: string;
+  experienceYears: number | null;
   age: number | null;
   origin: string | null;
   imageUrl: string | null;
@@ -31,6 +33,8 @@ export interface BarberDetail {
   id: string;
   name: string;
   role: string;
+  level: string;
+  experienceYears: number | null;
   age: number | null;
   origin: string | null;
   bio: string | null;
@@ -90,6 +94,8 @@ class BarbersService {
         id: barber.id,
         name: barberName(barber),
         role: barber.role,
+        level: barber.level,
+        experienceYears: barber.experienceYears,
         age: barber.age,
         origin: barber.origin,
         imageUrl: barber.imageUrl ?? barber.images[0] ?? null,
@@ -127,6 +133,8 @@ class BarbersService {
       id: barber.id,
       name: barberName(barber),
       role: barber.role,
+      level: barber.level,
+      experienceYears: barber.experienceYears,
       age: barber.age,
       origin: barber.origin,
       bio: barber.bio,
@@ -210,6 +218,8 @@ class BarbersService {
       id: barber.id,
       name: barberName(barber),
       role: barber.role,
+      level: barber.level,
+      experienceYears: barber.experienceYears,
       age: barber.age,
       origin: barber.origin,
       bio: barber.bio,

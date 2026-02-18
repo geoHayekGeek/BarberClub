@@ -15,6 +15,7 @@ export interface LoyaltyStateResponse {
   points: number;
   target: number;
   availableCoupons: number;
+  memberSince: string;
 }
 
 export interface QRCodeResponse {
@@ -31,9 +32,9 @@ class LoyaltyService {
   async getState(userId: string): Promise<LoyaltyStateResponse> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { loyaltyPoints: true },
+      select: { loyaltyPoints: true, createdAt: true },
     });
-    
+
     const availableCouponsCount = await prisma.loyaltyCoupon.count({
       where: {
         userId,
@@ -45,6 +46,7 @@ class LoyaltyService {
       points: user?.loyaltyPoints ?? 0,
       target: config.LOYALTY_TARGET,
       availableCoupons: availableCouponsCount,
+      memberSince: user?.createdAt?.toISOString() ?? new Date().toISOString(),
     };
   }
 

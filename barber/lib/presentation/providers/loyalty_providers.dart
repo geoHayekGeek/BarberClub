@@ -21,6 +21,10 @@ final loyaltyCardProvider = FutureProvider.autoDispose<LoyaltyCardData?>((ref) a
   final points = (loyalty['points'] as num?)?.toInt() ?? 0;
   final target = (loyalty['target'] as num?)?.toInt() ?? 10;
   final availableCoupons = (loyalty['availableCoupons'] as num?)?.toInt() ?? 0;
+  final memberSinceRaw = loyalty['memberSince'] as String?;
+  final memberSince = memberSinceRaw != null
+      ? DateTime.tryParse(memberSinceRaw) ?? DateTime.now()
+      : DateTime.now();
 
   final fullName = user.fullName ?? 'Membre';
   final parts = fullName.split(' ');
@@ -34,7 +38,7 @@ final loyaltyCardProvider = FutureProvider.autoDispose<LoyaltyCardData?>((ref) a
   return LoyaltyCardData(
     firstName: firstName,
     lastName: lastName,
-    memberSince: DateTime.now().subtract(const Duration(days: 365)),
+    memberSince: memberSince,
     currentVisits: points,
     totalRequiredVisits: target,
     rewardLabel: rewardLabel,

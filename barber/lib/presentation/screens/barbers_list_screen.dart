@@ -10,8 +10,7 @@ import '../providers/barber_providers.dart';
 class BarbersListScreen extends ConsumerWidget {
   const BarbersListScreen({super.key});
 
-  static const String _title = 'NOS BARBERS';
-  static const String _subtitle = 'SALON DE GRENOBLE';
+  static const String _title = 'NOS COIFFEURS';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,15 +40,6 @@ class BarbersListScreen extends ConsumerWidget {
                               fontSize: 34,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 2,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _subtitle,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 14,
-                              letterSpacing: 3,
                             ),
                           ),
                           const SizedBox(height: 24),

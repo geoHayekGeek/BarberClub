@@ -1,6 +1,4 @@
-/// Loyalty card data (frontend placeholder).
-/// TODO: Replace with backend response model when API is integrated.
-/// Structure is designed for easy mapping from API JSON.
+/// Loyalty card data. Built from /api/v1/loyalty/me + auth user.
 class LoyaltyCardData {
   final String firstName;
   final String lastName;
@@ -20,8 +18,4 @@ class LoyaltyCardData {
 
   String get fullName => '$firstName $lastName'.trim();
   int get memberYear => memberSince.year;
-
-  /// Placeholder for future: LoyaltyCardData.fromJson(Map<String, dynamic> json)
-  /// Backend will return something like:
-  /// { "firstName", "lastName", "memberSince", "currentVisits", "totalRequiredVisits", "rewardLabel" }
 }

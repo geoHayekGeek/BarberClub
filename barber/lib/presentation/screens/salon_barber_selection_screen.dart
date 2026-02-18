@@ -41,8 +41,6 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
                         salon: salons[i],
                         onTap: () {
                           final salon = salons[i];
-                          // ignore: avoid_print
-                          print('SalonBarberSelection: selected salonId=${salon.id} name=${salon.name}');
                           final name = Uri.encodeComponent(salon.name);
                           context.push('/coiffeurs/salon/${salon.id}?name=$name');
                         },
