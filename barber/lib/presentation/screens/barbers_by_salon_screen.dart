@@ -168,13 +168,20 @@ class _BarberGridCard extends StatefulWidget {
 class _BarberGridCardState extends State<_BarberGridCard> {
   double _scale = 1;
 
+  static String _experienceLevel(Barber b) {
+    if (b.experienceYears != null && b.experienceYears! > 0) {
+      return '${b.experienceYears} ANS D\'EXP.';
+    }
+    final level = b.level.toUpperCase();
+    if (level.isNotEmpty && level != 'BARBER') return level;
+    return 'COIFFEUR';
+  }
+
   @override
   Widget build(BuildContext context) {
     const radius = BorderRadius.all(Radius.circular(20));
     final imageUrl = widget.barber.image;
-    final role = widget.barber.level.isNotEmpty
-        ? widget.barber.level.toUpperCase()
-        : 'COIFFEUR';
+    final experienceLevel = _experienceLevel(widget.barber);
 
     return Material(
       color: Colors.transparent,
@@ -230,7 +237,7 @@ class _BarberGridCardState extends State<_BarberGridCard> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          role,
+                          experienceLevel,
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.7),
                             fontSize: 12,

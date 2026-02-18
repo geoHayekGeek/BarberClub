@@ -176,6 +176,15 @@ class _BarberVideoHeader extends StatefulWidget {
   State<_BarberVideoHeader> createState() => _BarberVideoHeaderState();
 }
 
+String _experienceLevel(Barber b) {
+  if (b.experienceYears != null && b.experienceYears! > 0) {
+    return '${b.experienceYears} ANS D\'EXP.';
+  }
+  final level = b.level.toUpperCase();
+  if (level.isNotEmpty && level != 'BARBER') return level;
+  return 'COIFFEUR';
+}
+
 class _BarberVideoHeaderState extends State<_BarberVideoHeader>
     with AutomaticKeepAliveClientMixin {
   @override
@@ -348,7 +357,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
               ),
               const SizedBox(height: 8),
               Text(
-                'COIFFEUR',
+                _experienceLevel(barber),
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.7),
                   fontSize: 14,
@@ -456,7 +465,7 @@ class _InfoCard extends StatelessWidget {
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 28,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
             maxLines: 1,
