@@ -21,6 +21,7 @@ class SalonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final imageUrl = salon.images.isNotEmpty ? salon.images.first : null;
+    print(imageUrl);
     final isNetworkUrl = imageUrl != null && imageUrl.startsWith('http');
 
     return Padding(

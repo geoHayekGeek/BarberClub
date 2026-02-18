@@ -42,8 +42,8 @@ async function seedAdmin() {
     },
   });
   console.log('Admin user created:', ADMIN_EMAIL);
+  
 }
-
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400';
 const PLACEHOLDER_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
 const GALLERY_IMAGES = [
@@ -53,6 +53,50 @@ const GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1605499466077-3385ab955905?w=400',
   'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
 ];
+
+const BASE_URL = 'http://10.0.2.2:3000/images';
+const getImg = (path: string) => `${BASE_URL}/${path}`;
+
+// --- REAL DATA MAPPING ---
+// Matches the filenames seen in your public/images directory
+const IMAGES = {
+  salons: {
+    grenoble: {
+      main: getImg('salons/grenoble/salon-grenoble.jpg'),
+      gallery: [
+        getImg('salons/grenoble/chaise-grenoble.jpg'),
+        getImg('salons/grenoble/comptoir-grenoble.jpg'),
+        getImg('salons/grenoble/miroir-grenoble.jpg'),
+      ]
+    },
+    meylan: {
+      main: getImg('salons/meylan/salon-meylan.jpg'),
+      gallery: [
+        getImg('salons/meylan/cologne-meylan.jpg'),
+        getImg('salons/meylan/comptoir-meylan.jpg'),
+        getImg('salons/meylan/devanture-meylan.jpg'),
+        getImg('salons/meylan/parfums-meylan.jpg'),
+        getImg('salons/meylan/salon-meylan-interieur.jpg'),
+      ]
+    },
+    voiron: {
+      // Note: Ensure you add a 'voiron' folder in public/images/salons 
+      // or use a placeholder until those images are ready
+      main: getImg('salons/grenoble/salon-grenoble.jpg'), 
+      gallery: [getImg('salons/grenoble/chaise-grenoble.jpg')]
+    }
+  },
+  barbers: {
+    // Mapping filenames from your public/images/barbers folder
+    alan: getImg('barbers/alan.png'),
+    clement: getImg('barbers/clement.png'),
+    julien: getImg('barbers/julien.jpg'),
+    lucas: getImg('barbers/lucas.png'),
+    nathan: getImg('barbers/nathan.png'),
+    tom: getImg('barbers/tom.png'),
+  },
+  videoAlan: getImg('barbers/alan.mp4'), 
+};
 
 const OPENING_HOURS_STRUCTURED = {
   monday: { open: '09:00', close: '19:00', closed: false },
@@ -81,8 +125,9 @@ let salonGrenoble = await prisma.salon.findFirst({
       data: {
         timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
         phone: '04 76 12 34 56',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 4),
+        imageUrl:IMAGES.salons.grenoble.main,
+        images: [IMAGES.salons.grenoble.main],
+        gallery: IMAGES.salons.grenoble.gallery.slice(0, 4),
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.1885,
         longitude: 5.7245,
@@ -97,12 +142,12 @@ let salonGrenoble = await prisma.salon.findFirst({
         description:
           'Barber Club Grenoble est notre premier salon, ouvert au cœur de la ville. Un espace dédié à l\'art de la barberie : coupes classiques et modernes, rasages à l\'ancienne, soins de la barbe.',
         openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
-        images: [PLACEHOLDER_IMAGE],
+        images: [IMAGES.salons.grenoble.main],
         isActive: true,
         timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
         phone: '04 76 12 34 56',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 4),
+        imageUrl: IMAGES.salons.grenoble.main,
+        gallery: IMAGES.salons.grenoble.gallery.slice(0, 4),
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.1885,
         longitude: 5.7245,

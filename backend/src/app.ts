@@ -12,6 +12,7 @@ import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { generalLimiter } from './middleware/rateLimit';
+import path from 'path';
 
 const swaggerOptions = {
   definition: {
@@ -90,6 +91,8 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+    app.use('/images', express.static(path.join(__dirname, '../public/images')));
+
   if (config.NODE_ENV !== 'test') {
     app.use(generalLimiter);
   }
@@ -104,6 +107,5 @@ export function createApp(): Express {
 
   app.use(notFoundHandler);
   app.use(errorHandler);
-
   return app;
 }
