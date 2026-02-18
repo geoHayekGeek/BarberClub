@@ -18,4 +18,8 @@ class LoyaltyCardData {
 
   String get fullName => '$firstName $lastName'.trim();
   int get memberYear => memberSince.year;
+
+  /// Placeholder for future: LoyaltyCardData.fromJson(Map<String, dynamic> json)
+  /// Backend will return something like:
+  /// { "firstName", "lastName", "memberSince", "currentVisits", "totalRequiredVisits", "rewardLabel" }
 }

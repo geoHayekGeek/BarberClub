@@ -180,15 +180,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         name: 'barber-detail',
                         builder: (context, state) {
                           final id = state.pathParameters['id'] ?? '';
-                          final salonId = state.pathParameters['salonId'] ?? '';
                           final salonName = state.uri.queryParameters['name'] != null
                               ? Uri.decodeComponent(state.uri.queryParameters['name']!)
                               : null;
-                          return BarberDetailScreen(
-                            barberId: id,
-                            salonId: salonId,
-                            salonName: salonName,
-                          );
+                          return BarberDetailScreen(barberId: id, salonName: salonName);
                         },
                       ),
                     ],
