@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_config.dart';
+
 /// Placeholder asset when no image or error.
 const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
 
@@ -26,8 +28,8 @@ class SalonGallery extends StatelessWidget {
         itemCount: imageUrls.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          final url = imageUrls[index];
-          final isNetwork = url.startsWith('http');
+          final url = AppConfig.resolveImageUrl(imageUrls[index]);
+          final isNetwork = url != null && url.startsWith('http');
 
           return ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -35,7 +37,7 @@ class SalonGallery extends StatelessWidget {
               aspectRatio: 4 / 3,
               child: isNetwork
                   ? CachedNetworkImage(
-                      imageUrl: url,
+                      imageUrl: url!,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => Container(
                         color: const Color(0xFF1A1A1A),
@@ -49,11 +51,13 @@ class SalonGallery extends StatelessWidget {
                       ),
                       errorWidget: (_, __, ___) => _placeholder(),
                     )
-                  : Image.asset(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                    ),
+                  : (url != null && url.isNotEmpty
+                      ? Image.asset(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                        )
+                      : _placeholder()),
             ),
           );
         },

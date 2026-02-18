@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
@@ -594,10 +595,10 @@ class _GalleryGrid extends StatelessWidget {
       ),
       itemCount: imageUrls.length,
       itemBuilder: (context, index) {
-        final url = imageUrls[index];
+        final url = AppConfig.resolveImageUrl(imageUrls[index]);
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: url.startsWith('http')
+          child: url != null && url.startsWith('http')
               ? Image.network(
                   url,
                   fit: BoxFit.cover,

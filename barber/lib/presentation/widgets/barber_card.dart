@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
 
 const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
@@ -32,7 +33,7 @@ class BarberCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final imageUrl = barber.image;
+    final imageUrl = AppConfig.resolveImageUrl(barber.image);
     final isNetworkUrl = imageUrl != null && imageUrl.startsWith('http');
     final salonNames = barber.salons.map((s) => s.name).join(', ');
 
@@ -54,7 +55,7 @@ class BarberCard extends StatelessWidget {
                     height: 80,
                     child: isNetworkUrl
                         ? CachedNetworkImage(
-                            imageUrl: imageUrl,
+                            imageUrl: imageUrl!,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(
                               color: const Color(0xFF1A1A1A),

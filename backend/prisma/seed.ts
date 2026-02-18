@@ -54,8 +54,10 @@ const GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
 ];
 
-const BASE_URL = 'http://10.0.2.2:3000/images';
-const getImg = (path: string) => `${BASE_URL}/${path}`;
+// Use relative paths so the client can resolve them with its API base URL.
+// Express serves static files at /images -> public/images
+const IMAGES_BASE = '/images';
+const getImg = (path: string) => `${IMAGES_BASE}/${path}`;
 
 // --- REAL DATA MAPPING ---
 // Matches the filenames seen in your public/images directory
@@ -202,8 +204,9 @@ let salonGrenoble = await prisma.salon.findFirst({
       data: {
         timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
         phone: '09 56 30 93 86',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 5),
+        imageUrl: IMAGES.salons.meylan.main,
+        images: [IMAGES.salons.meylan.main],
+        gallery: IMAGES.salons.meylan.gallery,
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.2092,
         longitude: 5.7814,
@@ -218,12 +221,12 @@ let salonGrenoble = await prisma.salon.findFirst({
         description:
           'Le Barber Club Meylan vous propose les mêmes prestations que nos autres salons, dans un cadre moderne et confortable.',
         openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
-        images: [PLACEHOLDER_IMAGE],
+        images: [IMAGES.salons.meylan.main],
         isActive: true,
         timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
         phone: '09 56 30 93 86',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 5),
+        imageUrl: IMAGES.salons.meylan.main,
+        gallery: IMAGES.salons.meylan.gallery,
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.2092,
         longitude: 5.7814,
