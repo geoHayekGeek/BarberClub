@@ -98,6 +98,11 @@ const IMAGES = {
     tom: getImg('barbers/tom.png'),
   },
   videoAlan: getImg('barbers/alan.mp4'), 
+  videoTom: getImg('barbers/tom.mp4'), 
+  videoNathan: getImg('barbers/nathan.mp4'), 
+  videoClement: getImg('barbers/clement.mp4'),
+  videoJulien: getImg('barbers/julien.mp4'),
+  videoLucas: getImg('barbers/lucas.mp4'),
 };
 
 const OPENING_HOURS_STRUCTURED = {
@@ -157,42 +162,6 @@ let salonGrenoble = await prisma.salon.findFirst({
     });
   }
 
-  // --- 2. SALON VOIRON ---
-  let salonVoiron = await prisma.salon.findFirst({
-    where: { name: 'Barber Club Voiron' },
-  });
-
-  if (salonVoiron) {
-    salonVoiron = await prisma.salon.update({
-      where: { id: salonVoiron.id },
-      data: {
-        timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
-        phone: '04 76 05 12 34',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 3),
-        openingHoursStructured: OPENING_HOURS_STRUCTURED,
-      },
-    });
-  } else {
-    salonVoiron = await prisma.salon.create({
-      data: {
-        name: 'Barber Club Voiron',
-        city: 'Voiron',
-        address: '5 place du Marché, 38500 Voiron',
-        description:
-          'Notre salon de Voiron reprend l\'ADN Barber Club : un cadre soigné, des prestations premium et une équipe formée aux dernières tendances.',
-        openingHours: 'Mar–Ven 9h30–19h, Sam 9h–18h, Dim–Lun fermé',
-        images: [PLACEHOLDER_IMAGE],
-        isActive: true,
-        timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
-        phone: '04 76 05 12 34',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 3),
-        openingHoursStructured: OPENING_HOURS_STRUCTURED,
-      },
-    });
-  }
-
   // --- 3. SALON MEYLAN ---
   let salonMeylan = await prisma.salon.findFirst({
     where: { name: 'Barber Club Meylan' },
@@ -237,19 +206,19 @@ let salonGrenoble = await prisma.salon.findFirst({
   // 2. Create barbers (coiffeurs) with age, origin, bio, videoUrl, gallery, salonId
   const barbersData = [
     {
-      firstName: 'Alexandre',
+      firstName: 'Tom',
       lastName: 'Martin',
-      displayName: 'Alex',
-      bio: 'Coiffeur barbier depuis 8 ans, Alexandre privilégie la précision et le dialogue avec le client. Spécialiste des coupes classiques et du rasage à la lame.',
-      experienceYears: 8,
+      displayName: 'Tom',
+      bio: "Tom vit à Chirens et a commencé à couper chez lui avant de se lancer professionnellement. Avec 2 ans d'expérience en salon, il a rejoint l'équipe BarberClub en 2025. Passionné et talentueux, Tom apporte sa créativité et son expertise pour transformer votre look.",
+      experienceYears: 2,
       level: 'expert',
       interests: ['Coupe classique', 'Rasage à la lame', 'Barbe'],
-      images: [PLACEHOLDER_IMAGE],
+      images: [IMAGES.barbers.tom],
       salonIds: [salonGrenoble.id],
-      age: 32,
-      origin: 'Lyon',
-      videoUrl: PLACEHOLDER_VIDEO,
-      imageUrl: PLACEHOLDER_IMAGE,
+      age: 17,
+      origin: 'Chirens',
+      videoUrl: ,
+      imageUrl: IMAGES.barbers.tom,
       gallery: GALLERY_IMAGES.slice(0, 4),
     },
     {
