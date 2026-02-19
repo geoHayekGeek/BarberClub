@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
@@ -180,7 +181,7 @@ class _BarberGridCardState extends State<_BarberGridCard> {
   @override
   Widget build(BuildContext context) {
     const radius = BorderRadius.all(Radius.circular(20));
-    final imageUrl = widget.barber.image;
+    final imageUrl = AppConfig.resolveImageUrl(widget.barber.image);
     final experienceLevel = _experienceLevel(widget.barber);
 
     return Material(

@@ -27,8 +27,8 @@ class HomeHeader extends StatelessWidget {
 
   Future<void> _openInstagram(BuildContext context) async {
     // Try Instagram app first, then fallback to browser
-    const instagramWeb = 'https://www.instagram.com/barberclubgrenoble/';
-    const instagramApp = 'instagram://user?username=barberclubgrenoble';
+    const instagramWeb = 'https://www.instagram.com/barberclub_grenoble';
+    const instagramApp = 'instagram://user?username=barberclub_grenoble';
 
     try {
       if (await launchUrl(Uri.parse(instagramApp))) return;

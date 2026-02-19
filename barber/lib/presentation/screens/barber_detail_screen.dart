@@ -111,7 +111,9 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final headerHeight = mediaQuery.size.height * 0.65;
+    // Keep the hero immersive without pushing core info off-screen.
+    final headerHeight =
+        (mediaQuery.size.height * 0.56).clamp(320.0, 520.0).toDouble();
     final paddingH = BarberUIConstants.horizontalGutter;
 
     return Scaffold(
@@ -121,10 +123,12 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
           SliverToBoxAdapter(
             child: SizedBox(
               height: headerHeight,
-              child: _BarberVideoHeader(
-                barber: widget.barber,
-                salonName: widget.salonName,
-                onBack: () => context.pop(),
+              child: ClipRect(
+                child: _BarberVideoHeader(
+                  barber: widget.barber,
+                  salonName: widget.salonName,
+                  onBack: () => context.pop(),
+                ),
               ),
             ),
           ),
@@ -202,7 +206,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
   }
 
   Future<void> _initMedia() async {
-    final videoUrl = widget.barber.videoUrl;
+    final videoUrl = AppConfig.resolveImageUrl(widget.barber.videoUrl);
     if (videoUrl != null && videoUrl.startsWith('http')) {
       _controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
         ..setLooping(true)
@@ -238,6 +242,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
   Widget build(BuildContext context) {
     super.build(context);
     final barber = widget.barber;
+    final heroUrl = AppConfig.resolveImageUrl(barber.image);
     final salonLabel = widget.salonName != null && widget.salonName!.isNotEmpty
         ? widget.salonName!.toUpperCase()
         : (barber.salons.isNotEmpty
@@ -246,6 +251,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
 
     return Stack(
       fit: StackFit.expand,
+      clipBehavior: Clip.hardEdge,
       children: [
         if (_useVideo && _controller != null && _controller!.value.isInitialized)
           Positioned.fill(
@@ -263,9 +269,9 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
           )
         else
           Positioned.fill(
-            child: barber.image != null && barber.image!.startsWith('http')
+            child: heroUrl != null && heroUrl.startsWith('http')
                 ? Image.network(
-                    barber.image!,
+                    heroUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _placeholder(),
                   )

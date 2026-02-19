@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
 
@@ -138,7 +139,7 @@ class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height * 0.5;
-    final imageUrl = widget.salon.imageUrl;
+    final imageUrl = AppConfig.resolveImageUrl(widget.salon.imageUrl);
 
     return SizedBox(
       height: height,
