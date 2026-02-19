@@ -82,7 +82,14 @@ export function createApp(): Express {
     app.set('trust proxy', 1);
   }
 
-  app.use(helmet());
+  // Allow app clients (and potential web frontends) to load static assets from /images.
+  // Default Helmet sets Cross-Origin-Resource-Policy: same-origin, which can block
+  // loading images/videos when the consuming app is on a different origin.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   
   app.use(cors({
     origin: config.CORS_ORIGINS,
@@ -95,7 +102,16 @@ export function createApp(): Express {
   // Serve images from backend root / public/images (__dirname = dist/src, so ../.. = backend root)
   const backendRoot = path.resolve(__dirname, '..', '..');
   const imagesPath = process.env.IMAGES_PATH ?? path.join(backendRoot, 'public', 'images');
-  app.use('/images', express.static(imagesPath));
+  app.use(
+    '/images',
+    express.static(imagesPath, {
+      setHeaders: (res) => {
+        // Make static assets usable from any origin (e.g. mobile app, web app, admin panel).
+        // This does not affect native apps, but prevents browser blocking for cross-origin usage.
+        res.setHeader('Access-Control-Allow-Origin', '*');
+      },
+    }),
+  );
 
   if (config.NODE_ENV !== 'test') {
     app.use(generalLimiter);

@@ -23,11 +23,12 @@ class AppConfig {
 
   /// Resolves an image URL: if relative (starts with /), prepends apiBaseUrl.
   /// Returns null if [url] is null or empty.
+  /// Appends ?v=1 to relative URLs to bust stale cache (e.g. from 404 before backend had images).
   static String? resolveImageUrl(String? url) {
     if (url == null || url.isEmpty) return null;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     final base = apiBaseUrl.endsWith('/') ? apiBaseUrl : '$apiBaseUrl/';
     final path = url.startsWith('/') ? url.substring(1) : url;
-    return '$base$path';
+    return '$base$path?v=1';
   }
 }
