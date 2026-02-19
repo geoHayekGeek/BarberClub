@@ -214,10 +214,8 @@ async function main() {
   };
 
   if (salonMeylan) {
-    salonMeylan = await prisma.salon.update({
-      where: { id: salonMeylan.id },
-      data: meylanData,
-    });
+    const updatePayload = { where: { id: salonMeylan.id }, data: meylanData };
+    salonMeylan = await prisma.salon.update(updatePayload);
   } else {
     salonMeylan = await prisma.salon.create({ data: meylanData });
   }
