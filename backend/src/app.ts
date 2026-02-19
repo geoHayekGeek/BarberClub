@@ -13,6 +13,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { generalLimiter } from './middleware/rateLimit';
 import path from 'path';
+import fs from 'fs';
 
 const swaggerOptions = {
   definition: {
@@ -106,6 +107,20 @@ export function createApp(): Express {
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Debug: verify images path exists and list sample files (remove in production if desired)
+  app.get('/debug/images', (_req, res) => {
+    const backendRoot = path.resolve(__dirname, '..', '..');
+    const imagesPath = process.env.IMAGES_PATH ?? path.join(backendRoot, 'public', 'images');
+    try {
+      const exists = fs.existsSync(imagesPath);
+      const entries = exists ? fs.readdirSync(imagesPath, { withFileTypes: true }) : [];
+      const files = entries.map((d) => (d.isDirectory() ? `${d.name}/` : d.name)).slice(0, 20);
+      res.json({ imagesPath, exists, files, cwd: process.cwd() });
+    } catch (e) {
+      res.status(500).json({ imagesPath, error: String(e), cwd: process.cwd() });
+    }
   });
 
   app.use(notFoundHandler);

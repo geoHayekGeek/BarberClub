@@ -10,6 +10,10 @@ FROM base AS builder
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Support both backend-as-root and monorepo (context=repo root): ensure public/images in known location
+RUN if [ -d public/images ]; then cp -r public/images /tmp/default-images; \
+    elif [ -d backend/public/images ]; then cp -r backend/public/images /tmp/default-images; \
+    else mkdir -p /tmp/default-images; fi
 RUN npm run build
 
 # Production image: only prod deps and built output
@@ -20,8 +24,8 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/prisma ./prisma
 RUN npx prisma generate
 COPY --from=builder /app/dist ./dist
-# Bundle default images; if Railway volume mounts at /app/public/images, we copy into it when empty
-COPY --from=builder /app/public/images ./default-images
+# Bundle default images (from builder /tmp/default-images); if volume mounts at /app/public/images, we copy when empty
+COPY --from=builder /tmp/default-images ./default-images
 EXPOSE 3000
 # Populate /app/public/images from bundled defaults when empty (e.g. new volume or no volume)
 # Mount a Railway volume at /app/public/images to persist images across deploys
