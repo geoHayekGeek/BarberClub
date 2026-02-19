@@ -20,7 +20,10 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/prisma ./prisma
 RUN npx prisma generate
 COPY --from=builder /app/dist ./dist
+# Bundle default images; if Railway volume mounts at /app/public/images, we copy into it when empty
+COPY --from=builder /app/public/images ./default-images
 EXPOSE 3000
-# Apply migrations at startup (Railway Postgres starts empty)
-# Optional: set RUN_SEED_ON_STARTUP=true to also seed default data
-CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"${RUN_SEED_ON_STARTUP:-false}\" = \"true\" ]; then node dist/prisma/seed.js; fi && node dist/src/server.js"]
+# Populate /app/public/images from bundled defaults when empty (e.g. new volume or no volume)
+# Mount a Railway volume at /app/public/images to persist images across deploys
+# Then: apply migrations, optional seed, start server
+CMD ["sh", "-c", "mkdir -p /app/public/images && ([ -z \"$(ls -A /app/public/images 2>/dev/null)\" ] && cp -rn /app/default-images/. /app/public/images/ || true) && npx prisma migrate deploy && if [ \"${RUN_SEED_ON_STARTUP:-false}\" = \"true\" ]; then node dist/prisma/seed.js; fi && node dist/src/server.js"]
