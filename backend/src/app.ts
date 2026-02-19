@@ -91,8 +91,9 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Serve images from public/images (use process.cwd() so volume at /app/public/images works in Docker)
-  const imagesPath = process.env.IMAGES_PATH ?? path.join(process.cwd(), 'public', 'images');
+  // Serve images from backend root / public/images (__dirname = dist/src, so ../.. = backend root)
+  const backendRoot = path.resolve(__dirname, '..', '..');
+  const imagesPath = process.env.IMAGES_PATH ?? path.join(backendRoot, 'public', 'images');
   app.use('/images', express.static(imagesPath));
 
   if (config.NODE_ENV !== 'test') {
