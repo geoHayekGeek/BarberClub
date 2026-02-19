@@ -27,7 +27,8 @@ COPY --from=builder /app/dist ./dist
 # Bundle default images (from builder /tmp/default-images); if volume mounts at /app/public/images, we copy when empty
 COPY --from=builder /tmp/default-images ./default-images
 EXPOSE 3000
-# Populate /app/public/images from bundled defaults when empty (e.g. new volume or no volume)
+# Populate /app/public/images from bundled defaults when barbers/ or salons/ missing
+# (volume may have only lost+found, which would skip empty check)
 # Mount a Railway volume at /app/public/images to persist images across deploys
 # Then: apply migrations, optional seed, start server
-CMD ["sh", "-c", "mkdir -p /app/public/images && ([ -z \"$(ls -A /app/public/images 2>/dev/null)\" ] && cp -rn /app/default-images/. /app/public/images/ || true) && npx prisma migrate deploy && if [ \"${RUN_SEED_ON_STARTUP:-false}\" = \"true\" ]; then node dist/prisma/seed.js; fi && node dist/src/server.js"]
+CMD ["sh", "-c", "mkdir -p /app/public/images && { [ ! -d /app/public/images/barbers ] || [ ! -d /app/public/images/salons ]; } && cp -rn /app/default-images/. /app/public/images/; npx prisma migrate deploy && if [ \"${RUN_SEED_ON_STARTUP:-false}\" = \"true\" ]; then node dist/prisma/seed.js; fi && node dist/src/server.js"]
