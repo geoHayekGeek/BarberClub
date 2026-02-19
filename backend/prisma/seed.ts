@@ -42,8 +42,8 @@ async function seedAdmin() {
     },
   });
   console.log('Admin user created:', ADMIN_EMAIL);
+  
 }
-
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=400';
 const PLACEHOLDER_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
 const GALLERY_IMAGES = [
@@ -53,6 +53,57 @@ const GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1605499466077-3385ab955905?w=400',
   'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
 ];
+
+// Use relative paths so the client can resolve them with its API base URL.
+// Express serves static files at /images -> public/images
+const IMAGES_BASE = '/images';
+const getImg = (path: string) => `${IMAGES_BASE}/${path}`;
+
+// --- REAL DATA MAPPING ---
+// Matches the filenames seen in your public/images directory
+const IMAGES = {
+  salons: {
+    grenoble: {
+      main: getImg('salons/grenoble/salon-grenoble.jpg'),
+      gallery: [
+        getImg('salons/grenoble/chaise-grenoble.jpg'),
+        getImg('salons/grenoble/comptoir-grenoble.jpg'),
+        getImg('salons/grenoble/miroir-grenoble.jpg'),
+      ]
+    },
+    meylan: {
+      main: getImg('salons/meylan/salon-meylan.jpg'),
+      gallery: [
+        getImg('salons/meylan/cologne-meylan.jpg'),
+        getImg('salons/meylan/comptoir-meylan.jpg'),
+        getImg('salons/meylan/devanture-meylan.jpg'),
+        getImg('salons/meylan/parfums-meylan.jpg'),
+        getImg('salons/meylan/salon-meylan-interieur.jpg'),
+      ]
+    },
+    voiron: {
+      // Note: Ensure you add a 'voiron' folder in public/images/salons 
+      // or use a placeholder until those images are ready
+      main: getImg('salons/grenoble/salon-grenoble.jpg'), 
+      gallery: [getImg('salons/grenoble/chaise-grenoble.jpg')]
+    }
+  },
+  barbers: {
+    // Mapping filenames from your public/images/barbers folder
+    alan: getImg('barbers/alan.png'),
+    clement: getImg('barbers/clement.png'),
+    julien: getImg('barbers/julien.jpg'),
+    lucas: getImg('barbers/lucas.png'),
+    nathan: getImg('barbers/nathan.png'),
+    tom: getImg('barbers/tom.png'),
+  },
+  videoAlan: getImg('barbers/alan.mp4'), 
+  videoTom: getImg('barbers/tom.mp4'), 
+  videoNathan: getImg('barbers/nathan.mp4'), 
+  videoClement: getImg('barbers/clement.mp4'),
+  videoJulien: getImg('barbers/julien.mp4'),
+  videoLucas: getImg('barbers/lucas.mp4'),
+};
 
 const OPENING_HOURS_STRUCTURED = {
   monday: { open: '09:00', close: '19:00', closed: false },
@@ -81,8 +132,9 @@ let salonGrenoble = await prisma.salon.findFirst({
       data: {
         timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
         phone: '04 76 12 34 56',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 4),
+        imageUrl:IMAGES.salons.grenoble.main,
+        images: [IMAGES.salons.grenoble.main],
+        gallery: IMAGES.salons.grenoble.gallery.slice(0, 4),
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.1885,
         longitude: 5.7245,
@@ -97,51 +149,15 @@ let salonGrenoble = await prisma.salon.findFirst({
         description:
           'Barber Club Grenoble est notre premier salon, ouvert au cœur de la ville. Un espace dédié à l\'art de la barberie : coupes classiques et modernes, rasages à l\'ancienne, soins de la barbe.',
         openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
-        images: [PLACEHOLDER_IMAGE],
+        images: [IMAGES.salons.grenoble.main],
         isActive: true,
         timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
         phone: '04 76 12 34 56',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 4),
+        imageUrl: IMAGES.salons.grenoble.main,
+        gallery: IMAGES.salons.grenoble.gallery.slice(0, 4),
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.1885,
         longitude: 5.7245,
-      },
-    });
-  }
-
-  // --- 2. SALON VOIRON ---
-  let salonVoiron = await prisma.salon.findFirst({
-    where: { name: 'Barber Club Voiron' },
-  });
-
-  if (salonVoiron) {
-    salonVoiron = await prisma.salon.update({
-      where: { id: salonVoiron.id },
-      data: {
-        timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
-        phone: '04 76 05 12 34',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 3),
-        openingHoursStructured: OPENING_HOURS_STRUCTURED,
-      },
-    });
-  } else {
-    salonVoiron = await prisma.salon.create({
-      data: {
-        name: 'Barber Club Voiron',
-        city: 'Voiron',
-        address: '5 place du Marché, 38500 Voiron',
-        description:
-          'Notre salon de Voiron reprend l\'ADN Barber Club : un cadre soigné, des prestations premium et une équipe formée aux dernières tendances.',
-        openingHours: 'Mar–Ven 9h30–19h, Sam 9h–18h, Dim–Lun fermé',
-        images: [PLACEHOLDER_IMAGE],
-        isActive: true,
-        timifyUrl: 'https://www.timify.com/fr-fr/profile/barber-club-voiron/',
-        phone: '04 76 05 12 34',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 3),
-        openingHoursStructured: OPENING_HOURS_STRUCTURED,
       },
     });
   }
@@ -157,8 +173,9 @@ let salonGrenoble = await prisma.salon.findFirst({
       data: {
         timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
         phone: '09 56 30 93 86',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 5),
+        imageUrl: IMAGES.salons.meylan.main,
+        images: [IMAGES.salons.meylan.main],
+        gallery: IMAGES.salons.meylan.gallery,
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.2092,
         longitude: 5.7814,
@@ -173,12 +190,12 @@ let salonGrenoble = await prisma.salon.findFirst({
         description:
           'Le Barber Club Meylan vous propose les mêmes prestations que nos autres salons, dans un cadre moderne et confortable.',
         openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
-        images: [PLACEHOLDER_IMAGE],
+        images: [IMAGES.salons.meylan.main],
         isActive: true,
         timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
         phone: '09 56 30 93 86',
-        imageUrl: PLACEHOLDER_IMAGE,
-        gallery: GALLERY_IMAGES.slice(0, 5),
+        imageUrl: IMAGES.salons.meylan.main,
+        gallery: IMAGES.salons.meylan.gallery,
         openingHoursStructured: OPENING_HOURS_STRUCTURED,
         latitude: 45.2092,
         longitude: 5.7814,
@@ -189,19 +206,19 @@ let salonGrenoble = await prisma.salon.findFirst({
   // 2. Create barbers (coiffeurs) with age, origin, bio, videoUrl, gallery, salonId
   const barbersData = [
     {
-      firstName: 'Alexandre',
+      firstName: 'Tom',
       lastName: 'Martin',
-      displayName: 'Alex',
-      bio: 'Coiffeur barbier depuis 8 ans, Alexandre privilégie la précision et le dialogue avec le client. Spécialiste des coupes classiques et du rasage à la lame.',
-      experienceYears: 8,
+      displayName: 'Tom',
+      bio: "Tom vit à Chirens et a commencé à couper chez lui avant de se lancer professionnellement. Avec 2 ans d'expérience en salon, il a rejoint l'équipe BarberClub en 2025. Passionné et talentueux, Tom apporte sa créativité et son expertise pour transformer votre look.",
+      experienceYears: 2,
       level: 'expert',
       interests: ['Coupe classique', 'Rasage à la lame', 'Barbe'],
-      images: [PLACEHOLDER_IMAGE],
+      images: [IMAGES.barbers.tom],
       salonIds: [salonGrenoble.id],
-      age: 32,
-      origin: 'Lyon',
-      videoUrl: PLACEHOLDER_VIDEO,
-      imageUrl: PLACEHOLDER_IMAGE,
+      age: 17,
+      origin: 'Chirens',
+      videoUrl: ,
+      imageUrl: IMAGES.barbers.tom,
       gallery: GALLERY_IMAGES.slice(0, 4),
     },
     {

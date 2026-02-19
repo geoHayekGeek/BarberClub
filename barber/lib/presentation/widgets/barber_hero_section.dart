@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 
@@ -28,7 +29,7 @@ class BarberHeroSection extends StatelessWidget {
     final theme = Theme.of(context);
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final screenWidth = MediaQuery.of(context).size.width;
-    final imageUrl = barber.image;
+    final imageUrl = AppConfig.resolveImageUrl(barber.image);
     final isNetwork = imageUrl != null && imageUrl.startsWith('http');
     final imageCacheWidth = (screenWidth * dpr).round();
     final imageCacheHeight = (BarberUIConstants.heroHeight * dpr).round();
@@ -41,7 +42,7 @@ class BarberHeroSection extends StatelessWidget {
         children: [
           if (isNetwork)
             CachedNetworkImage(
-              imageUrl: imageUrl,
+              imageUrl: imageUrl!,
               fit: BoxFit.cover,
               memCacheWidth: imageCacheWidth,
               memCacheHeight: imageCacheHeight,

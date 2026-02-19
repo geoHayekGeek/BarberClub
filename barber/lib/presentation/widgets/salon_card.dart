@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 
 const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
@@ -20,7 +21,8 @@ class SalonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final imageUrl = salon.images.isNotEmpty ? salon.images.first : null;
+    final rawUrl = salon.images.isNotEmpty ? salon.images.first : null;
+    final imageUrl = AppConfig.resolveImageUrl(rawUrl);
     final isNetworkUrl = imageUrl != null && imageUrl.startsWith('http');
 
     return Padding(

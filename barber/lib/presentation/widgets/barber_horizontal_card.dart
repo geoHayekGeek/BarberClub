@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 
@@ -20,7 +21,7 @@ class BarberHorizontalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dpr = MediaQuery.of(context).devicePixelRatio;
-    final imageUrl = barber.image;
+    final imageUrl = AppConfig.resolveImageUrl(barber.image);
     final isNetworkUrl = imageUrl != null && imageUrl.startsWith('http');
     final salonCity = barber.salons.isNotEmpty ? barber.salons.first.city : '';
     final summary = barber.bio.isNotEmpty
@@ -51,7 +52,7 @@ class BarberHorizontalCard extends StatelessWidget {
                     aspectRatio: BarberUIConstants.cardImageAspectRatio,
                     child: isNetworkUrl
                         ? CachedNetworkImage(
-                            imageUrl: imageUrl,
+                            imageUrl: imageUrl!,
                             fit: BoxFit.cover,
                             memCacheWidth: imageCacheWidth,
                             memCacheHeight: imageCacheHeight,

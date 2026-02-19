@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
 
@@ -99,9 +100,11 @@ class _SalonDetailContent extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   Positioned.fill(
-                    child: salon.imageUrl != null && salon.imageUrl!.startsWith('http')
+                    child: () {
+                      final resolved = AppConfig.resolveImageUrl(salon.imageUrl);
+                      return resolved != null && resolved.startsWith('http')
                         ? CachedNetworkImage(
-                            imageUrl: salon.imageUrl!,
+                            imageUrl: resolved,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(
                               color: const Color(0xFF1A1A1A),
@@ -110,7 +113,8 @@ class _SalonDetailContent extends StatelessWidget {
                             ),
                             errorWidget: (_, __, ___) => _heroPlaceholder(),
                           )
-                        : _heroPlaceholder(),
+                        : _heroPlaceholder();
+                    }(),
                   ),
                   Positioned.fill(
                     child: Container(
@@ -355,10 +359,10 @@ class _SalonDetailContent extends StatelessWidget {
             ),
             itemCount: salon.images.length,
             itemBuilder: (context, index) {
-              final url = salon.images[index];
+              final url = AppConfig.resolveImageUrl(salon.images[index]);
               return ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: url.startsWith('http')
+                child: url != null && url.startsWith('http')
                     ? CachedNetworkImage(
                         imageUrl: url,
                         fit: BoxFit.cover,

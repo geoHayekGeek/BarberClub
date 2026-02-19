@@ -20,4 +20,14 @@ class AppConfig {
   
   /// Refresh token endpoint path
   static const String refreshTokenPath = '/api/v1/auth/refresh';
+
+  /// Resolves an image URL: if relative (starts with /), prepends apiBaseUrl.
+  /// Returns null if [url] is null or empty.
+  static String? resolveImageUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final base = apiBaseUrl.endsWith('/') ? apiBaseUrl : '$apiBaseUrl/';
+    final path = url.startsWith('/') ? url.substring(1) : url;
+    return '$base$path';
+  }
 }

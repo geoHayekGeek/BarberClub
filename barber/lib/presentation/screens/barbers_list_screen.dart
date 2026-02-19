@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/config/app_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -137,7 +139,7 @@ class _BarberGridCardState extends State<_BarberGridCard> {
   @override
   Widget build(BuildContext context) {
     const radius = BorderRadius.all(Radius.circular(20));
-    final imageUrl = widget.barber.image;
+    final imageUrl = AppConfig.resolveImageUrl(widget.barber.image);
 
     return Material(
       color: Colors.transparent,
