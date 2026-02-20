@@ -94,7 +94,7 @@ class _LoyaltyRewardCelebrationModalState extends State<LoyaltyRewardCelebration
                   'Coupe offerte',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: const Color(0xFFD4AF37),
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -120,7 +120,7 @@ class _LoyaltyRewardCelebrationModalState extends State<LoyaltyRewardCelebration
                       'Voir ma carte',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),

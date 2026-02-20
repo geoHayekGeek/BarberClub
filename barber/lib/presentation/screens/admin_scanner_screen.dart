@@ -176,7 +176,7 @@ class _ScannerOverlayPainter extends CustomPainter {
         style: TextStyle(
           color: Colors.white,
           fontSize: 16,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
         ),
       ),
       textDirection: TextDirection.ltr,

@@ -142,7 +142,7 @@ class _SalonDetailContent extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 1,
                       ),
                     ),
@@ -312,7 +312,7 @@ class _SalonDetailContent extends StatelessWidget {
                         ),
                         child: const Text(
                           'Prendre RDV ici',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -340,7 +340,7 @@ class _SalonDetailContent extends StatelessWidget {
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               letterSpacing: 2,
             ),
           ),
@@ -500,7 +500,7 @@ class _SalonInfoCard extends StatelessWidget {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 2,
                 ),
               ),
@@ -575,7 +575,7 @@ class _HorairesCard extends StatelessWidget {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 2,
                 ),
               ),

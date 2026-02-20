@@ -72,7 +72,7 @@ class BarberHorizontalCard extends StatelessWidget {
                           barber.displayName,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

@@ -41,7 +41,7 @@ class LoyaltyProgressBar extends StatelessWidget {
                             ? theme.colorScheme.secondary
                             : Colors.white.withOpacity(0.4),
                         fontWeight: (i + 1) == currentVisits
-                            ? FontWeight.bold
+                            ? FontWeight.w700
                             : FontWeight.normal,
                         fontSize: 12,
                       ),

@@ -88,7 +88,7 @@ class BarberHeroSection extends StatelessWidget {
                   barber.displayName,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: BarberUIConstants.chipSpacing),

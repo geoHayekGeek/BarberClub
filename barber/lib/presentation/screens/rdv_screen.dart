@@ -188,7 +188,7 @@ class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
                   widget.salon.name.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 42,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 4,
                     color: Colors.white,
                   ),

@@ -54,7 +54,7 @@ class CompteScreen extends ConsumerWidget {
                           initials,
                           style: TextStyle(
                             fontSize: 40,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             color: theme.colorScheme.primary,
                           ),
                         ),
@@ -66,7 +66,7 @@ class CompteScreen extends ConsumerWidget {
                     Text(
                       user.fullName ?? 'Utilisateur',
                       style: theme.textTheme.headlineMedium?.copyWith(
-                          color: Colors.white, fontWeight: FontWeight.bold),
+                          color: Colors.white, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),

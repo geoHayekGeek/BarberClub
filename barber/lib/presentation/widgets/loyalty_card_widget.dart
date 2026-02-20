@@ -42,7 +42,7 @@ class LoyaltyCardWidget extends StatelessWidget {
                 data.fullName,
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
                 textAlign: TextAlign.center,
               ),

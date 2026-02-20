@@ -41,7 +41,7 @@ class SalonOffersDetailScreen extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 38,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 4,
                     color: Colors.white,
                   ),
@@ -63,7 +63,7 @@ class SalonOffersDetailScreen extends ConsumerWidget {
                       'NOS TARIFS',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 3,
                         color: Colors.white,
                       ),
@@ -110,7 +110,7 @@ class SalonOffersDetailScreen extends ConsumerWidget {
                             'NOS PRESTATIONS',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                               color: Colors.white,
                             ),
@@ -230,7 +230,7 @@ class _PrestationItem extends StatelessWidget {
             '${offer.price}€',
             style: const TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               letterSpacing: 1,
               color: Colors.white,
             ),

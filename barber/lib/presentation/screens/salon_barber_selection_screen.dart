@@ -154,7 +154,7 @@ class _SalonBarberSectionWidgetState extends State<_SalonBarberSectionWidget> {
                       widget.salon.name.toUpperCase(),
                       style: const TextStyle(
                         fontSize: 42,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 4,
                         color: Colors.white,
                       ),

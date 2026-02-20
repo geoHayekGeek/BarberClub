@@ -92,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Barber Club',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                     textAlign: TextAlign.center,

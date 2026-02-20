@@ -21,7 +21,7 @@ class HomeCenterContent extends StatelessWidget {
               'BARBER CLUB',
               style: theme.textTheme.displayLarge?.copyWith(
                 fontSize: 48,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 4,
                 color: Colors.white,
               ),

@@ -93,7 +93,7 @@ class _LoyaltyRewardModalState extends State<LoyaltyRewardModal>
                     '+1',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           color: const Color(0xFFD4AF37),
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           fontSize: 48,
                         ),
                   ),
@@ -103,7 +103,7 @@ class _LoyaltyRewardModalState extends State<LoyaltyRewardModal>
                   'Point ajouté',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: const Color(0xFFD4AF37),
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -135,7 +135,7 @@ class _LoyaltyRewardModalState extends State<LoyaltyRewardModal>
                       'Voir ma carte',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),

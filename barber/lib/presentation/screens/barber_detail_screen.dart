@@ -323,7 +323,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 2,
                         ),
                       ),
@@ -355,7 +355,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 40,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 4,
                 ),
                 maxLines: 1,
@@ -473,7 +473,7 @@ class _InfoCard extends StatelessWidget {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -509,7 +509,7 @@ class _AProposSection extends StatelessWidget {
           style: TextStyle(
             color: Colors.white.withOpacity(0.7),
             fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             letterSpacing: 2,
           ),
         ),
@@ -574,7 +574,7 @@ class _CtaButton extends ConsumerWidget {
                   style: const TextStyle(
                     color: Colors.black87,
                     fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 1,
                   ),
                   maxLines: 1,
@@ -603,7 +603,7 @@ class _SectionTitleWithDivider extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             letterSpacing: 2,
           ),
         ),

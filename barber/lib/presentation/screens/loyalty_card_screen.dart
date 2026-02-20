@@ -124,7 +124,7 @@ class LoyaltyCardScreen extends ConsumerWidget {
                   'Mes coupes offertes',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
                 const SizedBox(height: 16),

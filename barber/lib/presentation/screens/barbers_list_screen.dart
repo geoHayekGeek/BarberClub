@@ -40,7 +40,7 @@ class BarbersListScreen extends ConsumerWidget {
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 34,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                             ),
                           ),
@@ -186,7 +186,7 @@ class _BarberGridCardState extends State<_BarberGridCard> {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 2,
                           ),
                           maxLines: 1,
