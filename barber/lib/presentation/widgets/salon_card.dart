@@ -41,7 +41,7 @@ class SalonCard extends StatelessWidget {
                 queryParameters: {'name': salon.name},
               ).toString();
               
-              context.push(url);
+              context.go(url);
             } else {
               onTap();
             }

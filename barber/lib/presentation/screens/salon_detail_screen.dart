@@ -288,7 +288,7 @@ class _SalonDetailContent extends StatelessWidget {
                           path: '/offres/${salon.id}',
                           queryParameters: {'name': salon.name},
                         ).toString();
-                        context.push(url);
+                        context.go(url);
                       },
                         icon: const Icon(Icons.local_offer_outlined, size: 22),
                         label: const Text('Voir les offres du salon'),
