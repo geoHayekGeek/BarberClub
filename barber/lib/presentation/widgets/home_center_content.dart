@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'app_primary_button.dart';
+
 /// Center content widget for Home screen
 /// Displays title, subtitle, and CTA button
 class HomeCenterContent extends StatelessWidget {
@@ -42,27 +44,9 @@ class HomeCenterContent extends StatelessWidget {
             ),
             const SizedBox(height: 48),
             // CTA Button
-            ElevatedButton(
-              onPressed: () => context.go('/rdv'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.secondary, // Beige/off-white
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                minimumSize: const Size(0, 52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                'DÉBUTER',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: Colors.black,
-                ),
-              ),
+            AppPrimaryButton(
+              label: 'DÉBUTER',
+              onTap: () => context.go('/rdv'),
             ),
           ],
         ),
