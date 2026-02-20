@@ -19,11 +19,29 @@ class CompteScreen extends ConsumerWidget {
         : 'U';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mon Profil'),
-        centerTitle: true,
-        elevation: 0,
+appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            // Safe pop: goes back, or defaults to home if opened directly
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
+        title: Text(
+          'MON PROFIL',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.9),
+            fontSize: 16,
+            letterSpacing: 1,
+          ),
+        ),
+        centerTitle: true, // Aligns the text to the center of the AppBar
       ),
       body: SafeArea(
         child: user == null
