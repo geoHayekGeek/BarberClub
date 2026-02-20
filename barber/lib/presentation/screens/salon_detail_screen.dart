@@ -141,7 +141,7 @@ class _SalonDetailContent extends StatelessWidget {
                       salon.name,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
+                        fontSize: 22,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
                       ),

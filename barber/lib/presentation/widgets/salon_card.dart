@@ -96,9 +96,10 @@ class SalonCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               salon.name,
-              style: theme.textTheme.headlineSmall?.copyWith( // Slightly bigger font
+              style: theme.textTheme.titleLarge?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
+                fontSize: 18,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
