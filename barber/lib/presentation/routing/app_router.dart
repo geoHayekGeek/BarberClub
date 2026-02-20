@@ -135,7 +135,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // Main app: 5 tabs in a shell (IndexedStack-style state preservation)
+      // Main app: 5 tabs with floating dock navigation
       StatefulShellRoute.indexedStack(
         builder: (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) {
           return Scaffold(
@@ -144,6 +144,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
         branches: [
+          // index 0: Accueil
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -153,15 +154,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/rdv',
-                name: 'rdv',
-                builder: (context, state) => const RdvScreen(),
-              ),
-            ],
-          ),
+          // index 1: Nos coiffeurs
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -200,6 +193,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // index 2: RDV — center elevated button
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/rdv',
+                name: 'rdv',
+                builder: (context, state) => const RdvScreen(),
+              ),
+            ],
+          ),
+          // index 3: Carte fidélité
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -209,6 +213,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // index 4: Offres
           StatefulShellBranch(
             routes: [
               GoRoute(
