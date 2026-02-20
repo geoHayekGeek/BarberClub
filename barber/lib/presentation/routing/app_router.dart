@@ -9,7 +9,6 @@ import '../screens/home_screen.dart';
 import '../screens/rdv_screen.dart';
 import '../screens/compte_screen.dart';
 import '../screens/loyalty_card_screen.dart';
-import '../screens/salons_list_screen.dart';
 import '../screens/salon_detail_screen.dart';
 import '../screens/salon_barber_selection_screen.dart';
 import '../screens/barbers_by_salon_screen.dart';
@@ -61,9 +60,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (loc.startsWith('/admin')) return '/home';
       } else {
         if (loc.startsWith('/admin') || loc == '/home' || loc.startsWith('/carte-fidelite') ||
-            loc.startsWith('/rdv') || loc.startsWith('/coiffeurs') || loc.startsWith('/salons') ||
-            loc.startsWith('/offres') || loc == '/compte') return '/login';
+            loc.startsWith('/rdv') || loc.startsWith('/coiffeurs') || loc.startsWith('/offres') ||
+            loc == '/compte') return '/login';
       }
+      if (isAuth && !isAdmin && loc.startsWith('/salons')) return '/home';
       return null;
     },
     routes: [
@@ -91,6 +91,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return const LoginScreen();
           }
           return ResetPasswordScreen(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/salon/:id',
+        name: 'salon-detail',
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return SalonDetailScreen(salonId: id);
         },
       ),
       GoRoute(
@@ -127,7 +135,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // Main app: 6 tabs in a shell (IndexedStack-style state preservation)
+      // Main app: 5 tabs in a shell (IndexedStack-style state preservation)
       StatefulShellRoute.indexedStack(
         builder: (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) {
           return Scaffold(
@@ -187,25 +195,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         },
                       ),
                     ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/salons',
-                name: 'salons',
-                builder: (context, state) => const SalonsListScreen(),
-                routes: [
-                  GoRoute(
-                    path: ':id',
-                    name: 'salon-detail',
-                    builder: (context, state) {
-                      final id = state.pathParameters['id'] ?? '';
-                      return SalonDetailScreen(salonId: id);
-                    },
                   ),
                 ],
               ),
