@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
+import '../widgets/app_primary_button.dart';
 
 class RdvScreen extends ConsumerWidget {
   const RdvScreen({super.key});
@@ -196,7 +197,10 @@ class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 24),
-                _ReserveButton(onTap: widget.onReserve),
+                AppPrimaryButton(
+                  label: 'RÉSERVER',
+                  onTap: widget.onReserve,
+                ),
               ],
             ),
           ),
@@ -210,47 +214,6 @@ class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
       color: const Color(0xFF1A1A1A),
       child: const Center(
         child: Icon(Icons.store, size: 64, color: Colors.white24),
-      ),
-    );
-  }
-}
-
-class _ReserveButton extends StatelessWidget {
-  const _ReserveButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.white.withOpacity(0.6)),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'RÉSERVER',
-                style: TextStyle(
-                  color: Colors.white,
-                  letterSpacing: 2,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
-            ],
-          ),
-        ),
       ),
     );
   }

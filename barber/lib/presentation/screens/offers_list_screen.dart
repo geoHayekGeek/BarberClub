@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
+import '../widgets/app_primary_button.dart';
 
 /// Offres tab: salon selection. Immersive sections; tap "VOIR LES TARIFS" opens Prestations for that salon.
 class OffersListScreen extends ConsumerWidget {
@@ -159,30 +160,10 @@ class _SalonOfferSectionWidgetState extends State<_SalonOfferSectionWidget> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: widget.onTap,
-                        icon: const Icon(Icons.receipt_long_outlined, size: 22, color: Colors.black),
-                        label: const Text(
-                          'VOIR LES TARIFS',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 2,
-                            color: Colors.black,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 24),
+                    AppPrimaryButton(
+                      label: 'VOIR LES TARIFS',
+                      onTap: widget.onTap,
                     ),
                   ],
                 ),
