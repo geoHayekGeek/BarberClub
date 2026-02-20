@@ -35,7 +35,13 @@ class SalonCard extends StatelessWidget {
             final selectFor = state.uri.queryParameters['selectFor'];
 
             if (selectFor == 'offers') {
-              context.push('/offres/${salon.id}');
+              // Use Uri to safely add the ?name=... query parameter
+              final url = Uri(
+                path: '/offres/${salon.id}',
+                queryParameters: {'name': salon.name},
+              ).toString();
+              
+              context.push(url);
             } else {
               onTap();
             }
