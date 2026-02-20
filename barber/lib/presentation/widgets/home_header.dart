@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 /// Header widget for Home screen
 /// Displays profile icon (left) and website/Instagram icons (right)
@@ -104,10 +105,13 @@ class HomeHeader extends StatelessWidget {
                     child: SizedBox(
                       width: 44,
                       height: 44,
-                      child: Icon(
-                        Icons.photo_camera_outlined,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 24,
+                      // 👇 CHANGED TO INSTAGRAM ICON 👇
+                      child: Center(
+                        child: FaIcon(
+                          FontAwesomeIcons.instagram,
+                          color: Colors.white.withOpacity(0.9),
+                          size: 24,
+                        ),
                       ),
                     ),
                   ),
