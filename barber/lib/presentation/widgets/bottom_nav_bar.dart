@@ -31,6 +31,7 @@ class BottomNavBar extends StatelessWidget {
   bool _pathMatches(String path, String tabPath) {
     final base = tabPath.split('?').first;
     if (path == base) return true;
+    if (base == '/home' && path.startsWith('/home')) return true;
     if (base == '/coiffeurs' && path.startsWith('/coiffeurs')) return true;
     if (base == '/rdv' && path.startsWith('/rdv')) return true;
     if (base == '/offres' && (path == '/offres' || path.startsWith('/offres/'))) return true;

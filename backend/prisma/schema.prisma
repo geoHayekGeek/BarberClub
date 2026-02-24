@@ -191,14 +191,27 @@ model LoyaltyCoupon {
   @@map("loyalty_coupons")
 }
 
+model GlobalOffer {
+  id          String    @id @default(uuid())
+  title       String
+  description String?   @db.Text
+  imageUrl    String?   @map("image_url")
+  discount    Int?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([isActive])
+  @@map("global_offers")
+}
+
 model Offer {
   id              String   @id @default(uuid())
   title           String
-  price           Int      
+  price           Int
 
   salonId         String   @map("salon_id")
   salon           Salon    @relation(fields: [salonId], references: [id])
-  
+
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

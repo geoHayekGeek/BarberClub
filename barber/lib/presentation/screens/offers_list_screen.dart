@@ -1,32 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
-import '../../domain/models/salon.dart';
+import '../../domain/models/global_offer.dart';
+import '../providers/offer_providers.dart';
 import '../providers/salon_providers.dart';
-import '../widgets/app_primary_button.dart';
 
-/// Offres tab: salon selection. Immersive sections; tap "VOIR LES TARIFS" opens Prestations for that salon.
+/// Offres tab: global promotions (not salon-based)
 class OffersListScreen extends ConsumerWidget {
   const OffersListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final salonsAsync = ref.watch(salonsListProvider);
+    final offersAsync = ref.watch(globalOffersListProvider);
 
     return Scaffold(
       body: Container(
         color: Colors.black,
         child: SafeArea(
-          child: salonsAsync.when(
-            data: (salons) {
-              if (salons.isEmpty) {
+          child: offersAsync.when(
+            data: (offers) {
+              if (offers.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'Aucun salon disponible pour le moment.',
+                      'Aucune offre disponible pour le moment.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.white70,
                           ),
@@ -36,22 +35,20 @@ class OffersListScreen extends ConsumerWidget {
                 );
               }
               return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (int i = 0; i < salons.length; i++) ...[
-                      _SalonOfferSectionWidget(
-                        salon: salons[i],
-                        onTap: () {
-                          final name = Uri.encodeComponent(salons[i].name);
-                          context.push('/offres/${salons[i].id}?name=$name');
-                        },
-                      ),
-                      if (i < salons.length - 1)
-                        Container(
-                          height: 1,
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                    ],
+                    Text(
+                      'NOS OFFRES',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 3,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                    ...offers.map((offer) => _OfferCard(offer: offer)),
                   ],
                 ),
               );
@@ -76,7 +73,7 @@ class OffersListScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 24),
                       FilledButton.icon(
-                        onPressed: () => ref.invalidate(salonsListProvider),
+                        onPressed: () => ref.invalidate(globalOffersListProvider),
                         icon: const Icon(Icons.refresh),
                         label: const Text('Réessayer'),
                       ),
@@ -92,94 +89,90 @@ class OffersListScreen extends ConsumerWidget {
   }
 }
 
-class _SalonOfferSectionWidget extends StatefulWidget {
-  final Salon salon;
-  final VoidCallback onTap;
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({required this.offer});
 
-  const _SalonOfferSectionWidget({
-    required this.salon,
-    required this.onTap,
-  });
+  final GlobalOffer offer;
 
-  @override
-  State<_SalonOfferSectionWidget> createState() => _SalonOfferSectionWidgetState();
-}
-
-class _SalonOfferSectionWidgetState extends State<_SalonOfferSectionWidget> {
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.5;
-    final imageUrl = AppConfig.resolveImageUrl(widget.salon.imageUrl);
+    final imageUrl = AppConfig.resolveImageUrl(offer.imageUrl);
 
-    return SizedBox(
-      height: height,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: widget.onTap,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned.fill(
-                child: Container(color: const Color(0xFF1A1A1A)),
-              ),
-              Positioned.fill(
-                child: imageUrl != null && imageUrl.startsWith('http')
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return _placeholder();
-                        },
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      )
-                    : _placeholder(),
-              ),
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.6),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1C),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (imageUrl != null && imageUrl.startsWith('http'))
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
-              Positioned(
-                left: 24,
-                right: 24,
-                bottom: 60,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      widget.salon.name.toUpperCase(),
+            if (imageUrl != null && imageUrl.startsWith('http')) const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    offer.title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (offer.discount != null) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '-${offer.discount}%',
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 3,
                         color: Colors.white,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 24),
-                    AppPrimaryButton(
-                      label: 'VOIR LES TARIFS',
-                      onTap: widget.onTap,
-                    ),
-                  ],
+                  ),
+                ],
+              ],
+            ),
+            if (offer.description != null && offer.description!.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                offer.description!,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.8),
+                  height: 1.4,
                 ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
-          ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      color: const Color(0xFF1A1A1A),
-      child: const Center(
-        child: Icon(Icons.store, size: 64, color: Colors.white24),
       ),
     );
   }

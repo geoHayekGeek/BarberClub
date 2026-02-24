@@ -284,14 +284,14 @@ class _SalonDetailContent extends StatelessWidget {
                       height: 52,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                        final url = Uri(
-                          path: '/offres/${salon.id}',
-                          queryParameters: {'name': salon.name},
-                        ).toString();
-                        context.go(url);
-                      },
-                        icon: const Icon(Icons.local_offer_outlined, size: 22),
-                        label: const Text('Voir les offres du salon'),
+                          final url = Uri(
+                            path: '/home/prestations/${salon.id}',
+                            queryParameters: {'name': salon.name},
+                          ).toString();
+                          context.go(url);
+                        },
+                        icon: const Icon(Icons.receipt_long_outlined, size: 22),
+                        label: const Text('Voir nos prestations'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: BorderSide(color: Colors.white.withOpacity(0.3)),

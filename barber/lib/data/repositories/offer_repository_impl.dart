@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../domain/models/offer.dart';
+import '../../domain/models/global_offer.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/repositories/offer_repository.dart';
 import '../../core/network/dio_client.dart';
@@ -12,25 +13,40 @@ class OfferRepositoryImpl implements OfferRepository {
   final Dio _dio;
 
   @override
-  Future<List<Offer>> getOffers({String? salonId}) async {
+  Future<List<GlobalOffer>> getGlobalOffers() async {
     try {
-      // Pass the salonId as a query parameter to the backend
-      final response = await _dio.get(
-        '/api/v1/offers',
-        queryParameters: salonId != null ? {'salonId': salonId} : null,
-      );
-      
-      final Map<String, dynamic> responseData = response.data;
+      final response = await _dio.get('/api/v1/offers');
+      final data = response.data;
+      List<dynamic>? list;
+      if (data is List) {
+        list = data;
+      } else if (data is Map<String, dynamic>) {
+        final inner = data['data'];
+        if (inner is List) {
+          list = inner;
+        }
+      }
+      if (list == null) return [];
+      return list
+          .map((e) => GlobalOffer.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
 
-      // Unpack the nested data: { "data": { "items": [...] } }
-      if (responseData['data'] != null && responseData['data']['items'] is List) {
-        final List<dynamic> list = responseData['data']['items'];
+  @override
+  Future<List<Offer>> getPrestations(String salonId) async {
+    try {
+      final response = await _dio.get('/api/v1/salons/$salonId/prestations');
+      final data = response.data;
+      if (data is Map<String, dynamic> && data['data'] is List) {
+        final list = data['data'] as List<dynamic>;
         return list
             .map((e) => Offer.fromJson(e as Map<String, dynamic>))
             .toList();
       }
-      
-      return []; 
+      return [];
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

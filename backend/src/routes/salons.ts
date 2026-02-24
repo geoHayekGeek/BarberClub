@@ -1,11 +1,12 @@
 /**
  * Salons routes
- * Public endpoints for viewing salons
+ * Public endpoints for viewing salons and prestations (pricing per salon)
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { salonsService } from '../modules/salons/service';
 import { salonIdParamSchema } from '../modules/salons/validation';
+import { offersService } from '../modules/offers/service';
 import { publicReadLimiter } from '../middleware/rateLimit';
 
 const router = Router();
@@ -148,6 +149,19 @@ router.get('/', publicReadLimiter, async (_req: Request, res: Response, next: Ne
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+/**
+ * Prestations (pricing) for a salon - must be before /:id
+ */
+router.get('/:id/prestations', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const params = salonIdParamSchema.parse({ id: req.params.id });
+    const result = await offersService.listOffers({ salonId: params.id, limit: 50 });
+    res.json({ data: result.items });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:id', publicReadLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const params = salonIdParamSchema.parse({ id: req.params.id });
