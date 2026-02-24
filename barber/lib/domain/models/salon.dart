@@ -58,12 +58,13 @@ class Salon {
       }
     }
 
-    Object? rawHours = json['openingHours'] ?? json['opening_hours'];
-    String openingHoursStr = '';
-    if (rawHours is String) {
+    // Backend sends openingHoursText (human-readable) and/or openingHours (object); prefer text for display
+    final openingHoursText = json['openingHoursText'] as String?;
+    final Object? rawHours = json['openingHours'] ?? json['opening_hours'];
+    String openingHoursStr = openingHoursText ?? '';
+    if (openingHoursStr.isEmpty && rawHours is String) {
       openingHoursStr = rawHours;
     }
-    // When backend sends structured openingHours (Map), keep empty string; UI can use structured data later
 
     return Salon(
       id: json['id'] as String? ?? '',

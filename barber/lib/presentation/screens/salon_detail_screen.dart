@@ -533,14 +533,22 @@ final _weekDays = [
 List<({String day, String hours, bool isOpen})> _parseHoraires(String openingHours) {
   final result = <({String day, String hours, bool isOpen})>[];
   final lower = openingHours.toLowerCase();
-  final sundayClosed = lower.contains('dim') && (lower.contains('ferm') || lower.contains('fermé'));
+  final hasFerm = lower.contains('ferm') || lower.contains('fermé');
+  final sundayClosed = (lower.contains('dim') && hasFerm) || lower.contains('dimanche');
+  final mondayClosed = (lower.contains('lun') && hasFerm) || lower.contains('lundi');
+  // Default hours when open (e.g. "9h - 19h" or extract from text)
+  final openHours = lower.contains('9h') && lower.contains('19h')
+      ? '9h - 19h'
+      : (lower.contains('9') && lower.contains('19') ? '9h - 19h' : 'Ouvert');
   for (int i = 0; i < 7; i++) {
     final isSunday = i == 6;
-    if (isSunday && sundayClosed) {
-      result.add((day: _weekDays[i], hours: 'Fermé', isOpen: false));
-    } else {
-      result.add((day: _weekDays[i], hours: '9h - 19h', isOpen: true));
-    }
+    final isMonday = i == 0;
+    final closed = (isSunday && sundayClosed) || (isMonday && mondayClosed);
+    result.add((
+      day: _weekDays[i],
+      hours: closed ? 'Fermé' : openHours,
+      isOpen: !closed,
+    ));
   }
   return result;
 }

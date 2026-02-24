@@ -38,6 +38,8 @@ export interface SalonDetail {
   latitude: number | null;
   longitude: number | null;
   openingHours: OpeningHoursStructure;
+  /** Human-readable opening hours from DB (e.g. "Mar–Sam 9h–19h, Dim–Lun fermé") */
+  openingHoursText: string;
   timifyUrl?: string | null;
 }
 
@@ -87,6 +89,7 @@ class SalonsService {
         phone: true,
         latitude: true,
         longitude: true,
+        openingHours: true,
         openingHoursStructured: true,
         timifyUrl: true,
       },
@@ -108,6 +111,7 @@ class SalonsService {
       latitude: salon.latitude,
       longitude: salon.longitude,
       openingHours: normalizeOpeningHours(salon.openingHoursStructured),
+      openingHoursText: salon.openingHours,
       timifyUrl: salon.timifyUrl,
     };
   }
