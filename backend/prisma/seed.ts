@@ -56,10 +56,8 @@ const GALLERY_IMAGES = [
   'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=400',
 ];
 
-// --- LOCAL SERVER CONFIGURATION ---
-// Use 10.0.2.2 for Android Emulator, or your LAN IP for physical device.
-const BASE_URL = 'http://10.0.2.2:3000/images';
-const getImg = (path: string) => `${BASE_URL}/${path}`;
+// --- IMAGE PATHS: relative so the app can prepend its apiBaseUrl (emulator, device, or production) ---
+const getImg = (relativePath: string) => `/images/${relativePath}`;
 
 function getBarberGallery(barberName: string) {
   // 1. Path to the folder on your computer

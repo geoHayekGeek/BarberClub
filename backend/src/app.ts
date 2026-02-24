@@ -99,19 +99,25 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Serve images from backend root / public/images (__dirname = dist/src, so ../.. = backend root)
-  const backendRoot = path.resolve(__dirname, '..', '..');
-  const imagesPath = process.env.IMAGES_PATH ?? path.join(backendRoot, 'public', 'images');
+  // Serve images: IMAGES_PATH env, or cwd/public/images (when run from backend), or __dirname-based
+  const fromCwd = path.join(process.cwd(), 'public', 'images');
+  const fromDirname = path.resolve(__dirname, '..', '..', 'public', 'images');
+  const imagesPath =
+    process.env.IMAGES_PATH ||
+    (fs.existsSync(fromCwd) ? fromCwd : fromDirname);
   app.use(
     '/images',
     express.static(imagesPath, {
       setHeaders: (res) => {
-        // Make static assets usable from any origin (e.g. mobile app, web app, admin panel).
-        // This does not affect native apps, but prevents browser blocking for cross-origin usage.
         res.setHeader('Access-Control-Allow-Origin', '*');
       },
     }),
   );
+  if (config.NODE_ENV !== 'test') {
+    const exists = fs.existsSync(imagesPath);
+    // eslint-disable-next-line no-console
+    console.log('[images] path:', imagesPath, 'exists:', exists);
+  }
 
   if (config.NODE_ENV !== 'test') {
     app.use(generalLimiter);
@@ -125,17 +131,17 @@ export function createApp(): Express {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Debug: verify images path exists and list sample files (remove in production if desired)
+  app.set('imagesPath', imagesPath);
+  // Debug: verify images path exists and list sample files
   app.get('/debug/images', (_req, res) => {
-    const backendRoot = path.resolve(__dirname, '..', '..');
-    const imagesPath = process.env.IMAGES_PATH ?? path.join(backendRoot, 'public', 'images');
+    const resolvedPath = (app.get('imagesPath') as string) || imagesPath;
     try {
-      const exists = fs.existsSync(imagesPath);
-      const entries = exists ? fs.readdirSync(imagesPath, { withFileTypes: true }) : [];
+      const exists = fs.existsSync(resolvedPath);
+      const entries = exists ? fs.readdirSync(resolvedPath, { withFileTypes: true }) : [];
       const files = entries.map((d) => (d.isDirectory() ? `${d.name}/` : d.name)).slice(0, 20);
-      res.json({ imagesPath, exists, files, cwd: process.cwd() });
+      res.json({ imagesPath: resolvedPath, exists, files, cwd: process.cwd() });
     } catch (e) {
-      res.status(500).json({ imagesPath, error: String(e), cwd: process.cwd() });
+      res.status(500).json({ imagesPath: resolvedPath, error: String(e), cwd: process.cwd() });
     }
   });
 
