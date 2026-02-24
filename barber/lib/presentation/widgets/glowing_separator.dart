@@ -8,7 +8,7 @@ class GlowingSeparator extends StatelessWidget {
     return SizedBox(
       // This creates the perfect physical black gap between the images 
       // so the light has room to bleed up and down.
-      height: 4, 
+      height: 5, 
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
@@ -39,7 +39,7 @@ class GlowingSeparator extends StatelessWidget {
           
           // --- LAYER 2: THE SHARP LASER CORE ---
           Container(
-            height: 2.0, 
+            height: 3.0, 
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(50),
@@ -53,7 +53,7 @@ class GlowingSeparator extends StatelessWidget {
                 ],
                 // CHANGED: Pulled the stops inward so the fade takes longer. 
                 // This creates the visual "pointy" taper at the edges.
-                stops: const [0.0, 0.3, 0.7, 1.0], 
+                stops: const [0.0, 0.05, 0.95, 1.0], 
               ),
               boxShadow: [
                 // Tight inner brightness so the line itself looks hot
