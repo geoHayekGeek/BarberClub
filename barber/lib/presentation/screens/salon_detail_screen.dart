@@ -274,7 +274,10 @@ class _SalonDetailContent extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _HorairesCard(openingHours: salon.openingHours),
+                  _HorairesCard(
+                    openingHours: salon.openingHours,
+                    openingHoursStructured: salon.openingHoursStructured,
+                  ),
                   const SizedBox(height: 24),
                   _buildGallerySection(context),
                   const SizedBox(height: 24),
@@ -520,7 +523,7 @@ class _SalonInfoCard extends StatelessWidget {
   }
 }
 
-final _weekDays = [
+const _weekDays = [
   'Lundi',
   'Mardi',
   'Mercredi',
@@ -530,13 +533,50 @@ final _weekDays = [
   'Dimanche',
 ];
 
-List<({String day, String hours, bool isOpen})> _parseHoraires(String openingHours) {
+const _dayKeys = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+List<({String day, String hours, bool isOpen})> _horairesFromStructured(Map<String, dynamic> structured) {
+  final result = <({String day, String hours, bool isOpen})>[];
+  for (int i = 0; i < 7; i++) {
+    final dayKey = _dayKeys[i];
+    final dayData = structured[dayKey];
+    if (dayData is! Map<String, dynamic>) {
+      result.add((day: _weekDays[i], hours: '—', isOpen: false));
+      continue;
+    }
+    final closed = dayData['closed'] == true;
+    if (closed) {
+      result.add((day: _weekDays[i], hours: 'Fermé', isOpen: false));
+      continue;
+    }
+    final open = dayData['open'] as String? ?? '';
+    final close = dayData['close'] as String? ?? '';
+    String formatH(String s) {
+      if (s.isEmpty) return '—';
+      final h = s.replaceFirst(':00', 'h');
+      return h.startsWith('0') && h.length > 1 ? h.substring(1) : h;
+    }
+    final openStr = formatH(open);
+    final closeStr = formatH(close);
+    result.add((day: _weekDays[i], hours: '$openStr - $closeStr', isOpen: true));
+  }
+  return result;
+}
+
+List<({String day, String hours, bool isOpen})> _parseHorairesFromText(String openingHours) {
   final result = <({String day, String hours, bool isOpen})>[];
   final lower = openingHours.toLowerCase();
   final hasFerm = lower.contains('ferm') || lower.contains('fermé');
   final sundayClosed = (lower.contains('dim') && hasFerm) || lower.contains('dimanche');
   final mondayClosed = (lower.contains('lun') && hasFerm) || lower.contains('lundi');
-  // Default hours when open (e.g. "9h - 19h" or extract from text)
   final openHours = lower.contains('9h') && lower.contains('19h')
       ? '9h - 19h'
       : (lower.contains('9') && lower.contains('19') ? '9h - 19h' : 'Ouvert');
@@ -555,12 +595,18 @@ List<({String day, String hours, bool isOpen})> _parseHoraires(String openingHou
 
 class _HorairesCard extends StatelessWidget {
   final String openingHours;
+  final Map<String, dynamic>? openingHoursStructured;
 
-  const _HorairesCard({required this.openingHours});
+  const _HorairesCard({
+    required this.openingHours,
+    this.openingHoursStructured,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final rows = _parseHoraires(openingHours);
+    final rows = openingHoursStructured != null && openingHoursStructured!.isNotEmpty
+        ? _horairesFromStructured(openingHoursStructured!)
+        : _parseHorairesFromText(openingHours);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

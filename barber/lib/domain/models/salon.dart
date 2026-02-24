@@ -9,6 +9,8 @@ class Salon {
   final String address;
   final List<String> images;
   final String openingHours;
+  /// Structured hours from API (monday: { open, close, closed }, ...). Used for display when present.
+  final Map<String, dynamic>? openingHoursStructured;
   final List<String> services;
   final String? timifyUrl;
   final String? phone;
@@ -22,6 +24,7 @@ class Salon {
     required this.address,
     required this.images,
     required this.openingHours,
+    this.openingHoursStructured,
     required this.services,
     this.timifyUrl,
     this.phone,
@@ -58,13 +61,14 @@ class Salon {
       }
     }
 
-    // Backend sends openingHoursText (human-readable) and/or openingHours (object); prefer text for display
+    // Backend sends openingHoursText (human-readable) and openingHours (object); store both
     final openingHoursText = json['openingHoursText'] as String?;
     final Object? rawHours = json['openingHours'] ?? json['opening_hours'];
     String openingHoursStr = openingHoursText ?? '';
     if (openingHoursStr.isEmpty && rawHours is String) {
       openingHoursStr = rawHours;
     }
+    final Map<String, dynamic>? structured = (rawHours is Map<String, dynamic>) ? rawHours : null;
 
     return Salon(
       id: json['id'] as String? ?? '',
@@ -75,6 +79,7 @@ class Salon {
       address: json['address'] as String? ?? '',
       images: imagesList,
       openingHours: openingHoursStr,
+      openingHoursStructured: structured,
       services:
           (json['services'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               [],
@@ -96,6 +101,7 @@ class Salon {
       'address': address,
       'images': images,
       'openingHours': openingHours,
+      if (openingHoursStructured != null) 'openingHoursStructured': openingHoursStructured,
       'services': services,
       'timifyUrl': timifyUrl,
       'phone': phone,
