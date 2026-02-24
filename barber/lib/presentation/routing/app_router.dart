@@ -59,7 +59,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (loc == '/login' || loc == '/signup') return '/home';
         if (loc.startsWith('/admin')) return '/home';
       } else {
-        if (loc.startsWith('/admin') || loc == '/home' || loc.startsWith('/carte-fidelite') ||
+        if (loc.startsWith('/admin') || loc.startsWith('/home') || loc.startsWith('/carte-fidelite') ||
             loc.startsWith('/rdv') || loc.startsWith('/coiffeurs') || loc.startsWith('/offres') ||
             loc == '/compte') return '/login';
       }
@@ -144,13 +144,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
         branches: [
-          // index 0: Accueil
+          // index 0: Accueil (Home + Prestations as part of home flow)
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/home',
                 name: 'home',
                 builder: (context, state) => const HomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'prestations/:salonId',
+                    name: 'salon-prestations',
+                    builder: (context, state) {
+                      final salonId = state.pathParameters['salonId'] ?? '';
+                      final salonName = state.uri.queryParameters['name'] != null
+                          ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                          : 'Salon';
+                      return SalonOffersDetailScreen(
+                        salonId: salonId,
+                        salonName: salonName,
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -213,29 +229,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // index 4: Offres
+          // index 4: Offres (global promotions only)
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/offres',
                 name: 'offres-base',
                 builder: (context, state) => const OffersListScreen(),
-                routes: [
-                  GoRoute(
-                    path: ':salonId',
-                    name: 'salon-offres',
-                    builder: (context, state) {
-                      final salonId = state.pathParameters['salonId'] ?? '';
-                      final salonName = state.uri.queryParameters['name'] != null
-                          ? Uri.decodeComponent(state.uri.queryParameters['name']!)
-                          : 'Salon';
-                      return SalonOffersDetailScreen(
-                        salonId: salonId,
-                        salonName: salonName,
-                      );
-                    },
-                  ),
-                ],
               ),
             ],
           ),

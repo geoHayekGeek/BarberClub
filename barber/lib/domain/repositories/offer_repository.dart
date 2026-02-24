@@ -1,10 +1,13 @@
 import '../models/offer.dart';
+import '../models/global_offer.dart';
 
 /// Throws [ApiError] on failure.
-
 abstract class OfferRepository {
-  // Add {String? salonId} here to match your Implementation
-  Future<List<Offer>> getOffers({String? salonId}); 
-  
+  /// Global promotions (all salons)
+  Future<List<GlobalOffer>> getGlobalOffers();
+
+  /// Prestations (pricing) for one salon
+  Future<List<Offer>> getPrestations(String salonId);
+
   Future<Offer> getOfferById(String id);
 }

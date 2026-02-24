@@ -7,6 +7,8 @@
 // @ts-nocheck
 /// <reference types="node" />
 
+import path from 'path';
+import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/modules/auth/utils/password';
 
@@ -383,6 +385,42 @@ const offersData = [
         await prisma.offer.create({ data: offer });
     }
   }
+
+  // --- GLOBAL OFFERS (promotions, Offres tab - table global_offers) ---
+  console.log('Seeding global offers (offres)...');
+  const globalOffersData = [
+    {
+      title: 'Première visite',
+      description: 'Bienvenue au Barber Club. Bénéficiez d\'un tarif privilégié pour votre première coupe ou barbe dans l\'un de nos salons.',
+      imageUrl: null,
+      discount: 10,
+      isActive: true,
+    },
+    {
+      title: 'Duo coupe + barbe',
+      description: 'Coupe et barbe ensemble dans tous nos salons. Une expérience complète à prix avantageux.',
+      imageUrl: null,
+      discount: 15,
+      isActive: true,
+    },
+    {
+      title: 'Offre fidélité',
+      description: 'Après 5 passages, une coupe ou barbe offerte. Valable dans tous les salons Barber Club.',
+      imageUrl: null,
+      discount: null,
+      isActive: true,
+    },
+  ];
+
+  let globalCreated = 0;
+  for (const go of globalOffersData) {
+    const existing = await prisma.globalOffer.findFirst({ where: { title: go.title } });
+    if (!existing) {
+      await prisma.globalOffer.create({ data: go });
+      globalCreated++;
+    }
+  }
+  console.log('Global offers (offres):', globalCreated, 'created,', globalOffersData.length - globalCreated, 'already present.');
 }
 
 main()

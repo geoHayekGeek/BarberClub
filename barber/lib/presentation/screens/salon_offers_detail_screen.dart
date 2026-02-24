@@ -17,7 +17,7 @@ class SalonOffersDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final offersAsync = ref.watch(offersListProvider(salonId));
+    final offersAsync = ref.watch(prestationsListProvider(salonId));
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
