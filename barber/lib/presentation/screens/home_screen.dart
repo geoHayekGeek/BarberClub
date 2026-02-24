@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import '../widgets/glowing_separator.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
@@ -30,11 +30,11 @@ class HomeScreen extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   _BackgroundWithOverlay(),
-                  Positioned(
+                  const Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    child: const HomeHeader(),
+                    child: HomeHeader(),
                   ),
                   const HomeCenterContent(),
                 ],
@@ -57,6 +57,8 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     );
                   }
+                  
+                  // 🔥 THIS IS THE NEW STACK IMPLEMENTATION 🔥
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -73,17 +75,46 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 32),
-                      for (int i = 0; i < salons.length; i++) ...[
-                        _AccueilSalonSection(
-                          salon: salons[i],
-                          onTap: () => context.push('/salon/${salons[i].id}'),
-                        ),
-                        if (i < salons.length - 1)
-                          Container(
-                            height: 1,
-                            color: Colors.white.withOpacity(0.3),
+                      
+                      // Stack allows the glow to bleed over both top and bottom images
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // --- LAYER 1: The Salons (Painted First/Bottom) ---
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (int i = 0; i < salons.length; i++) ...[
+                                _AccueilSalonSection(
+                                  salon: salons[i],
+                                  onTap: () => context.push('/salon/${salons[i].id}'),
+                                ),
+                                // Provide exactly the height of the separator so spacing is consistent
+                                if (i < salons.length - 1)
+                                  const SizedBox(height: 44), 
+                              ],
+                            ],
                           ),
-                      ],
+                          
+                          // --- LAYER 2: The Neon Glows (Painted Last/Top) ---
+                          Positioned.fill(
+                            // IgnorePointer ensures users can still tap the salon cards underneath
+                            child: IgnorePointer(
+                              child: Column(
+                                children: [
+                                  for (int i = 0; i < salons.length; i++) ...[
+                                    // Skip exactly the height of one salon card
+                                    SizedBox(height: MediaQuery.of(context).size.height * 0.5),
+                                    if (i < salons.length - 1)
+                                      const GlowingSeparator(), 
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
                       SizedBox(height: 16 + MediaQuery.of(context).padding.bottom),
                     ],
                   );

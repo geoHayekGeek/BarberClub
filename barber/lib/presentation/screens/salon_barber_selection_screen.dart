@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import '../widgets/glowing_separator.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
@@ -47,10 +47,7 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
                         },
                       ),
                       if (i < salons.length - 1)
-                        Container(
-                          height: 1,
-                          color: Colors.white.withOpacity(0.3),
-                        ),
+                        const GlowingSeparator(),
                     ],
                   ],
                 ),
