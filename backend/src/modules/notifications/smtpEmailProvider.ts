@@ -73,10 +73,12 @@ class SMTPEmailProvider implements EmailProvider {
         subject: options.subject,
       });
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Failed to send email via SMTP', {
         to: options.to,
         subject: options.subject,
-        error: error instanceof Error ? error.message : String(error),
+        error: err.message,
+        ...(err instanceof Error && err.stack && { stack: err.stack }),
       });
       throw error;
     }
