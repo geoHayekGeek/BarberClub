@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-
-import '../../core/config/app_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
+import '../widgets/glowing_separator.dart'; // Added the import for your separator
 
 /// Nos Barbers list page. Premium dark UI with 2-column grid.
 class BarbersListScreen extends ConsumerWidget {
@@ -23,87 +23,93 @@ class BarbersListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
-          child: barbersAsync.when(
-            data: (barbers) {
-              if (barbers.isEmpty) {
-                return _buildEmpty(context);
-              }
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        children: [
-                          Text(
-                            _title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 2,
-                            ),
+        child: barbersAsync.when(
+          data: (barbers) {
+            if (barbers.isEmpty) {
+              return _buildEmpty(context);
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      children: [
+                        Text(
+                          _title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
                           ),
-                          const SizedBox(height: 24),
-                        ],
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // --- PREMIUM SEPARATOR ---
+                        // Added here to divide the header from the grid content.
+                        const GlowingSeparator(),
+                        
+                        const SizedBox(height: 32), // Breathing room for the glow effect
+                      ],
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.75,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final barber = barbers[index];
+                          return _BarberGridCard(
+                            barber: barber,
+                            onTap: () => context.push('/coiffeurs/${barber.id}'),
+                          );
+                        },
+                        childCount: barbers.length,
                       ),
                     ),
-                    SliverPadding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      sliver: SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.75,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final barber = barbers[index];
-                            return _BarberGridCard(
-                              barber: barber,
-                              onTap: () => context.push('/coiffeurs/${barber.id}'),
-                            );
-                          },
-                          childCount: barbers.length,
-                        ),
-                      ),
+                  ),
+                ],
+              ),
+            );
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: Colors.white70),
+          ),
+          error: (error, stackTrace) {
+            // Note: Ensure getBarberErrorMessage is defined or replaced with error.toString()
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      error.toString(),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.white70,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: BarberUIConstants.sectionSpacing),
+                    FilledButton.icon(
+                      onPressed: () => ref.invalidate(barbersListProvider),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('REESSAYER'),
                     ),
                   ],
                 ),
-              );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: Colors.white70),
-            ),
-            error: (error, stackTrace) {
-              final message = getBarberErrorMessage(error, stackTrace);
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        message,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white70,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: BarberUIConstants.sectionSpacing),
-                      FilledButton.icon(
-                        onPressed: () => ref.invalidate(barbersListProvider),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text(BarberStrings.retry),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
+      ),
     );
   }
 
@@ -112,7 +118,7 @@ class BarbersListScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
         child: Text(
-          BarberStrings.emptyList,
+          'Aucun coiffeur trouvé.',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Colors.white70,
               ),

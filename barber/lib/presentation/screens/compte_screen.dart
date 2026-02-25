@@ -19,13 +19,13 @@ class CompteScreen extends ConsumerWidget {
         : 'U';
 
     return Scaffold(
-appBar: AppBar(
+      backgroundColor: const Color(0xFF121212), // Explicit dark background
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // Safe pop: goes back, or defaults to home if opened directly
             if (context.canPop()) {
               context.pop();
             } else {
@@ -41,11 +41,11 @@ appBar: AppBar(
             letterSpacing: 1,
           ),
         ),
-        centerTitle: true, // Aligns the text to the center of the AppBar
+        centerTitle: true,
       ),
       body: SafeArea(
         child: user == null
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: Colors.white)) // Explicit white loader
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -59,7 +59,8 @@ appBar: AppBar(
                         shape: BoxShape.circle,
                         color: const Color(0xFF1A1A1A),
                         border: Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.5), width: 2),
+                            color: Colors.white24, // Explicit grey/white
+                            width: 2),
                         boxShadow: [
                           BoxShadow(
                               color: Colors.black.withOpacity(0.3),
@@ -70,17 +71,16 @@ appBar: AppBar(
                       child: Center(
                         child: Text(
                           initials,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 40,
                             fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.primary,
+                            color: Colors.white, // Explicit white
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
                     
-                    // Name & Badge
                     Text(
                       user.fullName ?? 'Utilisateur',
                       style: theme.textTheme.headlineMedium?.copyWith(
@@ -91,13 +91,13 @@ appBar: AppBar(
                     Text(
                       'Membre Barber Club',
                       style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.primary,
+                          color: Colors.white70, // Explicit grey/white
                           letterSpacing: 1.2,
                           fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 40),
 
-                    // 2. Info Card with EDIT Button
+                    // 2. Info Card
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A1A1A),
@@ -114,7 +114,6 @@ appBar: AppBar(
                                 Text('Mes Informations',
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(color: Colors.white)),
-                                // The Edit Button triggers the bottom sheet
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined,
                                       color: Colors.white70),
@@ -143,7 +142,7 @@ appBar: AppBar(
 
                     const SizedBox(height: 24),
 
-                    // 3. Security Card (Change Password)
+                    // 3. Security Card
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A1A1A),
@@ -162,7 +161,6 @@ appBar: AppBar(
                             style: TextStyle(color: Colors.white)),
                         trailing: const Icon(Icons.arrow_forward_ios,
                             size: 16, color: Colors.white54),
-                        // Triggers password change sheet
                         onTap: () => _showChangePasswordSheet(context, ref),
                       ),
                     ),
@@ -240,6 +238,20 @@ appBar: AppBar(
     final phoneCtrl = TextEditingController(text: user.phoneNumber);
     final formKey = GlobalKey<FormState>();
 
+    // Extracted decoration logic to easily enforce grey/white borders
+    InputDecoration buildInputDecoration(String labelText) {
+      return InputDecoration(
+        labelText: labelText,
+        labelStyle: const TextStyle(color: Colors.white54),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.white), // Explicitly overrides yellow focus
+        ),
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -257,23 +269,29 @@ appBar: AppBar(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Modifier le profil',
-                  style: Theme.of(context).textTheme.headlineSmall),
+              const Text('Modifier le profil',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
               TextFormField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nom complet'),
+                style: const TextStyle(color: Colors.white),
+                cursorColor: Colors.white, // Explicitly overrides yellow cursor
+                decoration: buildInputDecoration('Nom complet'),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email'),
+                style: const TextStyle(color: Colors.white),
+                cursorColor: Colors.white,
+                decoration: buildInputDecoration('Email'),
                 validator: (v) => v!.contains('@') ? null : 'Email invalide',
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: phoneCtrl,
-                decoration: const InputDecoration(labelText: 'Téléphone'),
+                style: const TextStyle(color: Colors.white),
+                cursorColor: Colors.white,
+                decoration: buildInputDecoration('Téléphone'),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -285,7 +303,6 @@ appBar: AppBar(
                         if (!formKey.currentState!.validate()) return;
                         try {
                           Navigator.pop(ctx); 
-                          // Calls the new provider method you just added
                           await ref.read(authStateProvider.notifier).updateProfile(
                                 fullName: nameCtrl.text,
                                 email: emailCtrl.text,
@@ -304,6 +321,10 @@ appBar: AppBar(
                           }
                         }
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white12,
+                        foregroundColor: Colors.white,
+                      ),
                       child: const Text('Enregistrer'),
                     );
                   }
@@ -317,15 +338,27 @@ appBar: AppBar(
   }
 
   // --- CHANGE PASSWORD SHEET ---
-void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
+  void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     final confirmPassCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    // MOVED VARIABLES HERE: So they don't reset when the sheet updates
     bool isLoading = false;
     String? localError;
+
+    InputDecoration buildInputDecoration(String labelText) {
+      return InputDecoration(
+        labelText: labelText,
+        labelStyle: const TextStyle(color: Colors.white54),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.white), // Explicitly overrides yellow focus
+        ),
+      );
+    }
 
     showModalBottomSheet(
       context: context,
@@ -346,44 +379,43 @@ void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Changer le mot de passe',
-                      style: Theme.of(context).textTheme.headlineSmall),
+                  const Text('Changer le mot de passe',
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 24),
 
-                  // --- OLD PASSWORD ---
                   TextFormField(
                     controller: oldPassCtrl,
                     obscureText: true,
-                    decoration:
-                        const InputDecoration(labelText: 'Ancien mot de passe'),
+                    style: const TextStyle(color: Colors.white),
+                    cursorColor: Colors.white, // Explicitly overrides yellow cursor
+                    decoration: buildInputDecoration('Ancien mot de passe'),
                     validator: (v) => v!.isEmpty ? 'Requis' : null,
                   ),
                   const SizedBox(height: 16),
 
-                  // --- NEW PASSWORD ---
                   TextFormField(
                     controller: newPassCtrl,
                     obscureText: true,
-                    decoration:
-                        const InputDecoration(labelText: 'Nouveau mot de passe'),
+                    style: const TextStyle(color: Colors.white),
+                    cursorColor: Colors.white,
+                    decoration: buildInputDecoration('Nouveau mot de passe'),
                     validator: (v) =>
                         v!.length < 8 ? 'Min 8 caractères' : null,
                   ),
                   const SizedBox(height: 16),
 
-                  // --- CONFIRM PASSWORD ---
                   TextFormField(
                     controller: confirmPassCtrl,
                     obscureText: true,
-                    decoration: const InputDecoration(
-                        labelText: 'Confirmer le mot de passe'),
+                    style: const TextStyle(color: Colors.white),
+                    cursorColor: Colors.white,
+                    decoration: buildInputDecoration('Confirmer le mot de passe'),
                     validator: (v) => v != newPassCtrl.text
                         ? 'Les mots de passe ne correspondent pas'
                         : null,
                   ),
                   const SizedBox(height: 24),
 
-                  // --- ERROR MESSAGE (In Red) ---
                   if (localError != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
@@ -395,7 +427,6 @@ void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
                       ),
                     ),
 
-                  // --- BUTTON ---
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -405,7 +436,6 @@ void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
                           : () async {
                               if (!formKey.currentState!.validate()) return;
 
-                              // 1. Start Loading (Update UI)
                               setModalState(() {
                                 isLoading = true;
                                 localError = null;
@@ -430,19 +460,8 @@ void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
                                   );
                                 }
                               } catch (e) {
-                                // 2. Handle Error
                                 if (ctx.mounted) {
-                                  // Clean up the messy "ApiError..." string
-                                  String cleanMessage = e.toString();
-                                  
-                                  // Remove technical prefixes
-                                  cleanMessage = cleanMessage.replaceAll('Exception:', '').trim();
-                                  if (cleanMessage.contains('message:')) {
-                                    // Extract text between 'message: ' and the next comma
-                                    cleanMessage = cleanMessage.split('message:')[1].split(',')[0].trim();
-                                  } 
-
-                                  // Update UI with the error
+                                  String cleanMessage = e.toString().replaceAll('Exception:', '').trim();
                                   setModalState(() {
                                     isLoading = false;
                                     localError = cleanMessage;
@@ -450,13 +469,17 @@ void _showChangePasswordSheet(BuildContext context, WidgetRef ref) {
                                 }
                               }
                             },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white12, // Greyish background
+                        foregroundColor: Colors.white,
+                      ),
                       child: isLoading
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.black, // Dark loader on yellow button
+                                color: Colors.white,
                               ),
                             )
                           : const Text('Confirmer'),

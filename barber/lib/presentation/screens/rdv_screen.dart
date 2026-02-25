@@ -65,99 +65,83 @@ class RdvScreen extends ConsumerWidget {
       }
     }
 
+    final sectionHeight = MediaQuery.of(context).size.height * 0.5;
+
     return Scaffold(
-      body: Container(
-        color: Colors.black,
-        child: SafeArea(
-          child: salonsAsync.when(
-            data: (salons) {
-              if (salons.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Aucun salon disponible pour le moment.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              }
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (int i = 0; i < salons.length; i++) ...[
-                      _RdvSalonSectionWidget(
-                        salon: salons[i],
-                        onReserve: () => _launchTimify(context, salons[i].timifyUrl),
-                      ),
-                      if (i < salons.length - 1)
-                        const GlowingSeparator(),
-                    ],
-                  ],
-                ),
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: salonsAsync.when(
+          data: (salons) {
+            if (salons.isEmpty) {
+              return const Center(
+                child: Text('Aucun salon disponible.', style: TextStyle(color: Colors.white)),
               );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: Colors.white70),
-            ),
-            error: (err, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Erreur: $err',
-                  style: TextStyle(color: Colors.white.withOpacity(0.9)),
-                  textAlign: TextAlign.center,
-                ),
+            }
+            return SingleChildScrollView(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // LAYER 1: The Content Sections
+                  Column(
+                    children: [
+                      for (final salon in salons)
+                        _RdvSalonSectionWidget(
+                          salon: salon,
+                          height: sectionHeight,
+                          onReserve: () => _launchTimify(context, salon.timifyUrl),
+                        ),
+                    ],
+                  ),
+                  
+                  // LAYER 2: The Floating Separators (Z-Index fix)
+                  // FIX: Using absolute positioning instead of a Column to prevent height overflow
+                  for (int i = 1; i < salons.length; i++)
+                    Positioned(
+                      // Places the separator exactly on the physical boundary between images
+                      // The -2 perfectly centers the 4px height of the GlowingSeparator
+                      top: (i * sectionHeight) - 2, 
+                      left: 0,
+                      right: 0,
+                      child: const IgnorePointer(
+                        child: GlowingSeparator(),
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator(color: Colors.white)),
+          error: (err, _) => Center(child: Text('Erreur: $err', style: const TextStyle(color: Colors.white))),
         ),
       ),
     );
   }
 }
 
-class _RdvSalonSectionWidget extends StatefulWidget {
+class _RdvSalonSectionWidget extends StatelessWidget {
   final Salon salon;
+  final double height;
   final VoidCallback onReserve;
 
   const _RdvSalonSectionWidget({
     required this.salon,
+    required this.height,
     required this.onReserve,
   });
 
   @override
-  State<_RdvSalonSectionWidget> createState() => _RdvSalonSectionWidgetState();
-}
-
-class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
-  @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.5;
-    final imageUrl = AppConfig.resolveImageUrl(widget.salon.imageUrl);
+    final imageUrl = AppConfig.resolveImageUrl(salon.imageUrl);
 
     return SizedBox(
       height: height,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Positioned.fill(
-            child: Container(color: const Color(0xFF1A1A1A)),
-          ),
+          Positioned.fill(child: Container(color: const Color(0xFF1A1A1A))),
           Positioned.fill(
             child: imageUrl != null && imageUrl.startsWith('http')
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return _placeholder();
-                    },
-                    errorBuilder: (_, __, ___) => _placeholder(),
-                  )
+                ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _placeholder())
                 : _placeholder(),
           ),
           Positioned.fill(
@@ -166,38 +150,24 @@ class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.4),
-                    Colors.black.withOpacity(0.85),
-                  ],
+                  colors: [Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.85)],
                 ),
               ),
             ),
           ),
           Positioned(
-            left: 24,
-            bottom: 60,
-            right: 24,
+            left: 24, bottom: 60, right: 24,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  widget.salon.name.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 3,
-                    color: Colors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  salon.name.toUpperCase(),
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: 3, color: Colors.white),
+                  maxLines: 2, overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 24),
-                AppPrimaryButton(
-                  label: 'RÉSERVER',
-                  onTap: widget.onReserve,
-                ),
+                AppPrimaryButton(label: 'RÉSERVER', onTap: onReserve),
               ],
             ),
           ),
@@ -206,12 +176,5 @@ class _RdvSalonSectionWidgetState extends State<_RdvSalonSectionWidget> {
     );
   }
 
-  Widget _placeholder() {
-    return Container(
-      color: const Color(0xFF1A1A1A),
-      child: const Center(
-        child: Icon(Icons.store, size: 64, color: Colors.white24),
-      ),
-    );
-  }
+  Widget _placeholder() => Container(color: const Color(0xFF1A1A1A), child: const Icon(Icons.store, size: 64, color: Colors.white24));
 }
