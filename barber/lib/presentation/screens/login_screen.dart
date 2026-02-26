@@ -33,7 +33,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final identifier = _identifierController.text.trim();
     final password = _passwordController.text;
 
-    // Determine if identifier is email or phone
     final isEmail = identifier.contains('@');
     
     if (isEmail) {
@@ -49,12 +48,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  InputDecoration _buildInputDecoration({required String label, required String hint, required IconData icon, Widget? suffix}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(color: Colors.white54),
+      hintStyle: const TextStyle(color: Colors.white24),
+      prefixIcon: Icon(icon, color: Colors.white54),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: const Color(0xFF1A1A1A),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white10),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white10),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        // Changed from primary color to a clean white/grey
+        borderSide: const BorderSide(color: Colors.white54),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final isLoading = authState.status == AuthStatus.authenticating;
 
-    // Navigate by role on successful login
     ref.listen<AuthState>(authStateProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
         if (next.user?.isAdmin == true) {
@@ -65,7 +89,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-    // Show error snackbar
     if (authState.errorMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF121212),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -93,23 +117,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Barber Club',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: Colors.white, // Changed to white
+                          letterSpacing: 2,
                         ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Connexion',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white70,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
                   TextFormField(
                     controller: _identifierController,
-                    decoration: const InputDecoration(
-                      labelText: 'E-mail ou numéro de téléphone',
-                      hintText: 'exemple@email.com ou +33612345678',
-                      prefixIcon: Icon(Icons.person_outline),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _buildInputDecoration(
+                      label: 'E-mail ou numéro de téléphone',
+                      hint: 'exemple@email.com ou +33612345678',
+                      icon: Icons.person_outline,
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
@@ -119,14 +147,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: InputDecoration(
-                      labelText: 'Mot de passe',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _buildInputDecoration(
+                      label: 'Mot de passe',
+                      hint: 'Votre mot de passe',
+                      icon: Icons.lock_outline,
+                      suffix: IconButton(
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
+                          color: Colors.white54,
                         ),
                         onPressed: () {
                           setState(() {
@@ -142,35 +173,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     enabled: !isLoading,
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: isLoading ? null : _handleLogin,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                  SizedBox(
+                    height: 54,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white12, // Premium dark grey button
+                        foregroundColor: Colors.white,   // White text
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: isLoading ? null : _handleLogin,
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text(
+                              'Se connecter',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
-                          )
-                        : const Text('Se connecter'),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
+                    style: TextButton.styleFrom(foregroundColor: Colors.white), // White text
                     onPressed: isLoading
                         ? null
                         : () => context.push('/forgot-password'),
                     child: const Text('Mot de passe oublié ?'),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
+                      const Text(
                         'Pas encore de compte ? ',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: TextStyle(color: Colors.white70),
                       ),
                       TextButton(
+                        style: TextButton.styleFrom(foregroundColor: Colors.white), // White text
                         onPressed: isLoading ? null : () => context.push('/signup'),
                         child: const Text('Créer un compte'),
                       ),

@@ -34,19 +34,41 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         );
   }
 
+  InputDecoration _buildInputDecoration({required String label, required String hint, required IconData icon}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(color: Colors.white54),
+      hintStyle: const TextStyle(color: Colors.white24),
+      prefixIcon: Icon(icon, color: Colors.white54),
+      filled: true,
+      fillColor: const Color(0xFF1A1A1A),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white10),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white10),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white54), // Hardcoded to grey/white
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final isLoading = authState.status == AuthStatus.authenticating;
     final hasError = authState.errorMessage != null;
 
-    // Show success message and navigate to reset password screen
     ref.listen<AuthState>(authStateProvider, (previous, next) {
       if (!_didRequestCode) return;
       if (previous?.status == AuthStatus.authenticating &&
           next.status == AuthStatus.unauthenticated &&
           next.errorMessage == null) {
-        // Only react to the forgot-password request initiated from this screen.
         _didRequestCode = false;
         final email = _emailController.text.trim();
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -65,10 +87,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       }
     });
 
-    // Show error snackbar
     if (hasError && !isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Reset local "in-flight" flag so the user can retry.
         _didRequestCode = false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -81,8 +101,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
         title: const Text('Mot de passe oublié'),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Center(
@@ -94,30 +119,34 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.lock_reset_outlined,
                     size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: Colors.white, // Changed from primary to white
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Mot de passe oublié',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Entrez votre adresse e-mail pour recevoir un code de réinitialisation.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: TextStyle(color: Colors.white70),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'E-mail',
-                      hintText: 'exemple@email.com',
-                      prefixIcon: Icon(Icons.email_outlined),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _buildInputDecoration(
+                      label: 'E-mail',
+                      hint: 'exemple@email.com',
+                      icon: Icons.email_outlined,
                     ),
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.done,
@@ -128,8 +157,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
-                    height: 48,
+                    height: 54,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white12, // Dark Grey
+                        foregroundColor: Colors.white,   // White Text
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: isLoading ? null : _handleSubmit,
                       child: isLoading
                           ? const SizedBox(
@@ -138,14 +174,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.black),
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : const Text('Envoyer le code'),
+                          : const Text(
+                              'Envoyer le code',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
+                    style: TextButton.styleFrom(foregroundColor: Colors.white70),
                     onPressed: isLoading ? null : () => context.pop(),
                     child: const Text('Retour'),
                   ),
@@ -159,21 +199,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   String _getErrorMessage(String errorMessage) {
-    // Map specific error codes to French messages for forgot password
-    // VALIDATION_ERROR or INVALID_INPUT → "Adresse e-mail invalide."
     if (errorMessage.contains('vérifier les informations') ||
         errorMessage.contains('invalide') ||
         errorMessage.contains('VALIDATION_ERROR') ||
         errorMessage.contains('INVALID_INPUT')) {
       return 'Adresse e-mail invalide.';
     }
-    // NETWORK_ERROR / timeout → "Problème de connexion. Réessayez."
     if (errorMessage.contains('connexion') ||
         errorMessage.contains('NETWORK_ERROR') ||
         errorMessage.contains('timeout')) {
       return 'Problème de connexion. Réessayez.';
     }
-    // DEFAULT → "Une erreur est survenue. Veuillez réessayer."
     return 'Une erreur est survenue. Veuillez réessayer.';
   }
 }
