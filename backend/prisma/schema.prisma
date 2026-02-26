@@ -35,6 +35,7 @@ model User {
   loyaltyRedemptions LoyaltyRedemption[]
   loyaltyQrTokens LoyaltyQrToken[]
   loyaltyCoupons LoyaltyCoupon[]
+  loyaltyAccount LoyaltyAccount?
 
   @@map("users")
 }
@@ -287,4 +288,96 @@ model BarberSalon {
 
   @@id([barberId, salonId])
   @@map("barber_salons")
+}
+
+// ---- New loyalty system (points-as-currency + tiers + rewards) ----
+model LoyaltyAccount {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentBalance Int      @default(0) @map("current_balance")
+  lifetimeEarned  Int      @default(0) @map("lifetime_earned")
+  enrolledAt     DateTime @default(now()) @map("enrolled_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  transactions    LoyaltyTransaction[]
+  redemptions     LoyaltyRedemptionVoucher[]
+  earnQrTokens    LoyaltyAccountQrToken[]
+
+  @@map("loyalty_accounts")
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  ADJUST
+}
+
+model LoyaltyTransaction {
+  id          String   @id @default(uuid())
+  accountId   String   @map("account_id")
+  account     LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type        LoyaltyTransactionType
+  points      Int
+  description String
+  referenceId String?  @map("reference_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@map("loyalty_transactions")
+}
+
+model LoyaltyReward {
+  id          String   @id @default(uuid())
+  name        String
+  costPoints  Int      @map("cost_points")
+  description String?  @db.Text
+  imageUrl    String?   @map("image_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  redemptions LoyaltyRedemptionVoucher[]
+
+  @@map("loyalty_rewards")
+}
+
+enum LoyaltyRedemptionStatus {
+  PENDING
+  USED
+}
+
+model LoyaltyRedemptionVoucher {
+  id          String   @id @default(uuid())
+  accountId   String   @map("account_id")
+  account     LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  rewardId    String   @map("reward_id")
+  reward      LoyaltyReward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  pointsSpent Int      @map("points_spent")
+  status      LoyaltyRedemptionStatus @default(PENDING)
+  redeemedAt  DateTime @default(now()) @map("redeemed_at")
+  usedAt      DateTime? @map("used_at")
+  qrTokenHash String?  @map("qr_token_hash")
+  qrExpiresAt DateTime? @map("qr_expires_at")
+  qrUsedAt    DateTime? @map("qr_used_at")
+
+  @@index([accountId])
+  @@index([rewardId])
+  @@index([status])
+  @@map("loyalty_redemption_vouchers")
+}
+
+model LoyaltyAccountQrToken {
+  id        String    @id @default(uuid())
+  accountId String   @map("account_id")
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@index([tokenHash])
+  @@index([expiresAt, usedAt])
+  @@map("loyalty_account_qr_tokens")
 }

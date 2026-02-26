@@ -119,8 +119,9 @@ ADMIN_SECRET=change-me-in-production
 - `RATE_LIMIT_MAX_REQUESTS`: Maximum requests per window (default: `100`)
 - `LOG_LEVEL`: Logging level (`error`, `warn`, `info`, `debug`, optional)
 - `FRONTEND_URL`: Frontend URL for CORS and email links (default: `http://localhost:5173`)
-- `LOYALTY_TARGET`: Number of stamps required for a reward (default: `10`)
-- `LOYALTY_QR_TTL_SECONDS`: QR code expiration in seconds (default: `120`)
+- `LOYALTY_TARGET`: Number of stamps required for a reward (legacy, default: `10`)
+- `LOYALTY_QR_TTL_SECONDS`: Earn QR expiration in seconds (default: `120`)
+- `QR_TOKEN_PEPPER`: Secret pepper for hashing QR tokens (min 32 characters, required)
 - `ENABLE_LOCAL_CANCEL`: Allow users to cancel bookings via API (`true`/`false`, default: `false`)
 - `ADMIN_SECRET`: Secret for admin endpoints (required in production; see [ADMIN.md](./ADMIN.md)). Must be changed from default in production.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: Optional. When all set, password-reset emails are sent via SMTP. Otherwise, in development a dev provider stores emails in-memory (see [Email / Password Reset](#email--password-reset)).
@@ -846,9 +847,22 @@ Loyalty tests verify:
 
 ## Loyalty Program
 
-The backend includes a QR-code-based loyalty redemption system that rewards users with stamps for confirmed bookings.
+The backend supports two loyalty flows:
 
-### Security Features
+1. **Legacy**: Stamps/coupons at target (existing).
+2. **Loyalty v2**: Points-as-currency, tiers, rewards catalog (see below).
+
+### Loyalty v2 (points, tiers, rewards)
+
+- **Points**: 1 point per euro spent (from selected service price). Points never expire; no cap.
+- **Tiers** (visual, from `lifetimeEarned`): Bronze (0-199), Silver (200-499), Gold (500-999), Platinum (1000+).
+- **Earn flow**: User shows earn QR (`BC|v1|E|<token>`). Admin selects a service (prestation) then scans; user receives `floor(priceEuros)` points.
+- **Rewards**: Catalog of rewards (cost in points). User redeems -> gets a voucher. Admin scans voucher QR (`BC|v1|V|<token>`) to mark used.
+- **QR**: Single-use, short-lived earn tokens; voucher tokens can be longer-lived. All hashed with SHA-256 + `QR_TOKEN_PEPPER`.
+
+Endpoints: `GET /loyalty/v2/me`, `POST /loyalty/v2/qr`, `GET /loyalty/rewards`, `POST /loyalty/rewards/redeem`, `POST /loyalty/redemptions/:id/qr`, `GET /loyalty/transactions`, `GET /admin/services`, `POST /admin/loyalty/earn`, `POST /admin/loyalty/redeem` (voucher or legacy coupon).
+
+### Security Features (legacy and v2)
 
 - QR codes are single-use only (cannot be reused)
 - QR codes expire after 2 minutes (configurable via `LOYALTY_QR_TTL_SECONDS`)
