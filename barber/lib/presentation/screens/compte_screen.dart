@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -45,7 +47,7 @@ class CompteScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: user == null
-            ? const Center(child: CircularProgressIndicator(color: Colors.white)) // Explicit white loader
+            ? const Center(child: CircularProgressIndicator(color: Colors.white))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -59,7 +61,7 @@ class CompteScreen extends ConsumerWidget {
                         shape: BoxShape.circle,
                         color: const Color(0xFF1A1A1A),
                         border: Border.all(
-                            color: Colors.white24, // Explicit grey/white
+                            color: Colors.white24, 
                             width: 2),
                         boxShadow: [
                           BoxShadow(
@@ -74,7 +76,7 @@ class CompteScreen extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 40,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white, // Explicit white
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -91,7 +93,7 @@ class CompteScreen extends ConsumerWidget {
                     Text(
                       'Membre Barber Club',
                       style: theme.textTheme.labelLarge?.copyWith(
-                          color: Colors.white70, // Explicit grey/white
+                          color: Colors.white70,
                           letterSpacing: 1.2,
                           fontWeight: FontWeight.w600),
                     ),
@@ -134,7 +136,7 @@ class CompteScreen extends ConsumerWidget {
                           _buildInfoTile(context,
                               icon: Icons.phone_outlined,
                               title: 'Téléphone',
-                              value: user.phoneNumber),
+                              value: user.phoneNumber ?? '-'),
                           const SizedBox(height: 16),
                         ],
                       ),
@@ -235,10 +237,13 @@ class CompteScreen extends ConsumerWidget {
   void _showEditProfileSheet(BuildContext context, WidgetRef ref, dynamic user) {
     final nameCtrl = TextEditingController(text: user.fullName);
     final emailCtrl = TextEditingController(text: user.email);
-    final phoneCtrl = TextEditingController(text: user.phoneNumber);
     final formKey = GlobalKey<FormState>();
 
-    // Extracted decoration logic to easily enforce grey/white borders
+    String completePhoneNumber = user.phoneNumber ?? '';
+    
+    // Check if the user already has a properly formatted international number
+    bool hasInternationalNumber = completePhoneNumber.startsWith('+');
+
     InputDecoration buildInputDecoration(String labelText) {
       return InputDecoration(
         labelText: labelText,
@@ -247,7 +252,7 @@ class CompteScreen extends ConsumerWidget {
           borderSide: BorderSide(color: Colors.white24),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white), // Explicitly overrides yellow focus
+          borderSide: BorderSide(color: Colors.white), 
         ),
       );
     }
@@ -275,7 +280,7 @@ class CompteScreen extends ConsumerWidget {
               TextFormField(
                 controller: nameCtrl,
                 style: const TextStyle(color: Colors.white),
-                cursorColor: Colors.white, // Explicitly overrides yellow cursor
+                cursorColor: Colors.white, 
                 decoration: buildInputDecoration('Nom complet'),
               ),
               const SizedBox(height: 16),
@@ -287,12 +292,42 @@ class CompteScreen extends ConsumerWidget {
                 validator: (v) => v!.contains('@') ? null : 'Email invalide',
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: phoneCtrl,
+              
+              // --- INTL PHONE FIELD ---
+              IntlPhoneField(
+                initialValue: hasInternationalNumber ? completePhoneNumber : null, 
+                // Only default to FR if they don't have a valid international number saved
+                initialCountryCode: hasInternationalNumber ? null : 'FR',
                 style: const TextStyle(color: Colors.white),
                 cursorColor: Colors.white,
+                dropdownTextStyle: const TextStyle(color: Colors.white),
+                dropdownIcon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                
+                // Pushes the flag and country code down to align with the text
+                flagsButtonPadding: const EdgeInsets.only(top: 18),
+                
                 decoration: buildInputDecoration('Téléphone'),
+                onChanged: (phone) {
+                  completePhoneNumber = phone.completeNumber;
+                },
+                pickerDialogStyle: PickerDialogStyle(
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  countryCodeStyle: const TextStyle(color: Colors.white),
+                  countryNameStyle: const TextStyle(color: Colors.white),
+                  searchFieldInputDecoration: InputDecoration(
+                    hintText: 'Rechercher un pays',
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white10),
+                    ),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white54),
+                    ),
+                  ),
+                ),
               ),
+
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -306,7 +341,7 @@ class CompteScreen extends ConsumerWidget {
                           await ref.read(authStateProvider.notifier).updateProfile(
                                 fullName: nameCtrl.text,
                                 email: emailCtrl.text,
-                                phoneNumber: phoneCtrl.text,
+                                phoneNumber: completePhoneNumber, 
                               );
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -355,7 +390,7 @@ class CompteScreen extends ConsumerWidget {
           borderSide: BorderSide(color: Colors.white24),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white), // Explicitly overrides yellow focus
+          borderSide: BorderSide(color: Colors.white), 
         ),
       );
     }
@@ -387,7 +422,7 @@ class CompteScreen extends ConsumerWidget {
                     controller: oldPassCtrl,
                     obscureText: true,
                     style: const TextStyle(color: Colors.white),
-                    cursorColor: Colors.white, // Explicitly overrides yellow cursor
+                    cursorColor: Colors.white, 
                     decoration: buildInputDecoration('Ancien mot de passe'),
                     validator: (v) => v!.isEmpty ? 'Requis' : null,
                   ),
@@ -470,7 +505,7 @@ class CompteScreen extends ConsumerWidget {
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white12, // Greyish background
+                        backgroundColor: Colors.white12, 
                         foregroundColor: Colors.white,
                       ),
                       child: isLoading

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl_phone_field/intl_phone_field.dart'; // Import the package
+import 'package:intl_phone_field/country_picker_dialog.dart'; // <-- ADD THIS LINE
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
@@ -15,11 +17,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _phoneController = TextEditingController(); // Only holds the national number now
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  String _completePhoneNumber = ''; // Holds the full number (+33...)
 
   @override
   void dispose() {
@@ -38,7 +42,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     await ref.read(authStateProvider.notifier).register(
           email: _emailController.text.trim(),
-          phoneNumber: _phoneController.text.trim(),
+          // Use the complete phone number with the country code
+          phoneNumber: _completePhoneNumber.trim(), 
           password: _passwordController.text,
           fullName: _fullNameController.text.trim().isEmpty
               ? null
@@ -66,7 +71,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white54), // Hardcoded to grey/white
+        borderSide: const BorderSide(color: Colors.white54), 
       ),
     );
   }
@@ -114,6 +119,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _fullNameController,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
                     label: 'Nom complet (optionnel)',
                     hint: 'Jean Dupont',
@@ -132,6 +138,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
                     label: 'E-mail *',
                     hint: 'exemple@email.com',
@@ -143,23 +150,52 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
+                
+                // --- INTL PHONE FIELD ---
+                IntlPhoneField(
                   controller: _phoneController,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
+                  dropdownTextStyle: const TextStyle(color: Colors.white),
+                  dropdownIcon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
                   decoration: _buildInputDecoration(
                     label: 'Numéro de téléphone *',
-                    hint: '+33612345678',
+                    hint: '6 12 34 56 78', // Note: removed +33 from hint as it's in the picker
                     icon: Icons.phone_outlined,
                   ),
-                  keyboardType: TextInputType.phone,
+                  initialCountryCode: 'FR', // Default to France
                   textInputAction: TextInputAction.next,
-                  validator: AuthValidators.validatePhoneNumber,
                   enabled: !isLoading,
+                  onChanged: (phone) {
+                    // This gives you the full string, e.g., "+33612345678"
+                    _completePhoneNumber = phone.completeNumber;
+                  },
+                  // Optional: Customize the picker dialog theme to match your dark mode
+                  pickerDialogStyle: PickerDialogStyle(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    countryCodeStyle: const TextStyle(color: Colors.white),
+                    countryNameStyle: const TextStyle(color: Colors.white),
+                    searchFieldInputDecoration: InputDecoration(
+                      hintText: 'Rechercher un pays',
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                      enabledBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white10),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white54),
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
+                // Since IntlPhoneField adds some bottom padding for its own error text, 
+                // we can reduce the spacing here slightly compared to the others.
+                const SizedBox(height: 8),
+
                 TextFormField(
                   controller: _passwordController,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
                     label: 'Mot de passe *',
                     hint: 'Votre mot de passe',
@@ -187,6 +223,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
                     label: 'Confirmer le mot de passe *',
                     hint: 'Confirmez votre mot de passe',
@@ -219,8 +256,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   height: 54,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white12, // Dark Grey
-                      foregroundColor: Colors.white,   // White text
+                      backgroundColor: Colors.white12, 
+                      foregroundColor: Colors.white,   
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
