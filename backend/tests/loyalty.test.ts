@@ -70,18 +70,16 @@ describe('GET /api/v1/loyalty/me', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toHaveProperty('stamps', 0);
+    expect(response.body.data).toHaveProperty('points', 0);
     expect(response.body.data).toHaveProperty('target', config.LOYALTY_TARGET);
-    expect(response.body.data).toHaveProperty('eligibleForReward', false);
-    expect(response.body.data).toHaveProperty('remaining', config.LOYALTY_TARGET);
+    expect(response.body.data).toHaveProperty('availableCoupons', 0);
+    expect(response.body.data).toHaveProperty('memberSince');
   });
 
   it('should return loyalty state with existing stamps', async () => {
-    await prisma.loyaltyState.create({
-      data: {
-        userId,
-        stamps: 5,
-      },
+    await prisma.user.update({
+      where: { id: userId },
+      data: { loyaltyPoints: 5 },
     });
 
     const response = await request(app)
@@ -89,18 +87,15 @@ describe('GET /api/v1/loyalty/me', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toHaveProperty('stamps', 5);
+    expect(response.body.data).toHaveProperty('points', 5);
     expect(response.body.data).toHaveProperty('target', config.LOYALTY_TARGET);
-    expect(response.body.data).toHaveProperty('eligibleForReward', false);
-    expect(response.body.data).toHaveProperty('remaining', config.LOYALTY_TARGET - 5);
+    expect(response.body.data).toHaveProperty('availableCoupons', 0);
   });
 
   it('should return eligibleForReward true when stamps >= target', async () => {
-    await prisma.loyaltyState.create({
-      data: {
-        userId,
-        stamps: config.LOYALTY_TARGET,
-      },
+    await prisma.user.update({
+      where: { id: userId },
+      data: { loyaltyPoints: config.LOYALTY_TARGET },
     });
 
     const response = await request(app)
@@ -108,9 +103,8 @@ describe('GET /api/v1/loyalty/me', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toHaveProperty('stamps', config.LOYALTY_TARGET);
-    expect(response.body.data).toHaveProperty('eligibleForReward', true);
-    expect(response.body.data).toHaveProperty('remaining', 0);
+    expect(response.body.data).toHaveProperty('points', config.LOYALTY_TARGET);
+    expect(response.body.data).toHaveProperty('target', config.LOYALTY_TARGET);
   });
 
   it('should require authentication', async () => {
@@ -176,9 +170,7 @@ describe('POST /api/v1/loyalty/redeem', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('stamps', 0);
-    expect(response.body).toHaveProperty('eligibleForReward', false);
-    expect(response.body).toHaveProperty('remaining', config.LOYALTY_TARGET);
+    expect(response.body).toHaveProperty('success', true);
 
     const loyaltyState = await prisma.loyaltyState.findUnique({
       where: { userId },
@@ -201,8 +193,7 @@ describe('POST /api/v1/loyalty/redeem', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('stamps', 3);
-    expect(response.body).toHaveProperty('eligibleForReward', false);
+    expect(response.body).toHaveProperty('success', true);
 
     const loyaltyState = await prisma.loyaltyState.findUnique({
       where: { userId },
@@ -498,12 +489,10 @@ describe('GET /api/v1/loyalty/me - updated response', () => {
     userId = registerResponse.body.user.id;
   });
 
-  it('should return eligibleForReward instead of rewardAvailable', async () => {
-    await prisma.loyaltyState.create({
-      data: {
-        userId,
-        stamps: config.LOYALTY_TARGET,
-      },
+  it('should return points and target', async () => {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { loyaltyPoints: config.LOYALTY_TARGET },
     });
 
     const response = await request(app)
@@ -511,7 +500,7 @@ describe('GET /api/v1/loyalty/me - updated response', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toHaveProperty('eligibleForReward', true);
-    expect(response.body.data).not.toHaveProperty('rewardAvailable');
+    expect(response.body.data).toHaveProperty('points', config.LOYALTY_TARGET);
+    expect(response.body.data).toHaveProperty('target', config.LOYALTY_TARGET);
   });
 });

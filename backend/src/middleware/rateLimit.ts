@@ -80,6 +80,18 @@ export const adminLoyaltyScanLimiter = createLimiter({
   },
 });
 
+/** Admin loyalty earn (v2): same rate limit as scan. */
+export const adminLoyaltyEarnLimiter = createLimiter({
+  windowMs: 5 * 1000,
+  max: 1,
+  message: {
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Veuillez attendre 5 secondes entre chaque scan',
+    },
+  },
+});
+
 export const publicReadLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: isDevelopment ? 100 : 60,

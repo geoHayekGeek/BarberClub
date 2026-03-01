@@ -14,6 +14,7 @@ import '../screens/salon_barber_selection_screen.dart';
 import '../screens/barbers_by_salon_screen.dart';
 import '../screens/barber_detail_screen.dart';
 import '../screens/admin_scanner_screen.dart';
+import '../screens/admin_service_selection_screen.dart';
 import '../screens/admin_compte_screen.dart';
 import '../widgets/admin_app_shell.dart';
 import '../providers/auth_providers.dart';
@@ -53,8 +54,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAdmin = auth.user?.isAdmin == true;
 
       if (isAuth && isAdmin) {
-        if (!loc.startsWith('/admin')) return '/admin/scanner';
-        if (loc == '/admin') return '/admin/scanner';
+        if (!loc.startsWith('/admin')) return '/admin';
+        if (loc == '/admin') return '/admin';
       } else if (isAuth && !isAdmin) {
         if (loc == '/login' || loc == '/signup') return '/home';
         if (loc.startsWith('/admin')) return '/home';
@@ -115,11 +116,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/admin',
-            redirect: (context, state) {
-              final path = state.uri.path;
-              if (path == '/admin' || path == '/admin/') return '/admin/scanner';
-              return null;
-            },
+            builder: (context, state) => const AdminServiceSelectionScreen(),
             routes: [
               GoRoute(
                 path: 'scanner',

@@ -1,9 +1,10 @@
 /**
- * Loyalty routes
+ * Loyalty routes (legacy stamps/coupons + v2 points/tiers/rewards)
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { loyaltyService } from '../modules/loyalty/service';
+import * as loyaltyV2 from '../modules/loyalty_v2/service';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireUser } from '../middleware/requireRole';
 import { AppError, ErrorCode } from '../utils/errors';
@@ -15,6 +16,14 @@ const router = Router();
 
 const scanSchema = z.object({
   qrPayload: z.string().min(1),
+});
+
+const redeemV2Schema = z.object({
+  rewardId: z.string().uuid(),
+});
+
+const transactionsQuerySchema = z.object({
+  limit: z.string().optional().transform((s) => (s ? Math.min(parseInt(s, 10) || 20, 50) : 20)),
 });
 
 /**
@@ -279,8 +288,106 @@ router.post('/redeem', authenticate, async (req: AuthRequest, res: Response, nex
     if (!req.userId) {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
     }
+    if (req.body?.rewardId) {
+      const result = await loyaltyV2.redeemReward(req.userId, req.body.rewardId);
+      res.json({ data: result });
+      return;
+    }
     const state = await loyaltyService.redeem(req.userId);
     res.json(state);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---- Loyalty v2 (points, tiers, rewards) ----
+/** GET /loyalty/v2/me — current balance, lifetimeEarned, tier, nextTier */
+router.get('/v2/me', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+    const state = await loyaltyV2.getLoyaltyState(req.userId);
+    res.json({ data: state });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** POST /loyalty/v2/qr — generate earn QR (BC|v1|E|token) for admin to scan after selecting service */
+router.post(
+  '/v2/qr',
+  authenticate,
+  requireUser,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      const data = await loyaltyV2.generateEarnQr(req.userId);
+      res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** GET /loyalty/rewards — active rewards catalog */
+router.get('/rewards', authenticate, async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const items = await loyaltyV2.listActiveRewards();
+    res.json({ data: items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** POST /loyalty/redeem — v2: body { rewardId } (see above; same route handles legacy if no body) */
+router.post(
+  '/rewards/redeem',
+  authenticate,
+  validate(redeemV2Schema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      const result = await loyaltyV2.redeemReward(req.userId, req.body.rewardId);
+      res.json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** POST /loyalty/redemptions/:id/qr — generate voucher QR for a PENDING redemption */
+router.post(
+  '/redemptions/:id/qr',
+  authenticate,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const data = await loyaltyV2.generateVoucherQr(req.userId, id);
+      res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** GET /loyalty/redemptions — list user's redemptions (vouchers) */
+router.get('/redemptions', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+    const items = await loyaltyV2.listRedemptions(req.userId);
+    res.json({ data: items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** GET /loyalty/transactions — recent transactions */
+router.get('/transactions', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+    const limit = transactionsQuerySchema.parse(req.query).limit ?? 20;
+    const items = await loyaltyV2.listTransactions(req.userId, limit);
+    res.json({ data: items });
   } catch (error) {
     next(error);
   }

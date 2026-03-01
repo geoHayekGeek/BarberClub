@@ -7,12 +7,14 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../middleware/adminAuth';
 import { authenticate } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireRole';
-import { adminLimiter, adminLoyaltyScanLimiter } from '../middleware/rateLimit';
+import { adminLimiter, adminLoyaltyScanLimiter, adminLoyaltyEarnLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { salonsService } from '../modules/salons/service';
 import { barbersService } from '../modules/barbers/service';
 import { offersService } from '../modules/offers/service';
 import { loyaltyService } from '../modules/loyalty/service';
+import * as loyaltyV2 from '../modules/loyalty_v2/service';
+import { parseQRPayload, QRType } from '../utils/qr';
 import { createSalonBodySchema } from '../modules/salons/validation';
 import { createBarberBodySchema } from '../modules/barbers/validation';
 import { createOfferBodySchema } from '../modules/offers/validation';
@@ -27,6 +29,11 @@ const loyaltyScanSchema = z.object({
   (data) => data.qrPayload || data.token,
   { message: 'Either qrPayload or token must be provided' }
 );
+
+const loyaltyEarnSchema = z.object({
+  qrPayload: z.string().min(1),
+  serviceId: z.string().uuid(),
+});
 
 /**
  * @swagger
@@ -257,6 +264,45 @@ router.post(
   }
 );
 
+/** GET /admin/services — List offers (prestations) for admin to select before scanning earn QR. */
+router.get(
+  '/services',
+  authenticate,
+  requireAdmin,
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { items } = await offersService.listOffers({ limit: 100 });
+      const data = items.map((o) => ({
+        id: o.id,
+        name: o.title,
+        priceCents: o.price < 100 ? o.price * 100 : o.price,
+        pointsEarned: o.price < 100 ? o.price : Math.floor(o.price / 100),
+      }));
+      res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** POST /admin/loyalty/earn — V2: admin selected service then scans user earn QR; user gets points (1 pt/eur). */
+router.post(
+  '/loyalty/earn',
+  authenticate,
+  requireAdmin,
+  adminLoyaltyEarnLimiter,
+  validate(loyaltyEarnSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { qrPayload, serviceId } = req.body;
+      const result = await loyaltyV2.adminEarnPoints(qrPayload, serviceId);
+      res.status(200).json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 /** POST /admin/loyalty/scan — Admin scans user QR token, increments loyalty point (JWT + role ADMIN). Max 1 scan per 5 seconds. */
 router.post(
   '/loyalty/scan',
@@ -275,6 +321,7 @@ router.post(
   }
 );
 
+/** POST /admin/loyalty/redeem — Voucher (V) or legacy coupon (C). */
 router.post(
   '/loyalty/redeem',
   authenticate,
@@ -283,6 +330,12 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const payload = req.body.qrPayload || req.body.token;
+      const parsed = parseQRPayload(payload);
+      if (parsed?.type === QRType.VOUCHER) {
+        const result = await loyaltyV2.adminRedeemVoucher(payload);
+        res.status(200).json({ data: result });
+        return;
+      }
       const result = await loyaltyService.redeemCoupon(payload);
       res.status(200).json({ data: result });
     } catch (error) {

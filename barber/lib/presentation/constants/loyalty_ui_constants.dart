@@ -18,6 +18,19 @@ class LoyaltyUIConstants {
   // Spacing
   static const double sectionSpacing = 20;
   static const double textSpacing = 8;
+  static const double horizontalScreenPadding = 20;
+  static const double verticalRhythm = 16;
+  static const double sectionTitleToContent = 12;
+  static const double betweenSections = 24;
+  static const double bottomNavPadding = 88;
+
+  // Rewards horizontal list
+  static const double rewardCardWidth = 220;
+  static const double rewardsListHeight = 280;
+
+  // Tier carousel
+  static const double tierCardWidth = 170;
+  static const double tierCarouselHeight = 100;
 
   // Touch targets
   static const double minTouchTargetSize = 48;

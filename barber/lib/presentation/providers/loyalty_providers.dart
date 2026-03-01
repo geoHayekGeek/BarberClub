@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/loyalty_card_data.dart';
+import '../../domain/models/loyalty_v2_state.dart';
 import 'auth_providers.dart';
 
 final qrDialogCloserProvider = StateProvider<void Function()?>((ref) => null);
@@ -72,3 +73,44 @@ class LoyaltyCoupon {
 
   LoyaltyCoupon({required this.id, required this.createdAt});
 }
+
+// ---- Loyalty v2 (points, tiers, rewards) ----
+final loyaltyV2StateProvider = FutureProvider.autoDispose<LoyaltyV2State?>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState.status != AuthStatus.authenticated) return null;
+  final dio = ref.read(dioClientProvider).dio;
+  final response = await dio.get('/api/v1/loyalty/v2/me');
+  final data = response.data as Map<String, dynamic>;
+  final raw = data['data'] as Map<String, dynamic>?;
+  return raw != null ? LoyaltyV2State.fromJson(raw) : null;
+});
+
+final loyaltyRewardsProvider = FutureProvider.autoDispose<List<LoyaltyRewardItem>>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState.status != AuthStatus.authenticated) return [];
+  final dio = ref.read(dioClientProvider).dio;
+  final response = await dio.get('/api/v1/loyalty/rewards');
+  final data = response.data as Map<String, dynamic>;
+  final list = data['data'] as List<dynamic>? ?? [];
+  return list.map((e) => LoyaltyRewardItem.fromJson(e as Map<String, dynamic>)).toList();
+});
+
+final loyaltyTransactionsProvider = FutureProvider.autoDispose<List<LoyaltyTransactionItem>>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState.status != AuthStatus.authenticated) return [];
+  final dio = ref.read(dioClientProvider).dio;
+  final response = await dio.get('/api/v1/loyalty/transactions?limit=20');
+  final data = response.data as Map<String, dynamic>;
+  final list = data['data'] as List<dynamic>? ?? [];
+  return list.map((e) => LoyaltyTransactionItem.fromJson(e as Map<String, dynamic>)).toList();
+});
+
+final loyaltyRedemptionsProvider = FutureProvider.autoDispose<List<LoyaltyRedemptionItem>>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState.status != AuthStatus.authenticated) return [];
+  final dio = ref.read(dioClientProvider).dio;
+  final response = await dio.get('/api/v1/loyalty/redemptions');
+  final data = response.data as Map<String, dynamic>;
+  final list = data['data'] as List<dynamic>? ?? [];
+  return list.map((e) => LoyaltyRedemptionItem.fromJson(e as Map<String, dynamic>)).toList();
+});

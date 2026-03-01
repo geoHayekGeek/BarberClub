@@ -4,7 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
 import '../providers/auth_providers.dart';
 
 /// Admin QR scanner body. Disabled while scan request is in progress.
@@ -44,14 +46,40 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
     final qrPayload = barcode?.rawValue?.trim();
     if (qrPayload == null || qrPayload.isEmpty) return;
 
+    final serviceId = GoRouterState.of(context).uri.queryParameters['serviceId'];
+
     setState(() => _isSubmitting = true);
     try {
       final dio = ref.read(dioClientProvider).dio;
-      
+
+      if (serviceId != null && serviceId.isNotEmpty) {
+        final response = await dio.post(
+          '/api/v1/admin/loyalty/earn',
+          data: {'qrPayload': qrPayload, 'serviceId': serviceId},
+        );
+        final data = response.data as Map<String, dynamic>;
+        final res = data['data'] as Map<String, dynamic>?;
+        final points = (res?['pointsEarned'] as num?)?.toInt() ?? 0;
+        if (mounted) {
+          _lastScanAt = DateTime.now();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('+$points points ajoutés'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          setState(() {});
+          _startCooldownTimer();
+        }
+        return;
+      }
+
       String endpoint;
       String successMessage;
-      
-      if (qrPayload.startsWith('BC|v1|C|')) {
+      if (qrPayload.startsWith('BC|v1|V|')) {
+        endpoint = '/api/v1/admin/loyalty/redeem';
+        successMessage = 'Bon validé';
+      } else if (qrPayload.startsWith('BC|v1|C|')) {
         endpoint = '/api/v1/admin/loyalty/redeem';
         successMessage = 'Coupe offerte validée';
       } else {
@@ -104,10 +132,17 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final serviceId = GoRouterState.of(context).uri.queryParameters['serviceId'];
+    final hasServiceSelected = serviceId != null && serviceId.isNotEmpty;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        if (hasServiceSelected) {
+          context.go('/admin');
+          return;
+        }
         if (Platform.isAndroid) {
           SystemNavigator.pop();
         }
@@ -146,6 +181,15 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          if (hasServiceSelected)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 8,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => context.go('/admin'),
               ),
             ),
         ],

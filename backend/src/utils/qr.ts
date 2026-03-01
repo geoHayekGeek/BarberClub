@@ -7,8 +7,14 @@ import { randomBytes, createHash } from 'crypto';
 import config from '../config';
 
 export enum QRType {
+  /** Legacy: point scan (old loyalty) */
   POINT = 'P',
+  /** Legacy: coupon redeem (old loyalty) */
   COUPON = 'C',
+  /** New: earn QR (user shows, admin scans after selecting service) */
+  EARN = 'E',
+  /** New: voucher redeem QR (user redeems reward -> gets voucher QR -> admin scans) */
+  VOUCHER = 'V',
 }
 
 export interface QRPayload {
@@ -60,7 +66,8 @@ export function parseQRPayload(payload: string): QRPayload | null {
     return null;
   }
 
-  if (typeRaw !== QRType.POINT && typeRaw !== QRType.COUPON) {
+  const validTypes = [QRType.POINT, QRType.COUPON, QRType.EARN, QRType.VOUCHER];
+  if (!validTypes.includes(typeRaw as QRType)) {
     return null;
   }
 

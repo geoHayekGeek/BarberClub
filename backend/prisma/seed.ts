@@ -419,6 +419,31 @@ const offersData = [
     }
   }
   console.log('Global offers (offres):', globalCreated, 'created,', globalOffersData.length - globalCreated, 'already present.');
+
+  // --- Loyalty v2 rewards (idempotent) ---
+  const loyaltyRewardsData = [
+    { name: 'Cire ou Poudre au choix', costPoints: 160, description: 'Cire ou poudre au choix', imageUrl: '/images/rewards/placeholder.png', isActive: true },
+    { name: 'Soin visage offert', costPoints: 200, description: 'Soin visage offert', imageUrl: '/images/rewards/placeholder.png', isActive: true },
+    { name: '-25% sur une coupe', costPoints: 250, description: 'Réduction 25% sur une coupe', imageUrl: '/images/rewards/placeholder.png', isActive: true },
+  ];
+  for (const r of loyaltyRewardsData) {
+    const existing = await prisma.loyaltyReward.findFirst({ where: { name: r.name } });
+    if (!existing) {
+      await prisma.loyaltyReward.create({ data: r });
+    }
+  }
+  console.log('Loyalty rewards seeded.');
+
+  // --- Backfill LoyaltyAccount for existing users (idempotent) ---
+  const users = await prisma.user.findMany({ select: { id: true } });
+  for (const u of users) {
+    await prisma.loyaltyAccount.upsert({
+      where: { userId: u.id },
+      create: { userId: u.id },
+      update: {},
+    });
+  }
+  console.log('LoyaltyAccount backfill:', users.length, 'users.');
 }
 
 main()
