@@ -88,7 +88,12 @@ class _AdminServiceSelectionScreenState extends ConsumerState<AdminServiceSelect
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          'Choisissez une prestation, puis scannez le QR du client pour lui attribuer les points.',
+          'Choisir une prestation',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Puis scannez le QR du client pour lui attribuer les points.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
         ),
         const SizedBox(height: 24),
@@ -98,7 +103,7 @@ class _AdminServiceSelectionScreenState extends ConsumerState<AdminServiceSelect
               child: ListTile(
                 title: Text(s.name, style: const TextStyle(color: Colors.white)),
                 subtitle: Text(
-                  '${s.pointsEarned} pts (${(s.priceCents / 100).toStringAsFixed(0)} EUR)',
+                  '${s.pointsEarned} pts - ${(s.priceCents / 100).toStringAsFixed(2)} EUR',
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 trailing: const Icon(Icons.qr_code_scanner, color: Colors.white54),

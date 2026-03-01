@@ -42,6 +42,7 @@ export enum ErrorCode {
   // Loyalty errors
   LOYALTY_NOT_READY = 'LOYALTY_NOT_READY',
   INVALID_OR_EXPIRED_QR = 'INVALID_OR_EXPIRED_QR',
+  INVALID_QR = 'INVALID_QR',
   INSUFFICIENT_POINTS = 'INSUFFICIENT_POINTS',
   
   // Offer errors

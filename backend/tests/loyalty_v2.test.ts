@@ -71,6 +71,7 @@ describe('Loyalty v2 earn flow', () => {
   let serviceId: string;
 
   beforeAll(async () => {
+    jest.setTimeout(15000);
     await cleanupLoyaltyV2();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany({ where: { email: 'v2earn@example.com' } });
@@ -173,15 +174,67 @@ describe('Loyalty v2 earn flow', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ qrPayload, serviceId });
     expect(second.status).toBe(400);
-    expect(second.body.error.code).toBe('INVALID_OR_EXPIRED_QR');
+    expect(second.body.error.code).toBe('INVALID_QR');
   });
 
-  it('admin earn with invalid payload returns 400', async () => {
+  it('admin earn with invalid payload returns 400 INVALID_QR', async () => {
     const res = await request(app)
       .post('/api/v1/admin/loyalty/earn')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ qrPayload: 'invalid', serviceId });
     expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_QR');
+  });
+
+  it('admin earn with wrong type (V) returns 400 INVALID_QR', async () => {
+    const qrRes = await request(app).post('/api/v1/loyalty/v2/qr').set('Authorization', `Bearer ${userToken}`);
+    const payload = qrRes.body.data.qrPayload as string;
+    const voucherPayload = payload.replace(/^BC\|v1\|E\|/, 'BC|v1|V|');
+    const res = await request(app)
+      .post('/api/v1/admin/loyalty/earn')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload: voucherPayload, serviceId });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_QR');
+  });
+
+  it('admin earn with invalid prefix returns 400 INVALID_QR', async () => {
+    const res = await request(app)
+      .post('/api/v1/admin/loyalty/earn')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload: 'XX|v1|E|abcdefghij1234567890abcdefghij1234567890', serviceId });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_QR');
+  });
+
+  it('admin earn with invalid serviceId returns 404', async () => {
+    const qrRes = await request(app).post('/api/v1/loyalty/v2/qr').set('Authorization', `Bearer ${userToken}`);
+    const qrPayload = qrRes.body.data.qrPayload;
+    const fakeServiceId = '00000000-0000-0000-0000-000000000000';
+    const res = await request(app)
+      .post('/api/v1/admin/loyalty/earn')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload, serviceId: fakeServiceId });
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('OFFER_NOT_FOUND');
+  });
+
+  it('admin earn with expired token returns 400 INVALID_QR', async () => {
+    const qrRes = await request(app).post('/api/v1/loyalty/v2/qr').set('Authorization', `Bearer ${userToken}`);
+    const qrPayload = qrRes.body.data.qrPayload as string;
+    const tokenPart = qrPayload.split('|')[3];
+    const { hashToken } = await import('../src/utils/qr');
+    const tokenHash = hashToken(tokenPart);
+    const updated = await prisma.loyaltyAccountQrToken.updateMany(
+      { where: { tokenHash }, data: { expiresAt: new Date(0) } }
+    );
+    if (updated.count === 0) throw new Error('Token not found to expire');
+    const res = await request(app)
+      .post('/api/v1/admin/loyalty/earn')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload, serviceId });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_QR');
   });
 });
 

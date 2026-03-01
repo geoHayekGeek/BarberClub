@@ -60,16 +60,12 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
         final data = response.data as Map<String, dynamic>;
         final res = data['data'] as Map<String, dynamic>?;
         final points = (res?['pointsEarned'] as num?)?.toInt() ?? 0;
+        final newBalance = (res?['newBalance'] as num?)?.toInt() ?? 0;
         if (mounted) {
           _lastScanAt = DateTime.now();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('+$points points ajoutés'),
-              backgroundColor: Colors.green,
-            ),
-          );
           setState(() {});
           _startCooldownTimer();
+          await _showEarnSuccessDialog(context, points: points, newBalance: newBalance);
         }
         return;
       }
@@ -128,6 +124,48 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
     Future.delayed(_scanCooldown, () {
       if (mounted) setState(() {});
     });
+  }
+
+  static Future<void> _showEarnSuccessDialog(
+    BuildContext context, {
+    required int points,
+    required int newBalance,
+  }) async {
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: Text(
+          '+$points points ajoutés',
+          style: const TextStyle(color: Colors.white, fontSize: 20),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Nouveau solde: $newBalance pts',
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('scan_again'),
+            child: const Text('Scanner un autre client'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('change_service'),
+            child: const Text('Changer de prestation'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted) return;
+    if (result == 'change_service') {
+      context.go('/admin');
+    }
   }
 
   @override

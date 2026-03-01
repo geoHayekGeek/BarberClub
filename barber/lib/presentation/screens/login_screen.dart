@@ -82,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen<AuthState>(authStateProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
         if (next.user?.isAdmin == true) {
-          context.go('/admin/scanner');
+          context.go('/admin');
         } else {
           context.go('/home');
         }

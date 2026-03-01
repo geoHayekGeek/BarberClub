@@ -26,10 +26,11 @@ const QR_PREFIX = 'BC';
 const QR_VERSION = 'v1';
 
 /**
- * Generate a URL-safe token
+ * Generate a raw token: 32 bytes, base64-encoded (for QR payload).
+ * Hash with hashToken(token + PEPPER) for storage.
  */
 export function generateToken(): string {
-  return randomBytes(32).toString('hex');
+  return randomBytes(32).toString('base64');
 }
 
 /**
@@ -71,7 +72,7 @@ export function parseQRPayload(payload: string): QRPayload | null {
     return null;
   }
 
-  if (!token || token.length < 8) {
+  if (!token || token.length < 16) {
     return null;
   }
 

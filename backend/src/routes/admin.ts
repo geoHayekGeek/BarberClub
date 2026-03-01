@@ -5,7 +5,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../middleware/adminAuth';
-import { authenticate } from '../middleware/auth';
+import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireRole';
 import { adminLimiter, adminLoyaltyScanLimiter, adminLoyaltyEarnLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
@@ -295,7 +295,8 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { qrPayload, serviceId } = req.body;
-      const result = await loyaltyV2.adminEarnPoints(qrPayload, serviceId);
+      const adminId = (req as AuthRequest).userId;
+      const result = await loyaltyV2.adminEarnPoints(qrPayload, serviceId, adminId);
       res.status(200).json({ data: result });
     } catch (error) {
       next(error);

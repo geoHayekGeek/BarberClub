@@ -5,6 +5,8 @@
 import prisma from '../../db/client';
 import { getMessaging } from '../../config/firebase';
 import { AppError, ErrorCode } from '../../utils/errors';
+
+const INVALID_QR_MESSAGE = 'QR code invalide';
 import { logger } from '../../utils/logger';
 import config from '../../config';
 import { generateToken, hashToken, encodeQRPayload, parseQRPayload, QRType } from '../../utils/qr';
@@ -214,36 +216,51 @@ export async function listRedemptions(userId: string): Promise<
 }
 
 /** Admin: earn points by scanning user earn QR after selecting a service. */
-export async function adminEarnPoints(qrPayload: string, serviceId: string): Promise<AdminEarnResponse> {
-  const parsed = parseQRPayload(qrPayload);
-  if (!parsed || parsed.type !== QRType.EARN) {
-    logger.warn('LOYALTY_EARN invalid_format', { payloadLength: qrPayload.length });
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+export async function adminEarnPoints(
+  qrPayload: string,
+  serviceId: string,
+  adminId?: string
+): Promise<AdminEarnResponse> {
+  const trimmed = (qrPayload ?? '').trim();
+  const parts = trimmed.split('|');
+  if (parts.length !== 4) {
+    logger.warn('LOYALTY_EARN invalid_format', { payloadLength: trimmed.length });
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MESSAGE, 400);
   }
-  const tokenHash = hashToken(parsed.token);
+  const [prefix, version, type, rawToken] = parts;
+  if (prefix !== 'BC' || version !== 'v1' || type !== QRType.EARN) {
+    logger.warn('LOYALTY_EARN invalid_prefix_version_type', { prefix, version, type });
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MESSAGE, 400);
+  }
+  if (!rawToken || rawToken.length < 16) {
+    logger.warn('LOYALTY_EARN token_too_short');
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MESSAGE, 400);
+  }
+  const tokenHash = hashToken(rawToken);
   const tokenRecord = await prisma.loyaltyAccountQrToken.findFirst({
     where: { tokenHash },
     include: { account: { include: { user: true } } },
   });
   if (!tokenRecord) {
     logger.warn('LOYALTY_EARN token_not_found');
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MESSAGE, 400);
   }
   if (tokenRecord.usedAt) {
     logger.warn('LOYALTY_EARN token_used', { accountId: tokenRecord.accountId });
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MESSAGE, 400);
   }
   if (tokenRecord.expiresAt <= new Date()) {
     logger.warn('LOYALTY_EARN token_expired', { accountId: tokenRecord.accountId });
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MESSAGE, 400);
   }
   const offer = await prisma.offer.findFirst({
     where: { id: serviceId, isActive: true },
   });
   if (!offer) throw new AppError(ErrorCode.OFFER_NOT_FOUND, 'Service introuvable', 404);
-  // 1 point per euro. DB may store price in euros (e.g. 25) or cents (e.g. 2500).
   const pointsEarned = offer.price < 100 ? offer.price : Math.floor(offer.price / 100);
   if (pointsEarned <= 0) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Montant invalide pour ce service', 400);
+
+  if (adminId) logger.info('LOYALTY_EARN admin_earn', { adminId, accountId: tokenRecord.accountId, serviceId, pointsEarned });
 
   const accountId = tokenRecord.accountId;
   const previousTier = getTierFromLifetime(tokenRecord.account.lifetimeEarned);
