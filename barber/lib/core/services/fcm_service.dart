@@ -14,7 +14,7 @@ class FcmService {
   FcmService({required DioClient dioClient}) : _dio = dioClient.dio;
 
   final dynamic _dio;
-  void Function(String type)? _onLoyaltyEvent;
+  void Function(String type, [Map<String, String>? data])? _onLoyaltyEvent;
   static bool _initialized = false;
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
@@ -50,11 +50,19 @@ class FcmService {
   }
 
   /// Setup foreground and opened-from-notification handlers
-  void setupListeners(void Function(String type) onLoyaltyEvent) {
+  void setupListeners(void Function(String type, [Map<String, String>? data]) onLoyaltyEvent) {
     if (!_initialized) return;
     _onLoyaltyEvent = onLoyaltyEvent;
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final data = message.data;
+      final type = data['type'] as String?;
+
+      if (type == 'LOYALTY_EARN') {
+        _onLoyaltyEvent?.call(type!, Map<String, String>.from(data));
+        return;
+      }
+
       final notification = message.notification;
       if (notification != null) {
         _showLocalNotification(
@@ -62,9 +70,7 @@ class FcmService {
           body: notification.body ?? '',
         );
       }
-      
-      final data = message.data;
-      final type = data['type'] as String?;
+
       if (type != null && (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD')) {
         _onLoyaltyEvent?.call(type);
       }
@@ -73,6 +79,10 @@ class FcmService {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       final data = message.data;
       final type = data['type'] as String?;
+      if (type == 'LOYALTY_EARN') {
+        _onLoyaltyEvent?.call(type!, Map<String, String>.from(data));
+        return;
+      }
       if (type != null && (type == 'LOYALTY_POINT' || type == 'LOYALTY_REWARD')) {
         _onLoyaltyEvent?.call(type);
       }

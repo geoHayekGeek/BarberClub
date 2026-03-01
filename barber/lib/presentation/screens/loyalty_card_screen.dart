@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/network/dio_client.dart';
 import '../../domain/models/loyalty_v2_state.dart';
 import '../constants/loyalty_ui_constants.dart';
 import '../providers/auth_providers.dart';
@@ -155,6 +156,10 @@ class _LoyaltyV2Body extends ConsumerWidget {
       final qrPayload = payload?['qrPayload'] as String?;
       final expiresAt = payload?['expiresAt'] as String?;
       if (qrPayload == null || qrPayload.isEmpty || !context.mounted) return;
+      ref.read(qrDialogCloserProvider.notifier).state = () {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null) Navigator.of(ctx).pop();
+      };
       await showDialog<void>(
         context: context,
         barrierDismissible: true,
@@ -164,7 +169,10 @@ class _LoyaltyV2Body extends ConsumerWidget {
           onClose: () => Navigator.of(ctx).pop(),
         ),
       );
-      if (context.mounted) ref.invalidate(loyaltyV2StateProvider);
+      if (context.mounted) {
+        ref.read(qrDialogCloserProvider.notifier).state = null;
+        ref.invalidate(loyaltyV2StateProvider);
+      }
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

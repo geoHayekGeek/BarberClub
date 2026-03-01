@@ -9,6 +9,7 @@ import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/loyalty_providers.dart';
 import 'presentation/widgets/loyalty_reward_modal.dart';
 import 'presentation/widgets/loyalty_reward_celebration_modal.dart';
+import 'presentation/widgets/loyalty_earn_success_modal.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/services/fcm_service.dart';
 import 'core/network/dio_client.dart';
@@ -44,9 +45,19 @@ class _MainAppState extends ConsumerState<MainApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authStateProvider.notifier).bootstrapSession();
       final fcmService = ref.read(fcmServiceProvider);
-      fcmService.setupListeners((String type) {
+      fcmService.setupListeners((String type, [Map<String, String>? data]) {
         final user = ref.read(authStateProvider).user;
         if (user?.isAdmin == true) return;
+
+        if (type == 'LOYALTY_EARN' && data != null) {
+          ref.read(qrDialogCloserProvider)?.call();
+          ref.read(qrDialogCloserProvider.notifier).state = null;
+          ref.invalidate(loyaltyV2StateProvider);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showLoyaltyEarnSuccess(data);
+          });
+          return;
+        }
 
         ref.read(qrDialogCloserProvider)?.call();
         ref.read(qrDialogCloserProvider.notifier).state = null;
@@ -63,6 +74,21 @@ class _MainAppState extends ConsumerState<MainApp> {
         ref.invalidate(loyaltyCouponsProvider);
       });
     });
+  }
+
+  void _showLoyaltyEarnSuccess(Map<String, String> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    final pointsEarned = int.tryParse(data['pointsEarned'] ?? '') ?? 0;
+    final newBalance = int.tryParse(data['newBalance'] ?? '') ?? 0;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => LoyaltyEarnSuccessModal(
+        pointsEarned: pointsEarned,
+        newBalance: newBalance,
+      ),
+    );
   }
 
   void _showRewardCelebration() {
