@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Admin bottom nav: Gagner des points, Valider une récompense, Paramètres.
+/// Admin bottom nav: Points, Valider bon.
 class AdminBottomNav extends StatelessWidget {
   const AdminBottomNav({
     super.key,
@@ -11,9 +11,8 @@ class AdminBottomNav extends StatelessWidget {
   final int currentIndex;
 
   static const _tabs = [
-    _AdminNavItem(icon: Icons.add_circle_outline, label: 'Gagner des points', path: '/admin'),
-    _AdminNavItem(icon: Icons.qr_code_scanner, label: 'Valider une récompense', path: '/admin/redeem'),
-    _AdminNavItem(icon: Icons.settings_outlined, label: 'Paramètres', path: '/admin/settings'),
+    _AdminNavItem(icon: Icons.add_circle_outline, label: 'Points', path: '/admin'),
+    _AdminNavItem(icon: Icons.qr_code_scanner, label: 'Valider bon', path: '/admin/redeem'),
   ];
 
   @override

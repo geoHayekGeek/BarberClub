@@ -16,7 +16,6 @@ import '../screens/barber_detail_screen.dart';
 import '../screens/admin_scanner_screen.dart';
 import '../screens/admin_service_selection_screen.dart';
 import '../screens/admin_redeem_scanner_screen.dart';
-import '../screens/admin_settings_placeholder_screen.dart';
 import '../screens/admin_compte_screen.dart';
 import '../widgets/admin_app_shell.dart';
 import '../providers/auth_providers.dart';
@@ -129,11 +128,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'redeem',
                 name: 'admin-redeem',
                 builder: (context, state) => const AdminRedeemScannerScreen(),
-              ),
-              GoRoute(
-                path: 'settings',
-                name: 'admin-settings',
-                builder: (context, state) => const AdminSettingsPlaceholderScreen(),
               ),
               GoRoute(
                 path: 'compte',

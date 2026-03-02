@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'admin_bottom_nav.dart';
 
-/// Admin shell: AppBar + body + bottom nav (Gagner des points, Valider une récompense, Paramètres).
+/// Admin shell: AppBar + body + bottom nav (Points, Valider bon).
 class AdminAppShell extends StatelessWidget {
   const AdminAppShell({
     super.key,
@@ -19,7 +19,6 @@ class AdminAppShell extends StatelessWidget {
 
   int get _adminNavIndex {
     if (matchedLocation.startsWith('/admin/redeem')) return 1;
-    if (matchedLocation.startsWith('/admin/settings')) return 2;
     return 0;
   }
 
@@ -27,7 +26,6 @@ class AdminAppShell extends StatelessWidget {
     if (_isCompte) return 'Compte';
     if (_isScanner) return 'Scanner carte fidélité';
     if (matchedLocation.startsWith('/admin/redeem')) return 'Scanner un bon';
-    if (matchedLocation.startsWith('/admin/settings')) return 'Paramètres';
     return 'Choisir une prestation';
   }
 
