@@ -666,27 +666,14 @@ class _RewardsSection extends ConsumerWidget {
     try {
       final res = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
       final data = res.data?['data'] as Map<String, dynamic>?;
-      final redemptionId = data?['redemptionId'] as String?;
-      if (redemptionId == null || !context.mounted) {
-        ref.invalidate(loyaltyV2StateProvider);
-        ref.invalidate(loyaltyRewardsProvider);
-        ref.invalidate(loyaltyRedemptionsProvider);
-        ref.invalidate(loyaltyTransactionsProvider);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Récompense "${r.name}" échangée.')),
-          );
-        }
-        return;
-      }
+      final redemption = data?['redemption'] as Map<String, dynamic>?;
+      final qrPayload = redemption?['qrPayload'] as String?;
+      if (!context.mounted) return;
       ref.invalidate(loyaltyV2StateProvider);
       ref.invalidate(loyaltyRewardsProvider);
       ref.invalidate(loyaltyRedemptionsProvider);
       ref.invalidate(loyaltyTransactionsProvider);
-      final qrRes = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/redemptions/$redemptionId/qr');
-      final qrData = qrRes.data?['data'] as Map<String, dynamic>?;
-      final qrPayload = qrData?['qrPayload'] as String?;
-      if (context.mounted && qrPayload != null && qrPayload.isNotEmpty) {
+      if (qrPayload != null && qrPayload.isNotEmpty) {
         ref.read(qrDialogCloserProvider.notifier).state = () {
           final ctx = navigatorKey.currentContext;
           if (ctx != null) Navigator.of(ctx).pop();
@@ -703,7 +690,7 @@ class _RewardsSection extends ConsumerWidget {
           ref.read(qrDialogCloserProvider.notifier).state = null;
           ref.invalidate(loyaltyV2StateProvider);
         }
-      } else if (context.mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Récompense "${r.name}" échangée.')),
         );
@@ -774,42 +761,26 @@ class _RedemptionsSection extends ConsumerWidget {
   Future<void> _showVoucherQr(BuildContext context, WidgetRef ref, String redemptionId) async {
     final dio = ref.read(dioClientProvider).dio;
     try {
-      final response = await dio.post('/api/v1/loyalty/redemptions/$redemptionId/qr');
-      final data = response.data as Map<String, dynamic>;
-      final payload = data['data'] as Map<String, dynamic>?;
+      final response = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/redemptions/$redemptionId/qr');
+      final payload = response.data?['data'] as Map<String, dynamic>?;
       final qrPayload = payload?['qrPayload'] as String?;
       if (qrPayload == null || qrPayload.isEmpty || !context.mounted) return;
+      ref.read(qrDialogCloserProvider.notifier).state = () {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null) Navigator.of(ctx).pop();
+      };
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Bon à valider'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: Colors.white,
-                child: QrImageView(
-                  data: qrPayload,
-                  version: QrVersions.auto,
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Présentez ce QR au coiffeur pour valider votre bon',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Fermer')),
-          ],
+        barrierDismissible: true,
+        builder: (ctx) => _VoucherQrFullscreenDialog(
+          qrPayload: qrPayload,
+          onClose: () => Navigator.of(ctx).pop(),
         ),
       );
-      if (context.mounted) ref.invalidate(loyaltyRedemptionsProvider);
+      if (context.mounted) {
+        ref.read(qrDialogCloserProvider.notifier).state = null;
+        ref.invalidate(loyaltyRedemptionsProvider);
+      }
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

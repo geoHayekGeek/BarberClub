@@ -106,12 +106,19 @@ export async function listActiveRewards(): Promise<LoyaltyRewardDto[]> {
   }));
 }
 
-export async function redeemReward(userId: string, rewardId: string): Promise<{
-  redemptionId: string;
-  rewardName: string;
-  pointsSpent: number;
+export interface RedeemRewardResult {
+  redemption: {
+    id: string;
+    rewardName: string;
+    pointsSpent: number;
+    status: string;
+    qrPayload: string;
+    qrExpiresAt: string;
+  };
   newBalance: number;
-}> {
+}
+
+export async function redeemReward(userId: string, rewardId: string): Promise<RedeemRewardResult> {
   await ensureLoyaltyAccount(userId);
   const account = await prisma.loyaltyAccount.findUnique({ where: { userId } });
   if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
@@ -122,7 +129,11 @@ export async function redeemReward(userId: string, rewardId: string): Promise<{
   if (account.currentBalance < reward.costPoints) {
     throw new AppError(ErrorCode.INSUFFICIENT_POINTS, 'Points insuffisants', 400);
   }
-  const updated = await prisma.$transaction(async (tx) => {
+  const token = generateToken();
+  const tokenHash = hashToken(token);
+  const qrExpiresAt = new Date(Date.now() + VOUCHER_QR_TTL_SECONDS * 1000);
+
+  const result = await prisma.$transaction(async (tx) => {
     const acc = await tx.loyaltyAccount.update({
       where: { id: account.id },
       data: { currentBalance: { decrement: reward.costPoints } },
@@ -134,6 +145,8 @@ export async function redeemReward(userId: string, rewardId: string): Promise<{
         rewardId: reward.id,
         pointsSpent: reward.costPoints,
         status: 'PENDING',
+        qrTokenHash: tokenHash,
+        qrExpiresAt,
       },
     });
     await tx.loyaltyTransaction.create({
@@ -145,16 +158,29 @@ export async function redeemReward(userId: string, rewardId: string): Promise<{
         referenceId: redemption.id,
       },
     });
-    return { newBalance: acc.currentBalance, redemptionId: redemption.id, rewardName: reward.name, pointsSpent: reward.costPoints };
+    return {
+      newBalance: acc.currentBalance,
+      redemptionId: redemption.id,
+      rewardName: reward.name,
+      pointsSpent: reward.costPoints,
+    };
   });
+
+  const qrPayload = encodeQRPayload(QRType.VOUCHER, token);
   return {
-    redemptionId: updated.redemptionId,
-    rewardName: updated.rewardName,
-    pointsSpent: updated.pointsSpent,
-    newBalance: updated.newBalance,
+    redemption: {
+      id: result.redemptionId,
+      rewardName: result.rewardName,
+      pointsSpent: result.pointsSpent,
+      status: 'PENDING',
+      qrPayload,
+      qrExpiresAt: qrExpiresAt.toISOString(),
+    },
+    newBalance: result.newBalance,
   };
 }
 
+/** Fallback: regenerate voucher QR for a PENDING redemption (e.g. "Afficher QR" in Mes bons). Only allowed if qrUsedAt is null. */
 export async function generateVoucherQr(
   userId: string,
   redemptionId: string
@@ -163,7 +189,7 @@ export async function generateVoucherQr(
   const account = await prisma.loyaltyAccount.findUnique({ where: { userId } });
   if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
   const redemption = await prisma.loyaltyRedemptionVoucher.findFirst({
-    where: { id: redemptionId, accountId: account.id, status: 'PENDING' },
+    where: { id: redemptionId, accountId: account.id, status: 'PENDING', qrUsedAt: null },
   });
   if (!redemption) throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'Bon invalide ou déjà utilisé', 404);
   const token = generateToken();
@@ -171,7 +197,7 @@ export async function generateVoucherQr(
   const expiresAt = new Date(Date.now() + VOUCHER_QR_TTL_SECONDS * 1000);
   await prisma.loyaltyRedemptionVoucher.update({
     where: { id: redemptionId },
-    data: { qrTokenHash: tokenHash, qrExpiresAt: expiresAt, qrUsedAt: null },
+    data: { qrTokenHash: tokenHash, qrExpiresAt: expiresAt },
   });
   const qrPayload = encodeQRPayload(QRType.VOUCHER, token);
   return { qrPayload, expiresAt: expiresAt.toISOString() };
