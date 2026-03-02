@@ -9,7 +9,7 @@ import { AppError, ErrorCode } from '../../utils/errors';
 const INVALID_QR_MESSAGE = 'QR code invalide';
 import { logger } from '../../utils/logger';
 import config from '../../config';
-import { generateToken, hashToken, encodeQRPayload, parseQRPayload, QRType } from '../../utils/qr';
+import { generateToken, hashToken, encodeQRPayload, QRType } from '../../utils/qr';
 import { getTierFromLifetime, getNextTier, getCheapestRewardCost, type LoyaltyTierName } from './tiers';
 import { assertAdminHasAccessToSalon } from '../admin/salonAccess';
 
