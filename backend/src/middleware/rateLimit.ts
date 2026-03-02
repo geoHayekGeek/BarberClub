@@ -92,6 +92,18 @@ export const adminLoyaltyEarnLimiter = createLimiter({
   },
 });
 
+/** Admin loyalty redeem (voucher validation): rate limit. */
+export const adminLoyaltyRedeemLimiter = createLimiter({
+  windowMs: 5 * 1000,
+  max: 1,
+  message: {
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Veuillez attendre 5 secondes entre chaque scan',
+    },
+  },
+});
+
 export const publicReadLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: isDevelopment ? 100 : 60,

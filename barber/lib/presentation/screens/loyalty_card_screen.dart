@@ -453,13 +453,14 @@ class _TierCarousel extends StatelessWidget {
     );
   }
 
+  /// Tier icons per spec: Bronze=Shield, Silver=Star, Gold=Crown, Platinum=Gem (visual badges only).
   static IconData _tierIcon(String t) {
     switch (t) {
-      case 'Bronze': return Icons.star_outline;
-      case 'Silver': return Icons.star_outline;
+      case 'Bronze': return Icons.shield_outlined;
+      case 'Silver': return Icons.star;
       case 'Gold': return Icons.workspace_premium_outlined;
       case 'Platinum': return Icons.diamond_outlined;
-      default: return Icons.star_outline;
+      default: return Icons.shield_outlined;
     }
   }
 
@@ -565,7 +566,13 @@ class _RewardsSection extends ConsumerWidget {
                                   color: canAfford ? Colors.white : Colors.white24,
                                   borderRadius: BorderRadius.circular(8),
                                   child: InkWell(
-                                    onTap: canAfford ? () => _confirmRedeem(context, ref, r) : null,
+                                    onTap: () {
+                                      if (canAfford) {
+                                        _confirmRedeem(context, ref, r);
+                                      } else {
+                                        _showInsufficientPointsModal(context);
+                                      }
+                                    },
                                     borderRadius: BorderRadius.circular(8),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -612,32 +619,85 @@ class _RewardsSection extends ConsumerWidget {
     );
   }
 
+  static void _showInsufficientPointsModal(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1C),
+        title: const Text('Points insuffisants', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Vous n\'avez pas assez de points pour cette récompense.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmRedeem(BuildContext context, WidgetRef ref, LoyaltyRewardItem r) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Échanger des points'),
+        backgroundColor: const Color(0xFF1C1C1C),
+        title: Text('Confirmer l\'échange', style: const TextStyle(color: Colors.white)),
         content: Text(
-          'Utiliser ${r.costPoints} points pour "${r.name}" ?',
+          'Confirmer l\'échange de ${r.costPoints} pts ?',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Confirmer')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Confirmer'),
+          ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
     final dio = ref.read(dioClientProvider).dio;
     try {
-      await dio.post('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
-      if (context.mounted) {
+      final res = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
+      final data = res.data?['data'] as Map<String, dynamic>?;
+      final redemptionId = data?['redemptionId'] as String?;
+      if (redemptionId == null || !context.mounted) {
         ref.invalidate(loyaltyV2StateProvider);
         ref.invalidate(loyaltyRewardsProvider);
         ref.invalidate(loyaltyRedemptionsProvider);
         ref.invalidate(loyaltyTransactionsProvider);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Récompense "${r.name}" échangée.')),
+          );
+        }
+        return;
+      }
+      ref.invalidate(loyaltyV2StateProvider);
+      ref.invalidate(loyaltyRewardsProvider);
+      ref.invalidate(loyaltyRedemptionsProvider);
+      ref.invalidate(loyaltyTransactionsProvider);
+      final qrRes = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/redemptions/$redemptionId/qr');
+      final qrData = qrRes.data?['data'] as Map<String, dynamic>?;
+      final qrPayload = qrData?['qrPayload'] as String?;
+      if (context.mounted && qrPayload != null && qrPayload.isNotEmpty) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: true,
+          builder: (ctx) => _VoucherQrFullscreenDialog(
+            qrPayload: qrPayload,
+            onClose: () => Navigator.of(ctx).pop(),
+          ),
+        );
+      } else if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Récompense "${r.name}" échangée. Consultez "Mes bons".')),
+          SnackBar(content: Text('Récompense "${r.name}" échangée.')),
         );
       }
     } catch (_) {
@@ -1028,6 +1088,54 @@ class _EarnQrFullscreenDialogState extends State<_EarnQrFullscreenDialog> {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
                 ),
               ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VoucherQrFullscreenDialog extends StatelessWidget {
+  const _VoucherQrFullscreenDialog({
+    required this.qrPayload,
+    required this.onClose,
+  });
+
+  final String qrPayload;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: const Color(0xFF121212),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: onClose,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(24),
+              color: Colors.white,
+              child: QrImageView(
+                data: qrPayload,
+                version: QrVersions.auto,
+                backgroundColor: Colors.white,
+                padding: const EdgeInsets.all(16),
+                errorCorrectionLevel: QrErrorCorrectLevel.H,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Présentez ce bon au salon',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
+            ),
             const SizedBox(height: 32),
           ],
         ),

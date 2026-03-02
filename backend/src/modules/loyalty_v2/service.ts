@@ -360,29 +360,32 @@ export async function adminEarnPoints(
   };
 }
 
-/** Admin: validate voucher QR and mark redemption as USED. */
-export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: boolean; rewardName: string; newBalance: number }> {
-  const parsed = parseQRPayload(qrPayload);
-  if (!parsed || parsed.type !== QRType.VOUCHER) {
-    logger.warn('VOUCHER_REDEEM invalid_format', { payloadLength: qrPayload.length });
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+const INVALID_QR_MSG = 'QR code invalide';
+
+/** Admin: validate voucher QR and mark redemption as USED. Single-use; expired or reused → INVALID_QR. */
+export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: boolean; rewardName: string; userName: string }> {
+  const trimmed = (qrPayload ?? '').trim();
+  const parts = trimmed.split('|');
+  if (parts.length !== 4 || parts[0] !== 'BC' || parts[1] !== 'v1' || parts[2] !== QRType.VOUCHER || !parts[3] || parts[3].length < 16) {
+    logger.warn('VOUCHER_REDEEM invalid_format', { payloadLength: trimmed.length });
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MSG, 400);
   }
-  const tokenHash = hashToken(parsed.token);
+  const tokenHash = hashToken(parts[3]);
   const redemption = await prisma.loyaltyRedemptionVoucher.findFirst({
     where: { qrTokenHash: tokenHash, status: 'PENDING' },
     include: { account: { include: { user: true } }, reward: true },
   });
   if (!redemption) {
     logger.warn('VOUCHER_REDEEM not_found');
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MSG, 400);
   }
   if (redemption.qrExpiresAt && redemption.qrExpiresAt <= new Date()) {
     logger.warn('VOUCHER_REDEEM expired', { redemptionId: redemption.id });
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MSG, 400);
   }
   if (redemption.qrUsedAt) {
     logger.warn('VOUCHER_REDEEM already_used', { redemptionId: redemption.id });
-    throw new AppError(ErrorCode.INVALID_OR_EXPIRED_QR, 'QR code invalide', 400);
+    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MSG, 400);
   }
 
   await prisma.loyaltyRedemptionVoucher.update({
@@ -395,7 +398,8 @@ export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: 
     select: { currentBalance: true },
   });
   const newBalance = account?.currentBalance ?? 0;
-  const fcmToken = redemption.account.user?.fcmToken;
+  const user = redemption.account.user;
+  const fcmToken = user?.fcmToken;
   if (fcmToken) {
     try {
       const messaging = getMessaging();
@@ -418,5 +422,6 @@ export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: 
     }
   }
 
-  return { success: true, rewardName: redemption.reward.name, newBalance };
+  const userName = user?.fullName?.trim() || user?.email || 'Client';
+  return { success: true, rewardName: redemption.reward.name, userName };
 }

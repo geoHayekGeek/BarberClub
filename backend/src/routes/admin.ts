@@ -7,7 +7,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../middleware/adminAuth';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireRole';
-import { adminLimiter, adminLoyaltyScanLimiter, adminLoyaltyEarnLimiter } from '../middleware/rateLimit';
+import { adminLimiter, adminLoyaltyScanLimiter, adminLoyaltyEarnLimiter, adminLoyaltyRedeemLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { salonsService } from '../modules/salons/service';
 import { barbersService } from '../modules/barbers/service';
@@ -343,11 +343,12 @@ router.post(
   }
 );
 
-/** POST /admin/loyalty/redeem — Voucher (V) or legacy coupon (C). */
+/** POST /admin/loyalty/redeem — Voucher (V) or legacy coupon (C). Body: { qrPayload }. */
 router.post(
   '/loyalty/redeem',
   authenticate,
   requireAdmin,
+  adminLoyaltyRedeemLimiter,
   validate(loyaltyScanSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

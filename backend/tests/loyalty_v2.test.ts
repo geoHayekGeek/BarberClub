@@ -326,15 +326,105 @@ describe('Loyalty v2 redeem flow', () => {
     expect(res.body.data.qrPayload).toMatch(/^BC\|v1\|V\|/);
   });
 
-  it('GET /admin/services returns list with priceCents and pointsEarned', async () => {
-    const res = await request(app).get('/api/v1/admin/services').set('Authorization', `Bearer ${adminToken}`);
+  it('GET /admin/salons returns list for admin', async () => {
+    const res = await request(app).get('/api/v1/admin/salons').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
-    if (res.body.data.length > 0) {
-      expect(res.body.data[0]).toHaveProperty('id');
-      expect(res.body.data[0]).toHaveProperty('name');
-      expect(res.body.data[0]).toHaveProperty('priceCents');
-      expect(res.body.data[0]).toHaveProperty('pointsEarned');
-    }
+  });
+
+  it('POST /loyalty/rewards/redeem success: balance reduced, transaction and redemption created', async () => {
+    const account = await prisma.loyaltyAccount.findFirst({ where: { user: { email: 'v2redeem@example.com' } } });
+    if (!account) throw new Error('No account');
+    const beforeBalance = 300;
+    await prisma.loyaltyAccount.update({
+      where: { id: account.id },
+      data: { currentBalance: beforeBalance, lifetimeEarned: beforeBalance },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/loyalty/rewards/redeem')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ rewardId });
+    expect(res.status).toBe(200);
+    expect(res.body.data.redemptionId).toBeDefined();
+    expect(res.body.data.newBalance).toBe(beforeBalance - res.body.data.pointsSpent);
+
+    const txCount = await prisma.loyaltyTransaction.count({
+      where: { accountId: account.id, type: 'REDEEM' },
+    });
+    expect(txCount).toBeGreaterThanOrEqual(1);
+    const redemption = await prisma.loyaltyRedemptionVoucher.findFirst({
+      where: { accountId: account.id },
+      orderBy: { redeemedAt: 'desc' },
+    });
+    expect(redemption?.status).toBe('PENDING');
+  });
+
+  it('POST /admin/loyalty/redeem with valid voucher QR marks redemption USED and returns rewardName and userName', async () => {
+    const redemptions = await request(app)
+      .get('/api/v1/loyalty/redemptions')
+      .set('Authorization', `Bearer ${userToken}`);
+    const pending = redemptions.body.data.find((r: { status: string }) => r.status === 'PENDING');
+    if (!pending) throw new Error('Need a PENDING redemption');
+
+    const qrRes = await request(app)
+      .post(`/api/v1/loyalty/redemptions/${pending.id}/qr`)
+      .set('Authorization', `Bearer ${userToken}`);
+    const qrPayload = qrRes.body.data.qrPayload;
+
+    const redeemRes = await request(app)
+      .post('/api/v1/admin/loyalty/redeem')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload });
+    expect(redeemRes.status).toBe(200);
+    expect(redeemRes.body.data.success).toBe(true);
+    expect(redeemRes.body.data.rewardName).toBeDefined();
+    expect(redeemRes.body.data.userName).toBeDefined();
+
+    const updated = await prisma.loyaltyRedemptionVoucher.findUnique({
+      where: { id: pending.id },
+    });
+    expect(updated?.status).toBe('USED');
+  });
+
+  it('POST /admin/loyalty/redeem with reused voucher QR returns 400 INVALID_QR', async () => {
+    const account = await prisma.loyaltyAccount.findFirst({ where: { user: { email: 'v2redeem@example.com' } } });
+    if (!account) throw new Error('No account');
+    await prisma.loyaltyAccount.update({
+      where: { id: account.id },
+      data: { currentBalance: 500 },
+    });
+    const redeemRes = await request(app)
+      .post('/api/v1/loyalty/rewards/redeem')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ rewardId });
+    const redemptionId = redeemRes.body.data?.redemptionId;
+    if (!redemptionId) throw new Error('Redeem failed');
+    const qrRes = await request(app)
+      .post(`/api/v1/loyalty/redemptions/${redemptionId}/qr`)
+      .set('Authorization', `Bearer ${userToken}`);
+    const qrPayload = qrRes.body.data.qrPayload;
+
+    const first = await request(app)
+      .post('/api/v1/admin/loyalty/redeem')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post('/api/v1/admin/loyalty/redeem')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload });
+    expect(second.status).toBe(400);
+    expect(second.body.error.code).toBe('INVALID_QR');
+  });
+
+  it('POST /admin/loyalty/redeem with wrong prefix returns 400 INVALID_QR', async () => {
+    const res = await request(app)
+      .post('/api/v1/admin/loyalty/redeem')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ qrPayload: 'XX|v1|V|abcdefghij1234567890abcdefghij12' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_QR');
   });
 });
