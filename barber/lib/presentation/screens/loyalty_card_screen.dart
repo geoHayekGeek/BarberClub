@@ -687,6 +687,10 @@ class _RewardsSection extends ConsumerWidget {
       final qrData = qrRes.data?['data'] as Map<String, dynamic>?;
       final qrPayload = qrData?['qrPayload'] as String?;
       if (context.mounted && qrPayload != null && qrPayload.isNotEmpty) {
+        ref.read(qrDialogCloserProvider.notifier).state = () {
+          final ctx = navigatorKey.currentContext;
+          if (ctx != null) Navigator.of(ctx).pop();
+        };
         await showDialog<void>(
           context: context,
           barrierDismissible: true,
@@ -695,6 +699,10 @@ class _RewardsSection extends ConsumerWidget {
             onClose: () => Navigator.of(ctx).pop(),
           ),
         );
+        if (context.mounted) {
+          ref.read(qrDialogCloserProvider.notifier).state = null;
+          ref.invalidate(loyaltyV2StateProvider);
+        }
       } else if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Récompense "${r.name}" échangée.')),

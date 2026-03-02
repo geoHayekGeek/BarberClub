@@ -10,6 +10,7 @@ import 'presentation/providers/loyalty_providers.dart';
 import 'presentation/widgets/loyalty_reward_modal.dart';
 import 'presentation/widgets/loyalty_reward_celebration_modal.dart';
 import 'presentation/widgets/loyalty_earn_success_modal.dart';
+import 'presentation/widgets/loyalty_success_modal.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/services/fcm_service.dart';
 import 'core/network/dio_client.dart';
@@ -58,6 +59,15 @@ class _MainAppState extends ConsumerState<MainApp> {
           });
           return;
         }
+        if (type == 'LOYALTY_REDEEM' && data != null) {
+          ref.read(qrDialogCloserProvider)?.call();
+          ref.read(qrDialogCloserProvider.notifier).state = null;
+          ref.invalidate(loyaltyV2StateProvider);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showLoyaltyRedeemSuccess(data);
+          });
+          return;
+        }
 
         ref.read(qrDialogCloserProvider)?.call();
         ref.read(qrDialogCloserProvider.notifier).state = null;
@@ -87,6 +97,22 @@ class _MainAppState extends ConsumerState<MainApp> {
       builder: (ctx) => LoyaltyEarnSuccessModal(
         pointsEarned: pointsEarned,
         newBalance: newBalance,
+      ),
+    );
+  }
+
+  void _showLoyaltyRedeemSuccess(Map<String, String> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    final rewardName = data['rewardName'] ?? 'Récompense';
+    final newBalance = data['newBalance'] ?? '0';
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => LoyaltySuccessModal(
+        title: 'Récompense validée',
+        subtitle: 'Solde restant : $newBalance pts',
+        highlightValue: rewardName,
       ),
     );
   }

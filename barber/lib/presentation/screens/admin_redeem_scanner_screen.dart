@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../providers/auth_providers.dart';
+import '../widgets/qr_scanner_overlay.dart';
 
 /// Admin: scan voucher QR (BC|v1|V|...) to validate a reward redemption.
 /// On success shows "Récompense validée" and reward name.
@@ -23,6 +25,7 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
     torchEnabled: false,
   );
   bool _isSubmitting = false;
+  bool _isProcessing = false;
   DateTime? _lastScanAt;
 
   @override
@@ -37,12 +40,13 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_isSubmitting || _isInCooldown) return;
+    if (_isProcessing || _isSubmitting || _isInCooldown) return;
     final qrPayload = capture.barcodes.firstOrNull?.rawValue?.trim();
     if (qrPayload == null || qrPayload.isEmpty) return;
     if (!qrPayload.startsWith('BC|v1|V|')) return;
 
-    setState(() => _isSubmitting = true);
+    _isProcessing = true;
+    if (mounted) setState(() => _isSubmitting = true);
     try {
       final dio = ref.read(dioClientProvider).dio;
       final response = await dio.post<Map<String, dynamic>>(
@@ -51,29 +55,38 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
       );
       final data = response.data?['data'] as Map<String, dynamic>?;
       final rewardName = data?['rewardName'] as String? ?? '';
-      final userName = data?['userName'] as String? ?? '';
-      if (mounted) {
+      final newBalance = (data?['newBalance'] as num?)?.toInt();
+      if (!mounted) return;
+      _lastScanAt = DateTime.now();
+      setState(() {});
+      _startCooldownTimer();
+      await _showRedeemSuccessFullScreen(context, rewardName: rewardName, newBalance: newBalance);
+    } catch (e) {
+      if (!mounted) return;
+      final isRateLimit = e is DioException && e.response?.statusCode == 429;
+      String message;
+      if (isRateLimit) {
+        message = 'Attendez 5 secondes entre chaque scan';
         _lastScanAt = DateTime.now();
         setState(() {});
         _startCooldownTimer();
-        await _showSuccessDialog(context, rewardName: rewardName, userName: userName);
-      }
-    } catch (e) {
-      if (mounted) {
-        final isRateLimit = e is DioException && e.response?.statusCode == 429;
-        final message = isRateLimit
-            ? 'Attendez 5 secondes entre chaque scan'
-            : 'QR invalide ou déjà utilisé';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
-        );
-        if (isRateLimit) {
-          _lastScanAt = DateTime.now();
-          setState(() {});
-          _startCooldownTimer();
+      } else {
+        final code = e is DioException
+            ? (e.response?.data as Map<String, dynamic>?)?['error']?['code'] as String?
+            : null;
+        if (code == 'VOUCHER_ALREADY_USED') {
+          message = 'Bon déjà utilisé';
+        } else if (code == 'VOUCHER_EXPIRED') {
+          message = 'Bon expiré';
+        } else {
+          message = 'QR invalide';
         }
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     } finally {
+      _isProcessing = false;
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
@@ -84,10 +97,10 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
     });
   }
 
-  static Future<void> _showSuccessDialog(
+  static Future<void> _showRedeemSuccessFullScreen(
     BuildContext context, {
     required String rewardName,
-    required String userName,
+    int? newBalance,
   }) async {
     await showDialog<void>(
       context: context,
@@ -110,10 +123,10 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
                 fontSize: 16,
               ),
             ),
-            if (userName.isNotEmpty) ...[
+            if (newBalance != null) ...[
               const SizedBox(height: 8),
               Text(
-                userName,
+                'Solde restant : $newBalance pts',
                 style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
               ),
             ],
@@ -121,8 +134,12 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
+            onPressed: () {
+              final router = GoRouter.of(ctx);
+              Navigator.of(ctx).pop();
+              router.go('/admin/redeem');
+            },
+            child: const Text('Scanner un autre bon'),
           ),
         ],
       ),
@@ -138,20 +155,7 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
           controller: _controller,
           onDetect: _onDetect,
         ),
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Text(
-              'Scannez le bon du client',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ),
+        const QrScannerOverlay(instructionText: 'Scannez le bon du client'),
         if (_isSubmitting)
           Container(
             color: Colors.black54,

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../providers/auth_providers.dart';
+import '../widgets/qr_scanner_overlay.dart';
 
 /// Admin QR scanner body. Disabled while scan request is in progress.
 /// Success: "Point ajouté". Error: "QR invalide".
@@ -192,11 +193,7 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
             controller: _controller,
             onDetect: _onDetect,
           ),
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _ScannerOverlayPainter(),
-            ),
-          ),
+          const QrScannerOverlay(instructionText: 'Scannez le QR code'),
           if (_isSubmitting)
             Container(
               color: Colors.black54,
@@ -234,45 +231,4 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
       ),
     );
   }
-}
-
-class _ScannerOverlayPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    final rect = Rect.fromCenter(
-      center: Offset(size.width / 2, size.height / 2),
-      width: size.width * 0.7,
-      height: size.width * 0.7,
-    );
-
-    canvas.drawRect(rect, paint);
-
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'Scannez le QR code',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        (size.width - textPainter.width) / 2,
-        rect.top - 40,
-      ),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

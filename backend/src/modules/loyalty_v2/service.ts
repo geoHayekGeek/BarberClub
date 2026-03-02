@@ -362,8 +362,13 @@ export async function adminEarnPoints(
 
 const INVALID_QR_MSG = 'QR code invalide';
 
-/** Admin: validate voucher QR and mark redemption as USED. Single-use; expired or reused → INVALID_QR. */
-export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: boolean; rewardName: string; userName: string }> {
+/** Admin: validate voucher QR and mark redemption as USED. Returns rewardName, userName, newBalance. Sends FCM LOYALTY_REDEEM. */
+export async function adminRedeemVoucher(qrPayload: string): Promise<{
+  success: boolean;
+  rewardName: string;
+  userName: string;
+  newBalance: number;
+}> {
   const trimmed = (qrPayload ?? '').trim();
   const parts = trimmed.split('|');
   if (parts.length !== 4 || parts[0] !== 'BC' || parts[1] !== 'v1' || parts[2] !== QRType.VOUCHER || !parts[3] || parts[3].length < 16) {
@@ -372,7 +377,7 @@ export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: 
   }
   const tokenHash = hashToken(parts[3]);
   const redemption = await prisma.loyaltyRedemptionVoucher.findFirst({
-    where: { qrTokenHash: tokenHash, status: 'PENDING' },
+    where: { qrTokenHash: tokenHash },
     include: { account: { include: { user: true } }, reward: true },
   });
   if (!redemption) {
@@ -381,10 +386,13 @@ export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: 
   }
   if (redemption.qrExpiresAt && redemption.qrExpiresAt <= new Date()) {
     logger.warn('VOUCHER_REDEEM expired', { redemptionId: redemption.id });
-    throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MSG, 400);
+    throw new AppError(ErrorCode.VOUCHER_EXPIRED, 'Bon expiré', 400);
   }
-  if (redemption.qrUsedAt) {
+  if (redemption.qrUsedAt || redemption.status === 'USED') {
     logger.warn('VOUCHER_REDEEM already_used', { redemptionId: redemption.id });
+    throw new AppError(ErrorCode.VOUCHER_ALREADY_USED, 'Bon déjà utilisé', 400);
+  }
+  if (redemption.status !== 'PENDING') {
     throw new AppError(ErrorCode.INVALID_QR, INVALID_QR_MSG, 400);
   }
 
@@ -407,21 +415,21 @@ export async function adminRedeemVoucher(qrPayload: string): Promise<{ success: 
         await messaging.send({
           token: fcmToken,
           notification: {
-            title: 'Bon utilisé',
-            body: `${redemption.reward.name} a été validé. Solde: ${newBalance} pts`,
+            title: 'Récompense validée',
+            body: `${redemption.reward.name}. Solde restant : ${newBalance} pts`,
           },
           data: {
-            type: 'LOYALTY_REDEEMED',
+            type: 'LOYALTY_REDEEM',
             rewardName: redemption.reward.name,
             newBalance: String(newBalance),
           },
         });
       }
     } catch (err) {
-      logger.warn('FCM push failed LOYALTY_REDEEMED', { error: err instanceof Error ? err.message : err });
+      logger.warn('FCM push failed LOYALTY_REDEEM', { error: err instanceof Error ? err.message : err });
     }
   }
 
   const userName = user?.fullName?.trim() || user?.email || 'Client';
-  return { success: true, rewardName: redemption.reward.name, userName };
+  return { success: true, rewardName: redemption.reward.name, userName, newBalance };
 }

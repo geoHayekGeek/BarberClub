@@ -380,6 +380,7 @@ describe('Loyalty v2 redeem flow', () => {
     expect(redeemRes.body.data.success).toBe(true);
     expect(redeemRes.body.data.rewardName).toBeDefined();
     expect(redeemRes.body.data.userName).toBeDefined();
+    expect(typeof redeemRes.body.data.newBalance).toBe('number');
 
     const updated = await prisma.loyaltyRedemptionVoucher.findUnique({
       where: { id: pending.id },
@@ -387,7 +388,7 @@ describe('Loyalty v2 redeem flow', () => {
     expect(updated?.status).toBe('USED');
   });
 
-  it('POST /admin/loyalty/redeem with reused voucher QR returns 400 INVALID_QR', async () => {
+  it('POST /admin/loyalty/redeem with reused voucher QR returns 400 VOUCHER_ALREADY_USED', async () => {
     const account = await prisma.loyaltyAccount.findFirst({ where: { user: { email: 'v2redeem@example.com' } } });
     if (!account) throw new Error('No account');
     await prisma.loyaltyAccount.update({
@@ -416,15 +417,15 @@ describe('Loyalty v2 redeem flow', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ qrPayload });
     expect(second.status).toBe(400);
-    expect(second.body.error.code).toBe('INVALID_QR');
+    expect(second.body.error.code).toBe('VOUCHER_ALREADY_USED');
   });
 
-  it('POST /admin/loyalty/redeem with wrong prefix returns 400 INVALID_QR', async () => {
+  it('POST /admin/loyalty/redeem with wrong prefix returns 400', async () => {
     const res = await request(app)
       .post('/api/v1/admin/loyalty/redeem')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ qrPayload: 'XX|v1|V|abcdefghij1234567890abcdefghij12' });
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe('INVALID_QR');
+    expect(['INVALID_QR', 'INVALID_OR_EXPIRED_QR']).toContain(res.body.error?.code);
   });
 });

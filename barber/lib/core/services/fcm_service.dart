@@ -62,6 +62,10 @@ class FcmService {
         _onLoyaltyEvent?.call(type!, Map<String, String>.from(data));
         return;
       }
+      if (type == 'LOYALTY_REDEEM') {
+        _onLoyaltyEvent?.call(type!, Map<String, String>.from(data));
+        return;
+      }
 
       final notification = message.notification;
       if (notification != null) {
@@ -80,6 +84,10 @@ class FcmService {
       final data = message.data;
       final type = data['type'] as String?;
       if (type == 'LOYALTY_EARN') {
+        _onLoyaltyEvent?.call(type!, Map<String, String>.from(data));
+        return;
+      }
+      if (type == 'LOYALTY_REDEEM') {
         _onLoyaltyEvent?.call(type!, Map<String, String>.from(data));
         return;
       }
