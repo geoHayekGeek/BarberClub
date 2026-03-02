@@ -19,27 +19,30 @@ const ADMIN_PASSWORD = 'admin123';
 async function seedAdminsPerSalon() {
   const salons = await prisma.salon.findMany({
     select: { id: true, name: true },
+    orderBy: { name: 'asc' },
   });
 
   const passwordHash = await hashPassword(ADMIN_PASSWORD);
 
-  for (const salon of salons) {
+  for (let i = 0; i < salons.length; i++) {
+    const salon = salons[i];
     const slug = salon.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '');
     const email = `admin_${slug}@barberclub.com`;
-    const phone = '+33000000000';
+    const phoneNumber = `+336${String(i + 1).padStart(8, '0')}`;
 
     const admin = await prisma.user.upsert({
       where: { email },
       update: {
         role: 'ADMIN',
         isSuperAdmin: false,
+        phoneNumber,
       },
       create: {
         email,
-        phoneNumber: phone,
+        phoneNumber,
         passwordHash,
         fullName: `Admin ${salon.name}`,
         role: 'ADMIN',
@@ -51,22 +54,24 @@ async function seedAdminsPerSalon() {
       where: { id: admin.id },
       data: {
         adminSalons: {
-          connect: { id: salon.id },
+          set: [{ id: salon.id }],
         },
       },
     });
   }
 
   const superAdminEmail = 'superadmin@barberclub.com';
+  const superAdminPhone = '+33999999999';
   const superAdmin = await prisma.user.upsert({
     where: { email: superAdminEmail },
     update: {
       role: 'ADMIN',
       isSuperAdmin: true,
+      phoneNumber: superAdminPhone,
     },
     create: {
       email: superAdminEmail,
-      phoneNumber: '+33100000000',
+      phoneNumber: superAdminPhone,
       passwordHash,
       fullName: 'Super Admin',
       role: 'ADMIN',
