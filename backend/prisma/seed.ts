@@ -14,36 +14,70 @@ import { hashPassword } from '../src/modules/auth/utils/password';
 
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = 'admin@barber-club.com';
 const ADMIN_PASSWORD = 'admin123';
 
-async function seedAdmin() {
-  const existing = await prisma.user.findUnique({
-    where: { email: ADMIN_EMAIL },
+async function seedAdminsPerSalon() {
+  const salons = await prisma.salon.findMany({
+    select: { id: true, name: true },
   });
-  if (existing) {
-    if (existing.role === 'ADMIN') {
-      console.log('Admin user already exists.');
-      return;
-    }
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { role: 'ADMIN' },
-    });
-    console.log('Existing user updated to ADMIN.');
-    return;
-  }
+
   const passwordHash = await hashPassword(ADMIN_PASSWORD);
-  await prisma.user.create({
-    data: {
-      email: ADMIN_EMAIL,
-      phoneNumber: '+33000000000',
-      passwordHash,
-      fullName: 'Admin',
+
+  for (const salon of salons) {
+    const slug = salon.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const email = `admin_${slug}@barberclub.com`;
+    const phone = '+33000000000';
+
+    const admin = await prisma.user.upsert({
+      where: { email },
+      update: {
+        role: 'ADMIN',
+        isSuperAdmin: false,
+      },
+      create: {
+        email,
+        phoneNumber: phone,
+        passwordHash,
+        fullName: `Admin ${salon.name}`,
+        role: 'ADMIN',
+        isSuperAdmin: false,
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: {
+        adminSalons: {
+          connect: { id: salon.id },
+        },
+      },
+    });
+  }
+
+  const superAdminEmail = 'superadmin@barberclub.com';
+  const superAdmin = await prisma.user.upsert({
+    where: { email: superAdminEmail },
+    update: {
       role: 'ADMIN',
+      isSuperAdmin: true,
+    },
+    create: {
+      email: superAdminEmail,
+      phoneNumber: '+33100000000',
+      passwordHash,
+      fullName: 'Super Admin',
+      role: 'ADMIN',
+      isSuperAdmin: true,
     },
   });
-  console.log('Admin user created:', ADMIN_EMAIL);
+
+  console.log('Seeded admins for salons and super admin', {
+    salonAdmins: salons.length,
+    superAdminId: superAdmin.id,
+  });
 }
 
 // Keep placeholders just in case
@@ -135,7 +169,7 @@ const OPENING_HOURS_STRUCTURED = {
 };
 
 async function main() {
-  await seedAdmin();
+  await seedAdminsPerSalon();
 
   // --- 1. SALON GRENOBLE ---
   let salonGrenoble = await prisma.salon.findFirst({

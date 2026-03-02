@@ -15,6 +15,8 @@ import { offersService } from '../modules/offers/service';
 import { loyaltyService } from '../modules/loyalty/service';
 import * as loyaltyV2 from '../modules/loyalty_v2/service';
 import { parseQRPayload, QRType } from '../utils/qr';
+import { AppError, ErrorCode } from '../utils/errors';
+import { assertAdminHasAccessToSalon } from '../modules/admin/salonAccess';
 import { createSalonBodySchema } from '../modules/salons/validation';
 import { createBarberBodySchema } from '../modules/barbers/validation';
 import { createOfferBodySchema } from '../modules/offers/validation';
@@ -107,6 +109,22 @@ router.post(
         timifyUrl: req.body.timifyUrl,
       });
       res.status(201).json({ data: salon });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** GET /admin/salons — List salons current admin can manage (salon-based ACL). */
+router.get(
+  '/salons',
+  authenticate,
+  requireAdmin,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      const salons = await salonsService.listAdminSalons(req.userId);
+      res.json({ data: salons });
     } catch (error) {
       next(error);
     }
@@ -264,14 +282,17 @@ router.post(
   }
 );
 
-/** GET /admin/services — List offers (prestations) for admin to select before scanning earn QR. */
+/** GET /admin/salons/:id/services — List offers for a specific salon (requires salon access). */
 router.get(
-  '/services',
+  '/salons/:id/services',
   authenticate,
   requireAdmin,
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { items } = await offersService.listOffers({ limit: 100 });
+      if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      const salonId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      await assertAdminHasAccessToSalon(req.userId, salonId);
+      const { items } = await offersService.listOffers({ limit: 100, salonId });
       const data = items.map((o) => ({
         id: o.id,
         name: o.title,

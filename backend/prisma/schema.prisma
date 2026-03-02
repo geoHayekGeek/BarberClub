@@ -7,11 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -19,6 +14,7 @@ model User {
   passwordHash  String    @map("password_hash")
   fullName      String?   @map("full_name")
   role          UserRole  @default(USER)
+  isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
   loyaltyPoints Int       @default(0) @map("loyalty_points")
   fcmToken      String?   @map("fcm_token")
   isActive      Boolean   @default(true) @map("is_active")
@@ -37,7 +33,14 @@ model User {
   loyaltyCoupons LoyaltyCoupon[]
   loyaltyAccount LoyaltyAccount?
 
+  adminSalons   Salon[]   @relation("AdminSalons")
+
   @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 model RefreshToken {
@@ -244,6 +247,7 @@ model Salon {
   barbers         BarberSalon[]
   primaryBarbers  Barber[]     @relation("PrimarySalon")
   offers          Offer[]
+  admins          User[]       @relation("AdminSalons")
 
   @@index([isActive])
   @@index([name])
@@ -322,9 +326,12 @@ model LoyaltyTransaction {
   points      Int
   description String
   referenceId String?  @map("reference_id")
+  adminId     String?  @map("admin_id")
+  admin       User?    @relation(fields: [adminId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@index([accountId])
+  @@index([adminId])
   @@map("loyalty_transactions")
 }
 

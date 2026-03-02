@@ -11,6 +11,7 @@ import { logger } from '../../utils/logger';
 import config from '../../config';
 import { generateToken, hashToken, encodeQRPayload, parseQRPayload, QRType } from '../../utils/qr';
 import { getTierFromLifetime, getNextTier, getCheapestRewardCost, type LoyaltyTierName } from './tiers';
+import { assertAdminHasAccessToSalon } from '../admin/salonAccess';
 
 const VOUCHER_QR_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const NEAR_REWARD_THRESHOLD = 20;
@@ -255,8 +256,12 @@ export async function adminEarnPoints(
   }
   const offer = await prisma.offer.findFirst({
     where: { id: serviceId, isActive: true },
+    select: { id: true, title: true, price: true, salonId: true },
   });
   if (!offer) throw new AppError(ErrorCode.OFFER_NOT_FOUND, 'Service introuvable', 404);
+  if (adminId) {
+    await assertAdminHasAccessToSalon(adminId, offer.salonId);
+  }
   const pointsEarned = offer.price < 100 ? offer.price : Math.floor(offer.price / 100);
   if (pointsEarned <= 0) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Montant invalide pour ce service', 400);
 
@@ -285,6 +290,7 @@ export async function adminEarnPoints(
         points: pointsEarned,
         description: offer.title,
         referenceId: serviceId,
+        adminId,
       },
     });
     return acc;

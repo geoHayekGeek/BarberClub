@@ -50,6 +50,7 @@ export enum ErrorCode {
   
   // Salon errors
   SALON_NOT_FOUND = 'SALON_NOT_FOUND',
+  SALON_ACCESS_DENIED = 'SALON_ACCESS_DENIED',
   
   // Barber errors
   BARBER_NOT_FOUND = 'BARBER_NOT_FOUND',

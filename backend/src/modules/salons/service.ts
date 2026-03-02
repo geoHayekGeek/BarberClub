@@ -74,6 +74,44 @@ class SalonsService {
     }));
   }
 
+  /** List salons accessible for a given admin (salon-based ACL). */
+  async listAdminSalons(adminId: string): Promise<SalonListItem[]> {
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+      select: { id: true, role: true, isSuperAdmin: true },
+    });
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Forbidden', 403);
+    }
+    if (admin.isSuperAdmin) {
+      return this.listSalons();
+    }
+
+    const salons = await prisma.salon.findMany({
+      where: {
+        isActive: true,
+        admins: { some: { id: adminId } },
+      },
+      orderBy: [{ name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        imageUrl: true,
+        images: true,
+        timifyUrl: true,
+      },
+    });
+
+    return salons.map((s) => ({
+      id: s.id,
+      name: s.name,
+      city: s.city,
+      imageUrl: s.imageUrl ?? (s.images.length > 0 ? s.images[0] : null),
+      timifyUrl: s.timifyUrl ?? null,
+    }));
+  }
+
   async getSalonById(salonId: string): Promise<SalonDetail> {
     const salon = await prisma.salon.findUnique({
       where: { id: salonId },
