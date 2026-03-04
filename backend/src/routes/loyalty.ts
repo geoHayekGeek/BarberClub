@@ -354,7 +354,7 @@ router.post(
   }
 );
 
-/** POST /loyalty/redemptions/:id/qr — generate voucher QR for a PENDING redemption */
+/** POST /loyalty/redemptions/:id/qr — fallback: regenerate voucher QR for PENDING (e.g. Afficher QR in Mes bons) */
 router.post(
   '/redemptions/:id/qr',
   authenticate,
@@ -364,6 +364,22 @@ router.post(
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const data = await loyaltyV2.generateVoucherQr(req.userId, id);
       res.json({ data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/** POST /loyalty/redemptions/:id/cancel — cancel PENDING redemption, restore points */
+router.post(
+  '/redemptions/:id/cancel',
+  authenticate,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const result = await loyaltyV2.cancelRedemption(req.userId, id);
+      res.json({ data: result });
     } catch (error) {
       next(error);
     }

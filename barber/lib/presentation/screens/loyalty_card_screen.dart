@@ -666,8 +666,7 @@ class _RewardsSection extends ConsumerWidget {
     try {
       final res = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
       final data = res.data?['data'] as Map<String, dynamic>?;
-      final redemption = data?['redemption'] as Map<String, dynamic>?;
-      final qrPayload = redemption?['qrPayload'] as String?;
+      final qrPayload = data?['qrPayload'] as String?;
       if (!context.mounted) return;
       ref.invalidate(loyaltyV2StateProvider);
       ref.invalidate(loyaltyRewardsProvider);
@@ -705,6 +704,19 @@ class _RewardsSection extends ConsumerWidget {
   }
 }
 
+String _redemptionStatusLabel(String status) {
+  switch (status) {
+    case 'PENDING':
+      return 'À faire valider en salon';
+    case 'USED':
+      return 'Utilisé';
+    case 'CANCELLED':
+      return 'Annulé';
+    default:
+      return status;
+  }
+}
+
 class _RedemptionsSection extends ConsumerWidget {
   const _RedemptionsSection();
 
@@ -737,14 +749,23 @@ class _RedemptionsSection extends ConsumerWidget {
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      r.status == 'PENDING' ? 'À faire valider en salon' : 'Utilisé',
+                      _redemptionStatusLabel(r.status),
                       style: TextStyle(color: Colors.white54, fontSize: 12),
                     ),
                   ),
                   trailing: r.isPending
-                      ? TextButton(
-                          onPressed: () => _showVoucherQr(context, ref, r.id),
-                          child: const Text('Afficher QR'),
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: () => _showVoucherQr(context, ref, r.id),
+                              child: const Text('Afficher QR'),
+                            ),
+                            TextButton(
+                              onPressed: () => _cancelRedemption(context, ref, r.id),
+                              child: const Text('Annuler'),
+                            ),
+                          ],
                         )
                       : null,
                 ),
@@ -785,6 +806,47 @@ class _RedemptionsSection extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Impossible de générer le QR')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelRedemption(BuildContext context, WidgetRef ref, String redemptionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Annuler le bon'),
+        content: const Text(
+          'Annuler ce bon et récupérer les points ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Non'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Oui, annuler'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final dio = ref.read(dioClientProvider).dio;
+    try {
+      await dio.post('/api/v1/loyalty/redemptions/$redemptionId/cancel');
+      if (context.mounted) {
+        ref.invalidate(loyaltyV2StateProvider);
+        ref.invalidate(loyaltyRedemptionsProvider);
+        ref.invalidate(loyaltyTransactionsProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bon annulé, points récupérés')),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible d\'annuler le bon')),
         );
       }
     }

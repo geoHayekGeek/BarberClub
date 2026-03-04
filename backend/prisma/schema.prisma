@@ -353,6 +353,7 @@ model LoyaltyReward {
 enum LoyaltyRedemptionStatus {
   PENDING
   USED
+  CANCELLED
 }
 
 model LoyaltyRedemptionVoucher {

@@ -107,14 +107,9 @@ export async function listActiveRewards(): Promise<LoyaltyRewardDto[]> {
 }
 
 export interface RedeemRewardResult {
-  redemption: {
-    id: string;
-    rewardName: string;
-    pointsSpent: number;
-    status: string;
-    qrPayload: string;
-    qrExpiresAt: string;
-  };
+  redemptionId: string;
+  rewardName: string;
+  qrPayload: string;
   newBalance: number;
 }
 
@@ -168,14 +163,9 @@ export async function redeemReward(userId: string, rewardId: string): Promise<Re
 
   const qrPayload = encodeQRPayload(QRType.VOUCHER, token);
   return {
-    redemption: {
-      id: result.redemptionId,
-      rewardName: result.rewardName,
-      pointsSpent: result.pointsSpent,
-      status: 'PENDING',
-      qrPayload,
-      qrExpiresAt: qrExpiresAt.toISOString(),
-    },
+    redemptionId: result.redemptionId,
+    rewardName: result.rewardName,
+    qrPayload,
     newBalance: result.newBalance,
   };
 }
@@ -240,6 +230,42 @@ export async function listRedemptions(userId: string): Promise<
     redeemedAt: r.redeemedAt.toISOString(),
     usedAt: r.usedAt?.toISOString() ?? null,
   }));
+}
+
+/** Cancel a PENDING redemption: restore points, set status CANCELLED, add ADJUST transaction. */
+export async function cancelRedemption(userId: string, redemptionId: string): Promise<{ newBalance: number }> {
+  await ensureLoyaltyAccount(userId);
+  const account = await prisma.loyaltyAccount.findUnique({ where: { userId } });
+  if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
+  const redemption = await prisma.loyaltyRedemptionVoucher.findFirst({
+    where: { id: redemptionId, accountId: account.id, status: 'PENDING' },
+    include: { reward: true },
+  });
+  if (!redemption) throw new AppError(ErrorCode.NOT_FOUND, 'Redemption introuvable ou non annulable', 404);
+
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.loyaltyRedemptionVoucher.update({
+      where: { id: redemptionId },
+      data: { status: 'CANCELLED' },
+    });
+    const acc = await tx.loyaltyAccount.update({
+      where: { id: account.id },
+      data: { currentBalance: { increment: redemption.pointsSpent } },
+      select: { currentBalance: true },
+    });
+    await tx.loyaltyTransaction.create({
+      data: {
+        accountId: account.id,
+        type: 'ADJUST',
+        points: redemption.pointsSpent,
+        description: `Annulation: ${redemption.reward.name}`,
+        referenceId: redemptionId,
+      },
+    });
+    return acc.currentBalance;
+  });
+
+  return { newBalance: result };
 }
 
 /** Admin: earn points by scanning user earn QR after selecting a service. */
