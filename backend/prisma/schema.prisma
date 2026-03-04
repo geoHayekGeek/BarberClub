@@ -13,6 +13,7 @@ model User {
   phoneNumber   String    @unique
   passwordHash  String    @map("password_hash")
   fullName      String?   @map("full_name")
+  dateOfBirth   DateTime? @map("date_of_birth")
   role          UserRole  @default(USER)
   isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
   loyaltyPoints Int       @default(0) @map("loyalty_points")
@@ -32,6 +33,9 @@ model User {
   loyaltyQrTokens LoyaltyQrToken[]
   loyaltyCoupons LoyaltyCoupon[]
   loyaltyAccount LoyaltyAccount?
+  offerActivations OfferActivation[]
+  referralsAsReferrer Referral[] @relation("Referrer")
+  referralsAsReferee Referral[] @relation("Referee")
 
   adminSalons              Salon[]               @relation("AdminSalons")
   loyaltyTransactionsAsAdmin LoyaltyTransaction[] @relation("LoyaltyTransactionAdmin")
@@ -92,23 +96,28 @@ model PasswordResetCode {
 }
 
 model Booking {
-  id            String   @id @default(uuid())
-  userId        String   @map("user_id")
-  branchId      String   @map("branch_id")
-  serviceId     String   @map("service_id")
-  resourceId    String?  @map("resource_id")
-  startDateTime DateTime @map("start_date_time")
-  status        String   @default("CONFIRMED")
+  id                 String   @id @default(uuid())
+  userId             String   @map("user_id")
+  branchId           String   @map("branch_id")
+  serviceId          String   @map("service_id")
+  resourceId         String?  @map("resource_id")
+  startDateTime      DateTime @map("start_date_time")
+  status             String   @default("CONFIRMED")
+  price              Int?
+  originalPrice      Int?     @map("original_price")
+  offerActivationId  String?  @unique @map("offer_activation_id")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offerActivation OfferActivation? @relation(fields: [offerActivationId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([branchId])
   @@index([startDateTime])
   @@index([userId, startDateTime])
   @@index([status])
+  @@index([offerActivationId])
   @@map("bookings")
 }
 
@@ -207,6 +216,100 @@ model GlobalOffer {
 
   @@index([isActive])
   @@map("global_offers")
+}
+
+enum ClientOfferType {
+  event
+  flash
+  pack
+  permanent
+  welcome
+}
+
+enum DiscountType {
+  percentage
+  fixed
+  free_service
+}
+
+model ClientOffer {
+  id                 String        @id @default(uuid())
+  type               ClientOfferType
+  title              String        @db.Text
+  description        String?       @db.Text
+  discountType       DiscountType   @map("discount_type")
+  discountValue      Int            @map("discount_value")
+  applicableServices String[]       @map("applicable_services")
+  startsAt           DateTime      @map("starts_at")
+  endsAt             DateTime?     @map("ends_at")
+  maxSpots           Int?          @map("max_spots")
+  spotsTaken         Int           @default(0) @map("spots_taken")
+  imageUrl           String?       @map("image_url")
+  isActive           Boolean       @default(true) @map("is_active")
+  templateId         String?       @map("template_id")
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  activations OfferActivation[]
+
+  @@index([isActive, startsAt])
+  @@index([type])
+  @@map("client_offers")
+}
+
+enum OfferActivationStatus {
+  pending_scan
+  activated
+  used
+  expired
+  cancelled
+}
+
+model OfferActivation {
+  id          String                @id @default(uuid())
+  offerId     String                @map("offer_id")
+  clientId    String                @map("client_id")
+  status      OfferActivationStatus @default(pending_scan)
+  activatedAt DateTime             @map("activated_at")
+  usedAt      DateTime?            @map("used_at")
+  bookingId   String?              @map("booking_id")
+  expiresAt   DateTime?            @map("expires_at")
+  qrTokenHash String?              @map("qr_token_hash")
+  qrUsedAt    DateTime?            @map("qr_used_at")
+
+  offer   ClientOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  client  User        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  booking Booking?
+
+  @@index([offerId])
+  @@index([clientId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([qrTokenHash])
+  @@map("offer_activations")
+}
+
+enum ReferralStatus {
+  pending
+  completed
+  rewarded
+}
+
+model Referral {
+  id           String         @id @default(uuid())
+  referrerId   String         @map("referrer_id")
+  refereeId    String         @map("referee_id")
+  referralCode String         @unique @map("referral_code")
+  status       ReferralStatus @default(pending)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  completedAt  DateTime?      @map("completed_at")
+
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+  @@index([refereeId])
+  @@index([referralCode])
+  @@map("referrals")
 }
 
 model Offer {

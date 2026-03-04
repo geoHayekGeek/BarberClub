@@ -16,12 +16,14 @@ import '../screens/barber_detail_screen.dart';
 import '../screens/admin_scanner_screen.dart';
 import '../screens/admin_service_selection_screen.dart';
 import '../screens/admin_redeem_scanner_screen.dart';
+import '../screens/admin_offer_scanner_screen.dart';
 import '../screens/admin_compte_screen.dart';
 import '../widgets/admin_app_shell.dart';
 import '../providers/auth_providers.dart';
 import '../../domain/models/user.dart';
 import '../../core/network/dio_client.dart';
 import '../screens/offers_list_screen.dart';
+import '../screens/offer_activation_qr_screen.dart';
 import '../screens/salon_offers_detail_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -128,6 +130,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'redeem',
                 name: 'admin-redeem',
                 builder: (context, state) => const AdminRedeemScannerScreen(),
+              ),
+              GoRoute(
+                path: 'offer-scanner',
+                name: 'admin-offer-scanner',
+                builder: (context, state) => const AdminOfferScannerScreen(),
               ),
               GoRoute(
                 path: 'compte',
@@ -239,6 +246,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/offres',
                 name: 'offres-base',
                 builder: (context, state) => const OffersListScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'activation-qr',
+                    name: 'offer-activation-qr',
+                    builder: (context, state) {
+                      final extra = state.extra is Map ? state.extra as Map<Object?, Object?> : null;
+                      final offerId = extra?['offerId'] is String ? extra!['offerId'] as String : '';
+                      final qrPayload = extra?['qrPayload'] is String ? extra!['qrPayload'] as String : '';
+                      return OfferActivationQrScreen(offerId: offerId, qrPayload: qrPayload);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

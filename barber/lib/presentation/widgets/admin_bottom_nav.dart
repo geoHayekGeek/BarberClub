@@ -13,6 +13,7 @@ class AdminBottomNav extends StatelessWidget {
   static const _tabs = [
     _AdminNavItem(icon: Icons.add_circle_outline, label: 'Points', path: '/admin'),
     _AdminNavItem(icon: Icons.qr_code_scanner, label: 'Valider bon', path: '/admin/redeem'),
+    _AdminNavItem(icon: Icons.local_offer_outlined, label: 'Scanner offres', path: '/admin/offer-scanner'),
   ];
 
   @override

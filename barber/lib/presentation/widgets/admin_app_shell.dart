@@ -15,33 +15,34 @@ class AdminAppShell extends StatelessWidget {
   final Widget child;
 
   bool get _isCompte => matchedLocation.contains('compte');
-  bool get _isScanner => matchedLocation.contains('scanner');
+  /// Points scanner only (from service selection), not offer-scanner tab.
+  bool get _isPointsScanner =>
+      matchedLocation == '/admin/scanner' || matchedLocation.startsWith('/admin/scanner?');
 
   int get _adminNavIndex {
     if (matchedLocation.startsWith('/admin/redeem')) return 1;
+    if (matchedLocation.startsWith('/admin/offer-scanner')) return 2;
     return 0;
   }
 
   String get _title {
     if (_isCompte) return 'Compte';
-    if (_isScanner) return 'Scanner carte fidélité';
+    if (matchedLocation.startsWith('/admin/offer-scanner')) return 'Scanner offres';
     if (matchedLocation.startsWith('/admin/redeem')) return 'Scanner un bon';
+    if (_isPointsScanner) return 'Scanner carte fidélité';
     return 'Choisir une prestation';
   }
 
-  bool get _showBottomNav => !_isCompte && !_isScanner;
+  bool get _showBottomNav => !_isCompte && !_isPointsScanner;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: _isCompte || _isScanner
+        leading: _isCompte || _isPointsScanner
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  if (_isScanner) context.go('/admin');
-                  else context.go('/admin');
-                },
+                onPressed: () => context.go('/admin'),
               )
             : null,
         title: Text(_title),
