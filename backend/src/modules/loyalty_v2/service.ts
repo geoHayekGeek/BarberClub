@@ -232,13 +232,13 @@ export async function listRedemptions(userId: string): Promise<
   }));
 }
 
-/** Cancel a PENDING redemption: restore points, set status CANCELLED, add ADJUST transaction. */
+/** Cancel a PENDING redemption: restore points, set status CANCELLED, add ADJUST transaction. Only if qrUsedAt is null. */
 export async function cancelRedemption(userId: string, redemptionId: string): Promise<{ newBalance: number }> {
   await ensureLoyaltyAccount(userId);
   const account = await prisma.loyaltyAccount.findUnique({ where: { userId } });
   if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
   const redemption = await prisma.loyaltyRedemptionVoucher.findFirst({
-    where: { id: redemptionId, accountId: account.id, status: 'PENDING' },
+    where: { id: redemptionId, accountId: account.id, status: 'PENDING', qrUsedAt: null },
     include: { reward: true },
   });
   if (!redemption) throw new AppError(ErrorCode.NOT_FOUND, 'Redemption introuvable ou non annulable', 404);
@@ -258,7 +258,7 @@ export async function cancelRedemption(userId: string, redemptionId: string): Pr
         accountId: account.id,
         type: 'ADJUST',
         points: redemption.pointsSpent,
-        description: `Annulation: ${redemption.reward.name}`,
+        description: 'Annulation récompense',
         referenceId: redemptionId,
       },
     });

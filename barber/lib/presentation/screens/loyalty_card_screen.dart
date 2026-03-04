@@ -664,36 +664,15 @@ class _RewardsSection extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
     final dio = ref.read(dioClientProvider).dio;
     try {
-      final res = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
-      final data = res.data?['data'] as Map<String, dynamic>?;
-      final qrPayload = data?['qrPayload'] as String?;
+      await dio.post<Map<String, dynamic>>('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
       if (!context.mounted) return;
       ref.invalidate(loyaltyV2StateProvider);
       ref.invalidate(loyaltyRewardsProvider);
       ref.invalidate(loyaltyRedemptionsProvider);
       ref.invalidate(loyaltyTransactionsProvider);
-      if (qrPayload != null && qrPayload.isNotEmpty) {
-        ref.read(qrDialogCloserProvider.notifier).state = () {
-          final ctx = navigatorKey.currentContext;
-          if (ctx != null) Navigator.of(ctx).pop();
-        };
-        await showDialog<void>(
-          context: context,
-          barrierDismissible: true,
-          builder: (ctx) => _VoucherQrFullscreenDialog(
-            qrPayload: qrPayload,
-            onClose: () => Navigator.of(ctx).pop(),
-          ),
-        );
-        if (context.mounted) {
-          ref.read(qrDialogCloserProvider.notifier).state = null;
-          ref.invalidate(loyaltyV2StateProvider);
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Récompense "${r.name}" échangée.')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Récompense échangée. Retrouvez-la dans Mes bons.')),
+      );
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -739,22 +718,34 @@ class _RedemptionsSection extends ConsumerWidget {
               child: Material(
                 color: const Color(0xFF1A1A1A),
                 borderRadius: BorderRadius.circular(16),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  title: Text(
-                    r.rewardName,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      _redemptionStatusLabel(r.status),
-                      style: TextStyle(color: Colors.white54, fontSize: 12),
-                    ),
-                  ),
-                  trailing: r.isPending
-                      ? Row(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              r.rewardName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _redemptionStatusLabel(r.status),
+                              style: TextStyle(color: Colors.white54, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (r.isPending)
+                        Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             TextButton(
@@ -766,8 +757,9 @@ class _RedemptionsSection extends ConsumerWidget {
                               child: const Text('Annuler'),
                             ),
                           ],
-                        )
-                      : null,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
