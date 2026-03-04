@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/network/dio_client.dart';
 import '../providers/offer_providers.dart';
+import '../widgets/loyalty_success_modal.dart';
 
 /// Full-screen QR for offer activation. User presents this to the barber to scan.
+/// When barber scans, polling detects activation and shows success modal then closes.
 /// If user exits without barber scan, the pending activation is cancelled so the offer shows "Activer" again.
 class OfferActivationQrScreen extends ConsumerStatefulWidget {
   const OfferActivationQrScreen({
@@ -23,10 +28,59 @@ class OfferActivationQrScreen extends ConsumerStatefulWidget {
 
 class _OfferActivationQrScreenState extends ConsumerState<OfferActivationQrScreen> {
   bool _isExiting = false;
+  Timer? _pollTimer;
+
+  static const _pollInterval = Duration(seconds: 2);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.offerId.isNotEmpty) {
+      _pollTimer = Timer.periodic(_pollInterval, _checkActivation);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkActivation(Timer timer) async {
+    if (_isExiting || !mounted) return;
+    try {
+      final states = await ref.read(offerRepositoryProvider).getActivationStates();
+      if (states[widget.offerId] == 'activated') {
+        _pollTimer?.cancel();
+        _pollTimer = null;
+        if (!mounted) return;
+        ref.invalidate(activationStatesProvider);
+        ref.invalidate(myOffersProvider);
+        ref.invalidate(activeOffersProvider);
+        context.pop();
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          showDialog<void>(
+            context: ctx,
+            barrierDismissible: false,
+            builder: (dialogContext) => const LoyaltySuccessModal(
+              title: 'Offre activée',
+              subtitle: 'Utilisable lors de votre prochaine réservation.',
+              highlightValue: 'Validée',
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      // ignore polling errors
+    }
+  }
 
   Future<void> _onExit() async {
     if (_isExiting) return;
     _isExiting = true;
+    _pollTimer?.cancel();
+    _pollTimer = null;
     try {
       if (widget.offerId.isNotEmpty) {
         await ref.read(offerRepositoryProvider).cancelPendingActivation(widget.offerId);
