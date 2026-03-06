@@ -494,18 +494,6 @@ class _PackCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            if (offer.applicableServices.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                offer.applicableServices.join(' + '),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withOpacity(0.85),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
             const SizedBox(height: 10),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -529,11 +517,6 @@ class _PackCard extends StatelessWidget {
                       color: Colors.white,
                     ),
                   ),
-                const Spacer(),
-                _GlassButton(
-                  label: 'Voir détails',
-                  onTap: () {},
-                ),
               ],
             ),
           ],

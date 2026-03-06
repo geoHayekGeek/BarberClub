@@ -371,10 +371,17 @@ class ClientOffersService {
       include: { offer: true },
       orderBy: { activatedAt: 'desc' },
     });
+    // One row per offer: keep only the most recent activation per offerId (list is already ordered by activatedAt desc)
+    const seenOfferIds = new Set<string>();
+    const uniqueActivations = activations.filter((a) => {
+      if (seenOfferIds.has(a.offerId)) return false;
+      seenOfferIds.add(a.offerId);
+      return true;
+    });
     const filtered =
       completedBookingsCount > 0
-        ? activations.filter((a) => a.offer.type !== 'welcome')
-        : activations;
+        ? uniqueActivations.filter((a) => a.offer.type !== 'welcome')
+        : uniqueActivations;
     return filtered.map((a) => ({
       activationId: a.id,
       status: a.status,
