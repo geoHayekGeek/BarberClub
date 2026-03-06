@@ -173,7 +173,7 @@ class CompteScreen extends ConsumerWidget {
                     SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton.icon(
+                      child: ElevatedButton.icon( 
                         onPressed: () async {
                           await ref.read(authStateProvider.notifier).logout();
                           if (context.mounted) context.go('/login');
