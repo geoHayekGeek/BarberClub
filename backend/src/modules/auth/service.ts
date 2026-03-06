@@ -10,6 +10,7 @@ import { hashPassword, verifyPassword } from './utils/password';
 import { generateAccessToken, generateRefreshToken, verifyToken, hashToken } from './utils/token';
 import { validatePhoneNumber } from './utils/phone';
 import { logger } from '../../utils/logger';
+import { clientOffersService } from '../client_offers/service';
 
 export interface RegisterInput {
   email: string;
@@ -107,6 +108,12 @@ export class AuthService {
           expiresAt,
         },
       });
+
+      try {
+        await clientOffersService.activateWelcomeOfferForNewUser(user.id);
+      } catch (err) {
+        logger.warn('Welcome offer activation skipped', { userId: user.id, error: err });
+      }
 
       logger.info('User registered', { userId: user.id, email: user.email });
 

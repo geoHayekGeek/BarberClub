@@ -14,6 +14,7 @@ import { barbersService } from '../modules/barbers/service';
 import { offersService } from '../modules/offers/service';
 import { loyaltyService } from '../modules/loyalty/service';
 import * as loyaltyV2 from '../modules/loyalty_v2/service';
+import { clientOffersService } from '../modules/client_offers/service';
 import { parseQRPayload, QRType } from '../utils/qr';
 import { AppError, ErrorCode } from '../utils/errors';
 import { assertAdminHasAccessToSalon } from '../modules/admin/salonAccess';
@@ -360,6 +361,26 @@ router.post(
         return;
       }
       const result = await loyaltyService.redeemCoupon(payload);
+      res.status(200).json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+const offerValidateSchema = z.object({
+  qrPayload: z.string().min(1),
+});
+
+/** POST /admin/offers/validate — Barber scans offer QR (BC|v1|OFFER|token). Body: { qrPayload }. */
+router.post(
+  '/offers/validate',
+  authenticate,
+  requireAdmin,
+  validate(offerValidateSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await clientOffersService.validateOfferQr(req.body.qrPayload);
       res.status(200).json({ data: result });
     } catch (error) {
       next(error);

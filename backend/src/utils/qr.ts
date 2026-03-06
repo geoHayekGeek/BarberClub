@@ -15,6 +15,8 @@ export enum QRType {
   EARN = 'E',
   /** New: voucher redeem QR (user redeems reward -> gets voucher QR -> admin scans) */
   VOUCHER = 'V',
+  /** Offer activation QR (user requests activation -> shows QR -> barber scans to activate) */
+  OFFER = 'OFFER',
 }
 
 export interface QRPayload {
@@ -67,7 +69,7 @@ export function parseQRPayload(payload: string): QRPayload | null {
     return null;
   }
 
-  const validTypes = [QRType.POINT, QRType.COUPON, QRType.EARN, QRType.VOUCHER];
+  const validTypes = [QRType.POINT, QRType.COUPON, QRType.EARN, QRType.VOUCHER, QRType.OFFER];
   if (!validTypes.includes(typeRaw as QRType)) {
     return null;
   }

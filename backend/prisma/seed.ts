@@ -459,6 +459,111 @@ const offersData = [
   }
   console.log('Global offers (offres):', globalCreated, 'created,', globalOffersData.length - globalCreated, 'already present.');
 
+  // --- CLIENT OFFERS (promotions: event, flash, pack, permanent, welcome) ---
+  const now = new Date();
+  const inOneWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const inTwoDays = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+  const salonOfferIds = await prisma.offer.findMany({
+    where: { salonId: salonMeylan.id },
+    select: { id: true },
+    take: 4,
+  });
+  const applicableServiceIds = salonOfferIds.map((o) => o.id);
+
+  const clientOffersData = [
+    {
+      type: 'event' as const,
+      title: 'Offre limitée -15%',
+      description: 'Profitez de -15% sur toutes les prestations jusqu\'à la fin de la semaine.',
+      discountType: 'percentage' as const,
+      discountValue: 15,
+      applicableServices: [] as string[],
+      startsAt: now,
+      endsAt: inOneWeek,
+      maxSpots: null,
+      imageUrl: null,
+      isActive: true,
+    },
+    {
+      type: 'flash' as const,
+      title: 'Flash: -10€ sur Coupe + Barbe',
+      description: 'Places limitées. Réservez dans les 2 heures après activation.',
+      discountType: 'fixed' as const,
+      discountValue: 10,
+      applicableServices: applicableServiceIds.length > 0 ? [applicableServiceIds[0]] : [],
+      startsAt: now,
+      endsAt: inTwoDays,
+      maxSpots: 20,
+      imageUrl: null,
+      isActive: true,
+    },
+    {
+      type: 'pack' as const,
+      title: 'Pack Coupe + Barbe + Soin',
+      description: 'Les trois prestations ensemble à prix pack. Économisez sur votre coupe, barbe et soin.',
+      discountType: 'fixed' as const,
+      discountValue: 49,
+      applicableServices: applicableServiceIds,
+      startsAt: now,
+      endsAt: null,
+      maxSpots: null,
+      imageUrl: null,
+      isActive: true,
+    },
+    {
+      type: 'permanent' as const,
+      title: 'Parrainage',
+      description: 'Parrainez un ami: vous recevez tous les deux une réduction sur votre prochaine visite.',
+      discountType: 'percentage' as const,
+      discountValue: 10,
+      applicableServices: [] as string[],
+      startsAt: now,
+      endsAt: null,
+      maxSpots: null,
+      imageUrl: null,
+      isActive: true,
+    },
+    {
+      type: 'permanent' as const,
+      title: 'Offre anniversaire',
+      description: 'À votre anniversaire, bénéficiez de -20% sur une prestation. Ajoutez votre date de naissance dans votre profil.',
+      discountType: 'percentage' as const,
+      discountValue: 20,
+      applicableServices: [] as string[],
+      startsAt: now,
+      endsAt: null,
+      maxSpots: null,
+      imageUrl: null,
+      isActive: true,
+    },
+    {
+      type: 'welcome' as const,
+      title: 'Bienvenue: -10%',
+      description: 'Votre première visite au Barber Club: -10% sur une prestation. Valable 30 jours après inscription.',
+      discountType: 'percentage' as const,
+      discountValue: 10,
+      applicableServices: [] as string[],
+      startsAt: now,
+      endsAt: null,
+      maxSpots: null,
+      imageUrl: null,
+      isActive: true,
+    },
+  ];
+
+  let clientOffersCreated = 0;
+  for (const co of clientOffersData) {
+    const existing = await prisma.clientOffer.findFirst({
+      where: { title: co.title, type: co.type },
+    });
+    if (!existing) {
+      await prisma.clientOffer.create({ data: co });
+      clientOffersCreated++;
+    }
+  }
+  console.log('Client offers (event, flash, pack, permanent, welcome):', clientOffersCreated, 'created.');
+
   // --- Loyalty v2 rewards (idempotent) ---
   const loyaltyRewardsData = [
     { name: 'Cire ou Poudre au choix', costPoints: 160, description: 'Cire ou poudre au choix', imageUrl: '/images/rewards/placeholder.png', isActive: true },
