@@ -92,59 +92,25 @@ class LoyaltyCardScreen extends ConsumerWidget {
   }
 }
 
-class _LoyaltyV2Body extends ConsumerWidget {
+class _LoyaltyV2Body extends ConsumerStatefulWidget {
   const _LoyaltyV2Body({required this.state});
 
   final LoyaltyV2State state;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              LoyaltyCardScreen._horizontalPadding,
-              LoyaltyCardScreen._verticalRhythm,
-              LoyaltyCardScreen._horizontalPadding,
-              LoyaltyCardScreen._bottomNavPadding,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _Header(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _MainCard(state: state),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('VOTRE STATUT'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                _TierCarousel(currentTier: state.tier),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('RÉCOMPENSES'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                const _RewardsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('MES BONS'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                const _RedemptionsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('HISTORIQUE RÉCENT'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                const _TransactionsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                AppPrimaryButton(
-                  label: 'Afficher mon QR',
-                  onTap: () => _showEarnQr(context, ref),
-                ),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                const _InfoCards(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+  ConsumerState<_LoyaltyV2Body> createState() => _LoyaltyV2BodyState();
+}
+
+class _LoyaltyV2BodyState extends ConsumerState<_LoyaltyV2Body> {
+  bool _isOpeningEarnQr = false;
+
+  Future<void> _openEarnQr() async {
+    if (_isOpeningEarnQr) return;
+    setState(() => _isOpeningEarnQr = true);
+    await _showEarnQr(context, ref);
+    if (mounted) {
+      setState(() => _isOpeningEarnQr = false);
+    }
   }
 
   Future<void> _showEarnQr(BuildContext context, WidgetRef ref) async {
@@ -180,6 +146,64 @@ class _LoyaltyV2Body extends ConsumerWidget {
         );
       }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              LoyaltyCardScreen._horizontalPadding,
+              LoyaltyCardScreen._verticalRhythm,
+              LoyaltyCardScreen._horizontalPadding,
+              LoyaltyCardScreen._bottomNavPadding,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _Header(),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                _MainCard(state: state),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                _SectionTitle('VOTRE STATUT'),
+                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
+                _TierCarousel(currentTier: state.tier),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                _SectionTitle('RÉCOMPENSES'),
+                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
+                const _RewardsSection(),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                _SectionTitle('MES BONS'),
+                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
+                const _RedemptionsSection(),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                _SectionTitle('HISTORIQUE RÉCENT'),
+                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
+                const _TransactionsSection(),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                IgnorePointer(
+                  ignoring: _isOpeningEarnQr,
+                  child: AnimatedOpacity(
+                    opacity: _isOpeningEarnQr ? 0.5 : 1,
+                    duration: const Duration(milliseconds: 150),
+                    child: AppPrimaryButton(
+                      label: 'Afficher mon QR',
+                      onTap: _openEarnQr,
+                    ),
+                  ),
+                ),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+                const _InfoCards(),
+                SizedBox(height: LoyaltyUIConstants.betweenSections),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -696,6 +720,156 @@ String _redemptionStatusLabel(String status) {
   }
 }
 
+Future<void> _openVoucherQrDialog(BuildContext context, WidgetRef ref, String redemptionId) async {
+  final dio = ref.read(dioClientProvider).dio;
+  try {
+    final response = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/redemptions/$redemptionId/qr');
+    final payload = response.data?['data'] as Map<String, dynamic>?;
+    final qrPayload = payload?['qrPayload'] as String?;
+    if (qrPayload == null || qrPayload.isEmpty || !context.mounted) return;
+    ref.read(qrDialogCloserProvider.notifier).state = () {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) Navigator.of(ctx).pop();
+    };
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => _VoucherQrFullscreenDialog(
+        qrPayload: qrPayload,
+        onClose: () => Navigator.of(ctx).pop(),
+      ),
+    );
+    if (context.mounted) {
+      ref.read(qrDialogCloserProvider.notifier).state = null;
+      ref.invalidate(loyaltyRedemptionsProvider);
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de générer le QR')),
+      );
+    }
+  }
+}
+
+Future<void> _cancelRedemptionDialog(BuildContext context, WidgetRef ref, String redemptionId) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Annuler le bon'),
+      content: const Text(
+        'Annuler ce bon et récupérer les points ?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Non'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Oui, annuler'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+  final dio = ref.read(dioClientProvider).dio;
+  try {
+    await dio.post('/api/v1/loyalty/redemptions/$redemptionId/cancel');
+    if (context.mounted) {
+      ref.invalidate(loyaltyV2StateProvider);
+      ref.invalidate(loyaltyRedemptionsProvider);
+      ref.invalidate(loyaltyTransactionsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bon annulé, points récupérés')),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'annuler le bon')),
+      );
+    }
+  }
+}
+
+class _VoucherCard extends ConsumerStatefulWidget {
+  const _VoucherCard({required this.redemption});
+
+  final LoyaltyRedemptionItem redemption;
+
+  @override
+  ConsumerState<_VoucherCard> createState() => _VoucherCardState();
+}
+
+class _VoucherCardState extends ConsumerState<_VoucherCard> {
+  bool _isOpeningQr = false;
+
+  Future<void> _openQr() async {
+    if (_isOpeningQr) return;
+    setState(() => _isOpeningQr = true);
+    await _openVoucherQrDialog(context, ref, widget.redemption.id);
+    if (mounted) {
+      setState(() => _isOpeningQr = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.redemption;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                r.rewardName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _redemptionStatusLabel(r.status),
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+              ),
+              if (r.isPending) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _isOpeningQr ? null : _openQr,
+                        child: const Text('Afficher QR'),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _isOpeningQr ? null : () => _cancelRedemptionDialog(context, ref, r.id),
+                        child: const Text('Annuler'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RedemptionsSection extends ConsumerWidget {
   const _RedemptionsSection();
 
@@ -712,136 +886,12 @@ class _RedemptionsSection extends ConsumerWidget {
         }
         return Column(
           mainAxisSize: MainAxisSize.min,
-          children: list.map((r) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              r.rewardName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _redemptionStatusLabel(r.status),
-                              style: TextStyle(color: Colors.white54, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (r.isPending)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextButton(
-                              onPressed: () => _showVoucherQr(context, ref, r.id),
-                              child: const Text('Afficher QR'),
-                            ),
-                            TextButton(
-                              onPressed: () => _cancelRedemption(context, ref, r.id),
-                              child: const Text('Annuler'),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
+          children: list.map((r) => _VoucherCard(redemption: r)).toList(),
         );
       },
       loading: () => const SizedBox(height: 60, child: Center(child: CircularProgressIndicator())),
       error: (_, __) => const SizedBox.shrink(),
     );
-  }
-
-  Future<void> _showVoucherQr(BuildContext context, WidgetRef ref, String redemptionId) async {
-    final dio = ref.read(dioClientProvider).dio;
-    try {
-      final response = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/redemptions/$redemptionId/qr');
-      final payload = response.data?['data'] as Map<String, dynamic>?;
-      final qrPayload = payload?['qrPayload'] as String?;
-      if (qrPayload == null || qrPayload.isEmpty || !context.mounted) return;
-      ref.read(qrDialogCloserProvider.notifier).state = () {
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null) Navigator.of(ctx).pop();
-      };
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        builder: (ctx) => _VoucherQrFullscreenDialog(
-          qrPayload: qrPayload,
-          onClose: () => Navigator.of(ctx).pop(),
-        ),
-      );
-      if (context.mounted) {
-        ref.read(qrDialogCloserProvider.notifier).state = null;
-        ref.invalidate(loyaltyRedemptionsProvider);
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de générer le QR')),
-        );
-      }
-    }
-  }
-
-  Future<void> _cancelRedemption(BuildContext context, WidgetRef ref, String redemptionId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Annuler le bon'),
-        content: const Text(
-          'Annuler ce bon et récupérer les points ?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Oui, annuler'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    final dio = ref.read(dioClientProvider).dio;
-    try {
-      await dio.post('/api/v1/loyalty/redemptions/$redemptionId/cancel');
-      if (context.mounted) {
-        ref.invalidate(loyaltyV2StateProvider);
-        ref.invalidate(loyaltyRedemptionsProvider);
-        ref.invalidate(loyaltyTransactionsProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bon annulé, points récupérés')),
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible d\'annuler le bon')),
-        );
-      }
-    }
   }
 }
 

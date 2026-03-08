@@ -267,7 +267,7 @@ Widget _errorState(
   );
 }
 
-class _EventFlashCard extends StatelessWidget {
+class _EventFlashCard extends StatefulWidget {
   const _EventFlashCard({
     required this.offer,
     required this.activationStatus,
@@ -276,10 +276,27 @@ class _EventFlashCard extends StatelessWidget {
 
   final ClientOffer offer;
   final String activationStatus;
-  final VoidCallback onRequestActivation;
+  final Future<void> Function() onRequestActivation;
+
+  @override
+  State<_EventFlashCard> createState() => _EventFlashCardState();
+}
+
+class _EventFlashCardState extends State<_EventFlashCard> {
+  bool _isActivating = false;
+
+  Future<void> _handleActivate() async {
+    if (_isActivating) return;
+    setState(() => _isActivating = true);
+    await widget.onRequestActivation();
+    if (mounted) {
+      setState(() => _isActivating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final offer = widget.offer;
     final imageUrl = AppConfig.resolveImageUrl(offer.imageUrl);
 
     return Padding(
@@ -392,8 +409,9 @@ class _EventFlashCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 _OfferCardButton(
-                  activationStatus: activationStatus,
-                  onRequestActivation: onRequestActivation,
+                  activationStatus: widget.activationStatus,
+                  isActivating: _isActivating,
+                  onRequestActivation: () { _handleActivate(); },
                 ),
               ],
             ),
@@ -407,23 +425,26 @@ class _EventFlashCard extends StatelessWidget {
 class _OfferCardButton extends StatelessWidget {
   const _OfferCardButton({
     required this.activationStatus,
+    this.isActivating = false,
     required this.onRequestActivation,
   });
 
   final String activationStatus;
-  final VoidCallback onRequestActivation;
+  final bool isActivating;
+  final VoidCallback? onRequestActivation;
 
   @override
   Widget build(BuildContext context) {
     final isUsed = activationStatus == 'used';
     final isActivated = activationStatus == 'activated';
     final isPendingScan = activationStatus == 'pending_scan';
+    final disabled = isUsed || isActivated || isPendingScan || isActivating;
     String label;
     if (isUsed) {
       label = 'Utilisée';
     } else if (isActivated) {
       label = 'Activée';
-    } else if (isPendingScan) {
+    } else if (isPendingScan || isActivating) {
       label = 'En attente';
     } else {
       label = 'Activer';
@@ -432,7 +453,7 @@ class _OfferCardButton extends StatelessWidget {
       label: label,
       isActivated: isActivated,
       showCheck: isActivated,
-      onTap: isUsed ? null : (isActivated || isPendingScan ? null : onRequestActivation),
+      onTap: disabled ? null : onRequestActivation,
     );
   }
 }
