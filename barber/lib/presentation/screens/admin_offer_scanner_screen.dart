@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../providers/auth_providers.dart';
-import '../widgets/qr_scanner_overlay.dart';
+import '../widgets/scanner_overlay.dart';
 
 /// Admin: scan offer activation QR (BC|v1|OFFER|token) to validate and set status = activated.
 class AdminOfferScannerScreen extends ConsumerStatefulWidget {
@@ -16,15 +16,27 @@ class AdminOfferScannerScreen extends ConsumerStatefulWidget {
 
 class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScreen> {
   static const _scanCooldown = Duration(seconds: 5);
+  static const _cameraStartDelay = Duration(milliseconds: 500);
 
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
+  bool _cameraReady = false;
   bool _isSubmitting = false;
   bool _isProcessing = false;
   DateTime? _lastScanAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(_cameraStartDelay, () {
+        if (mounted) setState(() => _cameraReady = true);
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -143,11 +155,19 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
     return Stack(
       fit: StackFit.expand,
       children: [
-        MobileScanner(
-          controller: _controller,
-          onDetect: _onDetect,
-        ),
-        const QrScannerOverlay(instructionText: 'Scannez le QR d\'activation offre'),
+        if (_cameraReady)
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+          )
+        else
+          const ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          ),
+        if (_cameraReady) const ScannerOverlay(instructionText: 'Scannez le QR d\'activation offre'),
         if (_isSubmitting)
           Container(
             color: Colors.black54,

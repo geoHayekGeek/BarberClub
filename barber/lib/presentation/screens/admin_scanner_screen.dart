@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../providers/auth_providers.dart';
-import '../widgets/qr_scanner_overlay.dart';
+import '../widgets/scanner_overlay.dart';
 
 /// Admin QR scanner body. Disabled while scan request is in progress.
 /// Success: "Point ajouté". Error: "QR invalide".
@@ -21,14 +21,26 @@ class AdminScannerScreen extends ConsumerStatefulWidget {
 
 class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
   static const _scanCooldown = Duration(seconds: 5);
+  static const _cameraStartDelay = Duration(milliseconds: 500);
 
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
+  bool _cameraReady = false;
   bool _isSubmitting = false;
   DateTime? _lastScanAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(_cameraStartDelay, () {
+        if (mounted) setState(() => _cameraReady = true);
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -189,11 +201,19 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
-          const QrScannerOverlay(instructionText: 'Scannez le QR code'),
+          if (_cameraReady)
+            MobileScanner(
+              controller: _controller,
+              onDetect: _onDetect,
+            )
+          else
+            const ColoredBox(
+              color: Colors.black,
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+          if (_cameraReady) const ScannerOverlay(instructionText: 'Scannez le QR code'),
           if (_isSubmitting)
             Container(
               color: Colors.black54,
