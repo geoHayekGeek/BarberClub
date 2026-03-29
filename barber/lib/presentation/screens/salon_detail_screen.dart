@@ -6,9 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
+import '../providers/offer_providers.dart';
 import '../providers/salon_providers.dart';
+import '../widgets/prestation_item.dart';
 
-/// Salon detail: immersive header, premium info cards (Adresse, Téléphone, Horaires), gallery, CTA.
+/// Salon detail: immersive header, premium info cards (Adresse, Téléphone, Horaires), prestations, gallery, CTA.
 class SalonDetailScreen extends ConsumerWidget {
   final String salonId;
 
@@ -279,33 +281,10 @@ class _SalonDetailContent extends StatelessWidget {
                     openingHoursStructured: salon.openingHoursStructured,
                   ),
                   const SizedBox(height: 24),
+                  _SalonPrestationsSection(salonId: salon.id),
+                  const SizedBox(height: 24),
                   _buildGallerySection(context),
                   const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: SizedBox(
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          final url = Uri(
-                            path: '/home/prestations/${salon.id}',
-                            queryParameters: {'name': salon.name},
-                          ).toString();
-                          context.go(url);
-                        },
-                        icon: const Icon(Icons.receipt_long_outlined, size: 22),
-                        label: const Text('Voir nos prestations'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white.withOpacity(0.3)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SizedBox(
@@ -464,6 +443,112 @@ class _SalonDetailContent extends StatelessWidget {
       color: const Color(0xFF1A1A1A),
       child: const Center(
         child: Icon(Icons.store, size: 64, color: Colors.white24),
+      ),
+    );
+  }
+}
+
+class _SalonPrestationsSection extends ConsumerWidget {
+  final String salonId;
+
+  const _SalonPrestationsSection({required this.salonId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(prestationsListProvider(salonId));
+    return async.when(
+      data: (offers) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.receipt_long_outlined, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'PRESTATIONS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (offers.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: Text(
+                      'Aucune prestation pour le moment.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ...offers.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final offer = entry.value;
+                  return Column(
+                    key: ValueKey(offer.id),
+                    children: [
+                      PrestationItem(offer: offer),
+                      if (index < offers.length - 1)
+                        Container(
+                          height: 1,
+                          margin: const EdgeInsets.symmetric(vertical: 16),
+                          color: Colors.white.withOpacity(0.05),
+                        ),
+                    ],
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+      loading: () => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+          ),
+        ),
+      ),
+      error: (_, __) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(
+          'Impossible de charger les prestations.',
+          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
