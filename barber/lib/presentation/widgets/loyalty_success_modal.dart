@@ -64,12 +64,14 @@ class _LoyaltySuccessModalState extends State<LoyaltySuccessModal>
               children: [
                 Text(
                   widget.title,
+                  textScaler: const TextScaler.linear(1.0),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.5,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 TweenAnimationBuilder<double>(
@@ -82,25 +84,36 @@ class _LoyaltySuccessModalState extends State<LoyaltySuccessModal>
                       child: child,
                     );
                   },
-                  child: Text(
-                    widget.highlightValue,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 64,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1,
+                  child: SizedBox(
+                    width: double.infinity,
+                    // --- THE FIX ---
+                    // FittedBox will cleanly shrink long text like "Cire ou Poudre au choix" 
+                    // instead of wrapping it into giant unreadable lines.
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.highlightValue,
+                        textScaler: const TextScaler.linear(1.0),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          // Lowered from 64 to 32. It will still look big and premium,
+                          // but won't violently overflow the container.
+                          fontSize: 20, 
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   widget.subtitle,
+                  textScaler: const TextScaler.linear(1.0),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.85),
-                    fontSize: 18,
+                    fontSize: 16, // Adjusted slightly for better hierarchy
                     fontWeight: FontWeight.w500,
                   ),
                   textAlign: TextAlign.center,
@@ -135,6 +148,7 @@ class _LoyaltySuccessModalState extends State<LoyaltySuccessModal>
                     ),
                     child: const Text(
                       'Continuer',
+                      textScaler: TextScaler.linear(1.0),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,

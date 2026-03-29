@@ -18,18 +18,15 @@ class HomeCenterContent extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Title
-            Text(
-              'BARBER CLUB',
-              style: theme.textTheme.displayLarge?.copyWith(
-                fontSize: 48,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 4,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
+            // --- LOGO REPLACEMENT ---
+            // Replaced Text('BARBER CLUB') with Image.asset
+            Image.asset(
+              'assets/images/barber_club_full_logo.png', // Ensure this path matches your logo file
+              width: MediaQuery.of(context).size.width * 0.8, // Sets width to 80% of screen
+              fit: BoxFit.contain,
             ),
-            const SizedBox(height: 24),
+            
+            const SizedBox(height: 32), // Add spacing between logo and subtitle
             // Subtitle
             Text(
               'Des coupes sur-mesure, une expérience premium.',
