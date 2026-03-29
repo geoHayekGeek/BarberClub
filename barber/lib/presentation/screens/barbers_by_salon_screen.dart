@@ -169,20 +169,10 @@ class _BarberGridCard extends StatefulWidget {
 class _BarberGridCardState extends State<_BarberGridCard> {
   double _scale = 1;
 
-  static String _experienceLevel(Barber b) {
-    if (b.experienceYears != null && b.experienceYears! > 0) {
-      return '${b.experienceYears} ANS D\'EXP.';
-    }
-    final level = b.level.toUpperCase();
-    if (level.isNotEmpty && level != 'BARBER') return level;
-    return 'COIFFEUR';
-  }
-
   @override
   Widget build(BuildContext context) {
     const radius = BorderRadius.all(Radius.circular(20));
     final imageUrl = AppConfig.resolveImageUrl(widget.barber.image);
-    final experienceLevel = _experienceLevel(widget.barber);
 
     return Material(
       color: Colors.transparent,
@@ -220,32 +210,17 @@ class _BarberGridCardState extends State<_BarberGridCard> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     color: Colors.black.withOpacity(0.75),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          widget.barber.displayName.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          experienceLevel,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      widget.barber.displayName.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),

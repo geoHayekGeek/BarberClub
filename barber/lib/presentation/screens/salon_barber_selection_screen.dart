@@ -5,6 +5,7 @@ import '../widgets/glowing_separator.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
+import '../widgets/app_primary_button.dart';
 
 /// Nos coiffeurs tab: salon selection. Immersive sections; tap "VOIR LES COIFFEURS" opens barbers for that salon.
 class SalonBarberSelectionScreen extends ConsumerWidget {
@@ -158,34 +159,10 @@ class _SalonBarberSectionWidgetState extends State<_SalonBarberSectionWidget> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: widget.onTap,
-                        icon: const Icon(
-                          Icons.person_outline,
-                          size: 22,
-                          color: Colors.black,
-                        ),
-                        label: const Text(
-                          'VOIR LES COIFFEURS',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 2,
-                            color: Colors.black,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 24),
+                    AppPrimaryButton(
+                      label: 'Voir les coiffeurs',
+                      onTap: widget.onTap,
                     ),
                   ],
                 ),

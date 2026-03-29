@@ -7,6 +7,7 @@ import '../../domain/models/salon.dart';
 import '../providers/salon_providers.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_center_content.dart';
+import '../widgets/app_primary_button.dart';
 
 /// Home screen (Accueil) - Hero + scrollable salons section
 class HomeScreen extends ConsumerWidget {
@@ -230,16 +231,27 @@ class _AccueilSalonSection extends StatelessWidget {
                 left: 24,
                 bottom: 60,
                 right: 24,
-                child: Text(
-                  salon.name.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 3,
-                    color: Colors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      salon.name.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 3,
+                        color: Colors.white,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 24),
+                    AppPrimaryButton(
+                      label: 'Plus d\'infos',
+                      onTap: onTap,
+                    ),
+                  ],
                 ),
               ),
             ],
