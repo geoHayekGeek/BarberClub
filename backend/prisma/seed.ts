@@ -188,21 +188,21 @@ async function main() {
   const grenobleData = {
     name: 'Barber Club Grenoble',
     city: 'Grenoble',
-    address: '12 rue de la République, 38000 Grenoble',
+    address: '5 Rue Clôt Bey, 38000 Grenoble',
     description: 'Barber Club Grenoble est notre premier salon, ouvert au cœur de la ville. Un espace dédié à l\'art de la barberie.',
     openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
     isActive: true,
     timifyUrl: 'https://book.timify.com/?accountId=662ab032662b882b9529faca&hideCloseButton=true',
-    phone: '04 76 12 34 56',
-    
+    phone: '09 56 30 93 86',
+
     // Updated Real Images
     imageUrl: IMAGES.salons.grenoble.main,
-    images: [IMAGES.salons.grenoble.main], 
+    images: [IMAGES.salons.grenoble.main],
     gallery: IMAGES.salons.grenoble.gallery,
-    
+
     openingHoursStructured: OPENING_HOURS_STRUCTURED,
-    latitude: 45.1885,
-    longitude: 5.7245,
+    latitude: 45.18955,
+    longitude: 5.72355,
   };
 
   if (salonGrenoble) {
@@ -219,21 +219,21 @@ async function main() {
   const meylanData = {
     name: 'Barber Club Meylan',
     city: 'Meylan',
-    address: '8 avenue Jean Jaurès, 38240 Meylan',
+    address: '26 Av. du Grésivaudan, 38700 Corenc',
     description: 'Le Barber Club Meylan vous propose les mêmes prestations que nos autres salons, dans un cadre moderne.',
     openingHours: 'Mar–Sam 9h–19h, Dim–Lun fermé',
     isActive: true,
     timifyUrl: 'https://book.timify.com/?accountId=68e13d325845e16b4feb0d4c&hideCloseButton=true',
-    phone: '09 56 30 93 86',
-    
+    phone: '04 58 28 21 75',
+
     // Updated Real Images
     imageUrl: IMAGES.salons.meylan.main,
     images: [IMAGES.salons.meylan.main],
     gallery: IMAGES.salons.meylan.gallery,
-    
+
     openingHoursStructured: OPENING_HOURS_STRUCTURED,
-    latitude: 45.2092,
-    longitude: 5.7814,
+    latitude: 45.2105,
+    longitude: 5.7625,
   };
 
   if (salonMeylan) {
