@@ -98,31 +98,35 @@ const GALLERY_IMAGES = [
 // --- IMAGE PATHS: relative so the app can prepend its apiBaseUrl (emulator, device, or production) ---
 const getImg = (relativePath: string) => `/images/${relativePath}`;
 
-function getBarberGallery(barberName: string) {
-  // 1. Path to the folder on your computer
-  // Adjust '../public' if your public folder is somewhere else relative to prisma folder
-  const dirPath = path.join(process.cwd(), 'public/images/barbers', barberName.toLowerCase());
+function getBarberGallery(folderName: string) {
+  // 1. Path to the specific folder based on your screenshot
+  const dirPath = path.join(process.cwd(), 'public/images/barbers', folderName);
 
   try {
     if (!fs.existsSync(dirPath)) {
-      console.warn(`⚠️ Warning: Folder not found for ${barberName} at ${dirPath}`);
-      return []; // Return empty if folder doesn't exist
+      console.warn(`⚠️ Warning: Folder not found at ${dirPath}`);
+      return []; 
     }
 
-    // 2. Read all files (jpg, png, mp4, etc.)
+    // 2. Read all files
     const files = fs.readdirSync(dirPath);
 
-    // 3. Convert filenames to http://10.0.2.2... URLs
-    // Filters out system files like .DS_Store
-    const validFiles = files.filter(file => !file.startsWith('.'));
+    // 3. Filter for valid IMAGE extensions only (ignores .mp4, .DS_Store, etc.)
+    const validImageExts = ['.jpg', '.jpeg', '.png', '.avif', '.webp'];
+    const imageFiles = files.filter(file => {
+      if (file.startsWith('.')) return false;
+      const ext = path.extname(file).toLowerCase();
+      return validImageExts.includes(ext);
+    });
     
-    return validFiles.map(file => getImg(`barbers/${barberName.toLowerCase()}/${file}`));
+    // 4. Return the mapped paths
+    return imageFiles.map(file => getImg(`barbers/${folderName}/${file}`));
 
   } catch (error) {
-    console.error(`Error reading gallery for ${barberName}:`, error);
+    console.error(`Error reading gallery for ${folderName}:`, error);
     return [];
   }
-}
+}                                         
 // --- REAL DATA MAPPING ---
 const IMAGES = {
   salons: {
@@ -237,9 +241,7 @@ async function main() {
   } else {
     salonMeylan = await prisma.salon.create({ data: meylanData });
   }
-
-  // --- 3. BARBERS ---
-  // Based on your screenshots
+// --- 3. BARBERS ---
   const barbersData = [
     {
       firstName: 'Tom',
@@ -254,7 +256,8 @@ async function main() {
       origin: 'Chirens',
       videoUrl: IMAGES.videos.tom,
       imageUrl: IMAGES.barbers.tom,
-      gallery: [IMAGES.barbers.tom, ...GALLERY_IMAGES.slice(0, 2)],
+      // Uses the "Coupes TOM" folder
+      gallery: [IMAGES.barbers.tom, ...getBarberGallery('Coupes TOM')],
     },
     {
       firstName: 'Nathan',
@@ -269,7 +272,8 @@ async function main() {
       origin: 'Milan',
       videoUrl: IMAGES.videos.nathan,
       imageUrl: IMAGES.barbers.nathan,
-      gallery: [IMAGES.barbers.nathan, ...GALLERY_IMAGES.slice(0, 2)],
+      // Uses the "Coupe Nathan" folder
+      gallery: [IMAGES.barbers.nathan, ...getBarberGallery('Coupe Nathan')],
     },
     {
       firstName: 'Clément',
@@ -284,7 +288,8 @@ async function main() {
       origin: 'Voiron',
       videoUrl: IMAGES.videos.clement,
       imageUrl: IMAGES.barbers.clement,
-      gallery: [IMAGES.barbers.clement, ...GALLERY_IMAGES.slice(0, 2)],
+      // Uses the "coupes-clement" folder
+      gallery: [IMAGES.barbers.clement, ...getBarberGallery('coupes-clement')],
     },
     {
       firstName: 'Lucas',
@@ -299,7 +304,8 @@ async function main() {
       origin: 'Villard-Bonnot',
       videoUrl: IMAGES.videos.lucas,
       imageUrl: IMAGES.barbers.lucas,
-      gallery: [IMAGES.barbers.lucas, ...GALLERY_IMAGES.slice(0, 2)],
+      // Uses the "Coupe Lucas" folder
+      gallery: [IMAGES.barbers.lucas, ...getBarberGallery('Coupe Lucas')],
     },
     {
       firstName: 'Julien',
@@ -309,15 +315,15 @@ async function main() {
       experienceYears: 7, 
       level: 'Fondateur',
       interests: ['Expertise', 'Convivialité'],
-      salonIds: [salonMeylan.id], // Removed Grenoble to focus on his main salon
+      salonIds: [salonMeylan.id],
       age: 26,
       origin: 'Voiron',
       videoUrl: IMAGES.videos.julien,
       imageUrl: IMAGES.barbers.julien, 
-      gallery: [IMAGES.barbers.julien, ...GALLERY_IMAGES.slice(0, 2)],
+      // Uses the "Coupe Ju" folder
+      gallery: [IMAGES.barbers.julien, ...getBarberGallery('Coupe Ju')],
     },
     {
-      // Alan reassigned to Grenoble since Voiron is gone
       firstName: 'Alan',
       lastName: 'Smith',
       displayName: 'Alan',
@@ -325,15 +331,16 @@ async function main() {
       experienceYears: 4,
       level: 'Senior',
       interests: ['Barbe', 'Coupe'],
-      salonIds: [salonGrenoble.id], // Moved to Grenoble
+      salonIds: [salonGrenoble.id], 
       age: 22,
       origin: 'Lyon',
       videoUrl: IMAGES.videos.alan,
       imageUrl: IMAGES.barbers.alan,
-      gallery: [IMAGES.barbers.alan, ...GALLERY_IMAGES.slice(0, 2)],
+      // Uses the "Coupe Alan" folder
+      gallery: [IMAGES.barbers.alan, ...getBarberGallery('Coupe Alan')],
     },
   ];
-
+  
   let created = 0;
   for (const data of barbersData) {
     const { salonIds, ...barberData } = data;
