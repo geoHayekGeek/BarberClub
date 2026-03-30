@@ -340,10 +340,10 @@ async function main() {
       gallery: [IMAGES.barbers.alan, ...getBarberGallery('Coupe Alan')],
     },
   ];
-  
+
   let created = 0;
   for (const data of barbersData) {
-    const { salonIds, ...barberData } = data;
+    const { salonIds, ...barberData } = data; 
     
     // Check if barber exists by First Name + Last Name
     const existing = await prisma.barber.findFirst({

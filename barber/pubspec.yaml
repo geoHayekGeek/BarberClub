@@ -64,19 +64,20 @@ dev_dependencies:
   flutter_native_splash: ^2.4.7
 
 flutter_native_splash:
-  color: "#000000"
+  color: "#9E9E9E"
   image: assets/images/barber_club_logo.png
   
   # This section is what fixes the white screen in your screenshot
   android_12:
-    color: "#000000"
+    color: "#9E9E9E"
+    icon_background_color: "#9E9E9E" 
     image: assets/images/barber_club_logo.png
 
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/barber_club_logo.png"
-  adaptive_icon_background: "#000000"
+  adaptive_icon_background: "#9E9E9E"
   adaptive_icon_foreground: "assets/images/barber_club_logo.png"
 
 flutter:
@@ -96,4 +97,4 @@ flutter:
 
   # Assets
   assets:
-    - assets/images/barber_background.jpg
+  - assets/images/
