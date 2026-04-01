@@ -1,8 +1,12 @@
 /**
  * Seed script: admin user + salons + barbers (coiffeurs) with links.
  *
- * Run AFTER migrations: npx prisma migrate dev
- * Then: npx prisma db seed
+ * Local (TypeScript, no build): npm run prisma:seed
+ * After migrations: npx prisma migrate dev
+ *
+ * Prisma CLI (Docker/Railway/production): requires compiled output first.
+ *   npm run build && npx prisma db seed
+ * The prisma.seed command runs: node dist/prisma/seed.js (tsx is not installed in prod).
  */
 // @ts-nocheck
 /// <reference types="node" />

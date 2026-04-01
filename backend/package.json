@@ -69,7 +69,6 @@
     "node": ">=20.0.0"
   },
   "prisma": {
-  "seed": "tsx prisma/seed.ts",
-  "seed:prod": "node dist/prisma/seed.js"
+    "seed": "node dist/prisma/seed.js"
   }
 }
