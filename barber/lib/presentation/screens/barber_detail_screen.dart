@@ -154,7 +154,7 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
                   ),
                   const SizedBox(height: 32),
                   _SectionTitleWithDivider(title: 'SES RÉALISATIONS'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _GalleryGrid(imageUrls: widget.barber.galleryImages),
                   SizedBox(height: 24 + mediaQuery.padding.bottom),
                 ],
@@ -688,6 +688,7 @@ class _SectionTitleWithDivider extends StatelessWidget {
             fontSize: 20,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
+            height: 1.0,
           ),
         ),
         Expanded(
@@ -712,6 +713,7 @@ class _GalleryGrid extends StatelessWidget {
     if (imageUrls.isEmpty) return const SizedBox.shrink();
 
     return GridView.builder(
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

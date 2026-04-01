@@ -330,13 +330,15 @@ class _SalonDetailContent extends StatelessWidget {
               fontSize: 18,
               fontWeight: FontWeight.w700,
               letterSpacing: 2,
+              height: 1.0,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GridView.builder(
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

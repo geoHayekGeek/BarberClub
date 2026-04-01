@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 /// Solid black bottom navigation bar.
 /// Center item (RDV, index 2) is elevated slightly above the bar using a Stack.
 /// Tab order matches StatefulShellBranch indexes in app_router.dart:
-/// 0: Accueil, 1: Coiffeurs, 2: RDV (center), 3: Carte, 4: Offres
+/// 0: Accueil, 1: Barbers, 2: RDV (center), 3: Fidélité, 4: Offres
 class BottomNavBar extends StatelessWidget {
   const BottomNavBar({super.key, this.navigationShell});
   final StatefulNavigationShell? navigationShell;
@@ -13,9 +13,9 @@ class BottomNavBar extends StatelessWidget {
 
   static const _tabs = [
     _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'ACCUEIL', path: '/home'),
-    _NavItem(icon: Icons.content_cut_outlined, activeIcon: Icons.content_cut, label: 'COIFFEURS', path: '/coiffeurs'),
+    _NavItem(icon: Icons.content_cut_outlined, activeIcon: Icons.content_cut, label: 'BARBERS', path: '/coiffeurs'),
     _NavItem(icon: Icons.calendar_today_outlined, activeIcon: Icons.calendar_today, label: 'RDV', path: '/rdv'),
-    _NavItem(icon: Icons.card_giftcard_outlined, activeIcon: Icons.card_giftcard, label: 'CARTE', path: '/carte-fidelite'),
+    _NavItem(icon: Icons.card_giftcard_outlined, activeIcon: Icons.card_giftcard, label: 'FIDÉLITÉ', path: '/carte-fidelite'),
     _NavItem(icon: Icons.local_offer_outlined, activeIcon: Icons.local_offer, label: 'OFFRES', path: '/offres'),
   ];
 
