@@ -62,8 +62,9 @@ export interface MyOfferItem {
 
 class ClientOffersService {
   /**
-   * GET /api/offers - Active offers feed.
-   * isActive = true, startsAt <= now, and not expired (endsAt > now or null).
+   * GET /api/v1/offers - Public offers feed (non-expired, excluding welcome).
+   * Includes offers that are currently valid (startsAt <= now) and offers scheduled for later (startsAt > now).
+   * The app splits into "Offres en cours" vs "Offres à venir". Expired offers (endsAt <= now) are excluded.
    */
   async getActiveOffers(): Promise<OfferFeedItem[]> {
     const now = new Date();
@@ -71,13 +72,9 @@ class ClientOffersService {
       where: {
         type: { not: 'welcome' },
         isActive: true,
-        startsAt: { lte: now },
-        OR: [
-          { endsAt: null },
-          { endsAt: { gt: now } },
-        ],
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
       },
-      orderBy: [{ type: 'asc' }, { startsAt: 'desc' }],
+      orderBy: [{ startsAt: 'asc' }, { type: 'asc' }],
     });
     return offers.map((o) => ({
       id: o.id,

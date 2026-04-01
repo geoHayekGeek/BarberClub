@@ -19,6 +19,7 @@ class OfferRepositoryImpl implements OfferRepository {
     return [];
   }
 
+  /// GET /api/v1/offers: non-expired public feed (includes upcoming starts).
   @override
   Future<List<ClientOffer>> getActiveOffers() async {
     try {

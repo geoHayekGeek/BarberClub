@@ -131,21 +131,21 @@ function getBarberGallery(folderName: string) {
 const IMAGES = {
   salons: {
     grenoble: {
-      main: getImg('salons/grenoble/salon-grenoble.jpg'),
+      main: getImg('salons/grenoble/salon-grenoble.webp'),
       gallery: [
-        getImg('salons/grenoble/chaise-grenoble.jpg'),
-        getImg('salons/grenoble/comptoir-grenoble.jpg'),
-        getImg('salons/grenoble/miroir-grenoble.jpg'),
+        getImg('salons/grenoble/chaise-grenoble.webp'),
+        getImg('salons/grenoble/comptoir-grenoble.webp'),
+        getImg('salons/grenoble/miroir-grenoble.webp'),
       ]
     },
     meylan: {
-      main: getImg('salons/meylan/salon-meylan.jpg'),
+      main: getImg('salons/meylan/salon-meylan.webp'),
       gallery: [
-        getImg('salons/meylan/cologne-meylan.jpg'),
-        getImg('salons/meylan/comptoir-meylan.jpg'),
-        getImg('salons/meylan/devanture-meylan.jpg'),
-        getImg('salons/meylan/parfums-meylan.jpg'),
-        getImg('salons/meylan/salon-meylan-interieur.jpg'),
+        getImg('salons/meylan/cologne-meylan.webp'),
+        getImg('salons/meylan/comptoir-meylan.webp'),
+        getImg('salons/meylan/devanture-meylan.webp'),
+        getImg('salons/meylan/parfums-meylan.webp'),
+        getImg('salons/meylan/salon-meylan-interieur.webp'),
       ]
     }
   },
@@ -553,6 +553,19 @@ const offersData = [
       applicableServices: [] as string[],
       startsAt: now,
       endsAt: null,
+      maxSpots: null,
+      imageUrl: null,
+      isActive: true,
+    },
+    {
+      type: 'event' as const,
+      title: 'Week-end promo (à venir)',
+      description: 'Réduction sur une sélection de prestations. L\'offre sera activable à partir de la date indiquée.',
+      discountType: 'percentage' as const,
+      discountValue: 12,
+      applicableServices: [] as string[],
+      startsAt: inOneWeek,
+      endsAt: new Date(now.getTime() + 40 * 24 * 60 * 60 * 1000),
       maxSpots: null,
       imageUrl: null,
       isActive: true,

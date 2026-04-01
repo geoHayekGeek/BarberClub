@@ -1,30 +1,29 @@
 /**
- * Offers endpoint tests
- * GET /api/v1/offers returns active global offers only
+ * GET /api/v1/offers: public ClientOffer feed (non-expired, excluding welcome)
  */
 
 import request from 'supertest';
 import { createApp } from '../src/app';
 import prisma from '../src/db/client';
+import { ClientOfferType, DiscountType } from '@prisma/client';
 
 beforeAll(async () => {
   await prisma.$connect();
-  await prisma.globalOffer.deleteMany();
 });
 
 afterAll(async () => {
-  await prisma.globalOffer.deleteMany();
   await prisma.$disconnect();
 });
 
-afterEach(async () => {
-  await prisma.globalOffer.deleteMany();
+beforeEach(async () => {
+  await prisma.offerActivation.deleteMany();
+  await prisma.clientOffer.deleteMany();
 });
 
 const app = createApp();
 
 describe('GET /api/v1/offers', () => {
-  it('should return empty list when no global offers exist', async () => {
+  it('returns empty list when no client offers exist', async () => {
     const response = await request(app).get('/api/v1/offers');
 
     expect(response.status).toBe(200);
@@ -32,29 +31,56 @@ describe('GET /api/v1/offers', () => {
     expect(response.body.data).toHaveLength(0);
   });
 
-  it('should return only active global offers', async () => {
-    await prisma.globalOffer.createMany({
-      data: [
-        { title: 'Active 1', description: 'Desc 1', isActive: true },
-        { title: 'Inactive', description: 'Desc 2', isActive: false },
-        { title: 'Active 2', description: null, imageUrl: null, discount: 10, isActive: true },
-      ],
-    });
+  it('returns current and upcoming non-expired offers and excludes welcome and expired', async () => {
+    const past = new Date(Date.now() - 86400000);
+    const future = new Date(Date.now() + 7 * 86400000);
+    const farFuture = new Date(Date.now() + 30 * 86400000);
 
-    const response = await request(app).get('/api/v1/offers');
-
-    expect(response.status).toBe(200);
-    expect(response.body.data).toHaveLength(2);
-    expect(response.body.data.every((o: { isActive: boolean }) => o.isActive)).toBe(true);
-  });
-
-  it('should return offers with title, description, imageUrl, discount', async () => {
-    await prisma.globalOffer.create({
+    await prisma.clientOffer.create({
       data: {
-        title: 'Promo Test',
-        description: 'Une super offre',
-        imageUrl: 'https://example.com/img.jpg',
-        discount: 20,
+        type: ClientOfferType.event,
+        title: 'Current test',
+        discountType: DiscountType.percentage,
+        discountValue: 10,
+        applicableServices: [],
+        startsAt: past,
+        endsAt: future,
+        isActive: true,
+      },
+    });
+    await prisma.clientOffer.create({
+      data: {
+        type: ClientOfferType.event,
+        title: 'Upcoming test',
+        discountType: DiscountType.percentage,
+        discountValue: 5,
+        applicableServices: [],
+        startsAt: future,
+        endsAt: farFuture,
+        isActive: true,
+      },
+    });
+    await prisma.clientOffer.create({
+      data: {
+        type: ClientOfferType.welcome,
+        title: 'Welcome hidden',
+        discountType: DiscountType.percentage,
+        discountValue: 5,
+        applicableServices: [],
+        startsAt: past,
+        endsAt: null,
+        isActive: true,
+      },
+    });
+    await prisma.clientOffer.create({
+      data: {
+        type: ClientOfferType.event,
+        title: 'Expired',
+        discountType: DiscountType.percentage,
+        discountValue: 5,
+        applicableServices: [],
+        startsAt: past,
+        endsAt: past,
         isActive: true,
       },
     });
@@ -62,10 +88,10 @@ describe('GET /api/v1/offers', () => {
     const response = await request(app).get('/api/v1/offers');
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toHaveLength(1);
-    expect(response.body.data[0].title).toBe('Promo Test');
-    expect(response.body.data[0].description).toBe('Une super offre');
-    expect(response.body.data[0].imageUrl).toBe('https://example.com/img.jpg');
-    expect(response.body.data[0].discount).toBe(20);
+    const titles = response.body.data.map((o: { title: string }) => o.title);
+    expect(titles).toContain('Current test');
+    expect(titles).toContain('Upcoming test');
+    expect(titles).not.toContain('Welcome hidden');
+    expect(titles).not.toContain('Expired');
   });
 });

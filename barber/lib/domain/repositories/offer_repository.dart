@@ -8,7 +8,8 @@ abstract class OfferRepository {
   /// Global promotions (all salons) - legacy
   Future<List<GlobalOffer>> getGlobalOffers();
 
-  /// Active client offers feed (event, flash, pack, permanent; excludes welcome)
+  /// Public client offers feed: non-expired offers (current + upcoming), excludes welcome.
+  /// The app splits into Offres en cours / Offres à venir.
   Future<List<ClientOffer>> getActiveOffers();
 
   /// Request activation: creates pending_scan and returns activationId + qrPayload for barber scan.

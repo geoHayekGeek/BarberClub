@@ -56,7 +56,9 @@ class _OfferActivationQrScreenState extends ConsumerState<OfferActivationQrScree
         if (!mounted) return;
         ref.invalidate(activationStatesProvider);
         ref.invalidate(myOffersProvider);
-        ref.invalidate(activeOffersProvider);
+        ref.invalidate(publicOffersFeedProvider);
+        ref.invalidate(currentOffersProvider);
+        ref.invalidate(upcomingOffersProvider);
         context.pop();
         final ctx = navigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
@@ -88,7 +90,9 @@ class _OfferActivationQrScreenState extends ConsumerState<OfferActivationQrScree
     } finally {
       ref.invalidate(activationStatesProvider);
       ref.invalidate(myOffersProvider);
-      ref.invalidate(activeOffersProvider);
+      ref.invalidate(publicOffersFeedProvider);
+      ref.invalidate(currentOffersProvider);
+      ref.invalidate(upcomingOffersProvider);
       if (mounted) context.pop();
     }
   }

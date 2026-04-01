@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/models/api_error.dart';
 import '../../domain/models/offer.dart';
 import '../../domain/models/global_offer.dart';
 import '../../domain/models/client_offer.dart';
@@ -18,10 +21,28 @@ final globalOffersListProvider = FutureProvider.autoDispose<List<GlobalOffer>>((
   return repository.getGlobalOffers();
 });
 
-/// Active client offers feed (event, flash, pack, permanent)
-final activeOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
+/// Raw public feed from GET /api/v1/offers: non-expired offers (current window + upcoming).
+final publicOffersFeedProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
   final repository = ref.watch(offerRepositoryProvider);
   return repository.getActiveOffers();
+});
+
+/// Offres en cours: started, not expired.
+final currentOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
+  final list = await ref.watch(publicOffersFeedProvider.future);
+  final now = DateTime.now();
+  final filtered = list.where((o) => o.isCurrentlyAvailable(now)).toList();
+  filtered.sort(_compareCurrentOffers);
+  return filtered;
+});
+
+/// Offres à venir: future start, not expired.
+final upcomingOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
+  final list = await ref.watch(publicOffersFeedProvider.future);
+  final now = DateTime.now();
+  final filtered = list.where((o) => o.isUpcoming(now)).toList();
+  filtered.sort((a, b) => a.startsAt.compareTo(b.startsAt));
+  return filtered;
 });
 
 /// User's activated offers (Mes offres). Requires auth. Returns [] when unauthenticated or error.
@@ -34,7 +55,7 @@ final myOffersProvider = FutureProvider.autoDispose<List<MyOfferItem>>((ref) asy
   }
 });
 
-/// Set of offer IDs the current user has activated (for En cours "Activée" state)
+/// Set of offer IDs the current user has activated (for feed "Offre activée" state)
 final activatedOfferIdsProvider = FutureProvider.autoDispose<Set<String>>((ref) async {
   final myOffers = await ref.watch(myOffersProvider.future);
   return myOffers
@@ -58,3 +79,33 @@ final prestationsListProvider = FutureProvider.autoDispose.family<List<Offer>, S
   final repository = ref.watch(offerRepositoryProvider);
   return repository.getPrestations(salonId);
 });
+
+int _compareCurrentOffers(ClientOffer a, ClientOffer b) {
+  final aEnd = a.endsAt;
+  final bEnd = b.endsAt;
+  if (aEnd == null && bEnd == null) return a.title.compareTo(b.title);
+  if (aEnd == null) return 1;
+  if (bEnd == null) return -1;
+  return aEnd.compareTo(bEnd);
+}
+
+/// Map backend/network errors to French messages for the offers feed.
+String getOfferFeedErrorMessage(Object error, [StackTrace? stackTrace]) {
+  if (error is ApiError) {
+    switch (error.code) {
+      case 'NETWORK_ERROR':
+        return 'Impossible de se connecter. Vérifiez votre connexion.';
+      default:
+        return 'Impossible de charger les offres. Réessayez plus tard.';
+    }
+  }
+  if (error is DioException) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return 'Impossible de se connecter. Vérifiez votre connexion.';
+    }
+  }
+  return 'Impossible de charger les offres. Réessayez plus tard.';
+}
