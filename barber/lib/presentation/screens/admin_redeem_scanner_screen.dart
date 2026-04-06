@@ -132,7 +132,7 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
-                fontSize: 2,
+                fontSize: 16,
               ),
             ),
             if (newBalance != null) ...[
