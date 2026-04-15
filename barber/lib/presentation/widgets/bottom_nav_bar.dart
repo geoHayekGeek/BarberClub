@@ -67,6 +67,7 @@ class BottomNavBar extends StatelessWidget {
                     // Empty space for center — the circle floats above via Positioned
                     return Expanded(
                       child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () => _onTabTapped(context, index),
                         child: _buildCenterLabel(
                           _tabs[index].label,
@@ -130,57 +131,70 @@ class BottomNavBar extends StatelessWidget {
 
   Widget _buildRegularItem(BuildContext context, _NavItem item, bool isActive, int index) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => _onTabTapped(context, index),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          AnimatedScale(
-            scale: isActive ? 1.1 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              isActive ? item.activeIcon : item.icon,
-              size: 22,
-              color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
-            ),
+      child: Center(
+        child: SizedBox(
+          width: 72,
+          height: 72,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              AnimatedScale(
+                scale: isActive ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  isActive ? item.activeIcon : item.icon,
+                  size: 22,
+                  color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  letterSpacing: 0.8,
+                  color: isActive ? Colors.white : Colors.white.withOpacity(0.55),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            item.label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              letterSpacing: 0.8,
-              color: isActive ? Colors.white : Colors.white.withOpacity(0.55),
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildCenterLabel(String label, bool isActive) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8,
-            color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+    return Center(
+      child: SizedBox(
+        width: 72,
+        height: 72,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+                color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+          ],
         ),
-        const SizedBox(height: 10),
-      ],
+      ),
     );
   }
 }

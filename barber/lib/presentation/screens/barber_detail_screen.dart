@@ -363,15 +363,15 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
-              Text(
-                _experienceLevel(barber),
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
-                  fontSize: 14,
-                  letterSpacing: 3,
-                ),
-              ),
+              // const SizedBox(height: 8),
+              // Text(
+              //   _experienceLevel(barber),
+              //   style: TextStyle(
+              //     color: Colors.white.withOpacity(0.7),
+              //     fontSize: 14,
+              //     letterSpacing: 3,
+              //   ),
+              // ),
               if (salonLabel.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
