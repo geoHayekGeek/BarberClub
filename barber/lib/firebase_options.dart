@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDpF8HGTBMjexuSNELRO83K2iq5h9iqntw',
-    appId: '1:28531651093:android:db9f65a500eeeb88d1141c',
+    appId: '1:28531651093:android:ebed5d348559624bd1141c',
     messagingSenderId: '28531651093',
     projectId: 'barber-club-fr-123',
     storageBucket: 'barber-club-fr-123.firebasestorage.app',
@@ -59,20 +59,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCShkM4uFJe95-addraX8LmIHp8QYI-ulM',
-    appId: '1:28531651093:ios:b255e659a2116324d1141c',
+    appId: '1:28531651093:ios:63223e4c715107ded1141c',
     messagingSenderId: '28531651093',
     projectId: 'barber-club-fr-123',
     storageBucket: 'barber-club-fr-123.firebasestorage.app',
-    iosBundleId: 'com.example.barber',
+    iosBundleId: 'fr.barberclubgrenoble.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCShkM4uFJe95-addraX8LmIHp8QYI-ulM',
-    appId: '1:28531651093:ios:b255e659a2116324d1141c',
+    appId: '1:28531651093:ios:63223e4c715107ded1141c',
     messagingSenderId: '28531651093',
     projectId: 'barber-club-fr-123',
     storageBucket: 'barber-club-fr-123.firebasestorage.app',
-    iosBundleId: 'com.example.barber',
+    iosBundleId: 'fr.barberclubgrenoble.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

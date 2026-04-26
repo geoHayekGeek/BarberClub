@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:28531651093:android:db9f65a500eeeb88d1141c",
+        "mobilesdk_app_id": "1:28531651093:android:ebed5d348559624bd1141c",
         "android_client_info": {
-          "package_name": "com.example.barber"
+          "package_name": "fr.barberclubgrenoble.app"
         }
       },
       "oauth_client": [],
