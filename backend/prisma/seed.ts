@@ -8,6 +8,7 @@
  *   npm run build && npx prisma db seed
  * The prisma.seed command runs: node dist/prisma/seed.js (tsx is not installed in prod).
  */
+
 // @ts-nocheck
 /// <reference types="node" />
 
