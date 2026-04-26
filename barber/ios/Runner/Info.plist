@@ -51,7 +51,7 @@
 				<key>CFBundleTypeRole</key>
 				<string>Editor</string>
 				<key>CFBundleURLName</key>
-				<string>com.example.barber</string>
+				<string>fr.barberclubgrenoble.app</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>barberclub</string>
