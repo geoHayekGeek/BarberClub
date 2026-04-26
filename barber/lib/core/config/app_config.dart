@@ -4,7 +4,7 @@ class AppConfig {
   AppConfig._();
   
   // static const String _defaultApiBaseUrl = 'http://10.0.2.2:3000';
-  static const String _defaultApiBaseUrl = 'https://barberclub-production-a6ca.up.railway.app';
+  static const String _defaultApiBaseUrl = 'https://barberclub-production-d46a.up.railway.app';
 
   /// API base URL from --dart-define or default
   static String get apiBaseUrl {
