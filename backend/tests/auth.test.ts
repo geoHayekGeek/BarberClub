@@ -607,3 +607,122 @@ describe('POST /api/v1/auth/reset-password', () => {
     expect(refreshResponse.status).toBe(401);
   });
 });
+
+describe('DELETE /api/v1/auth/me', () => {
+  beforeEach(async () => {
+    await prisma.passwordResetCode.deleteMany();
+    await prisma.passwordResetToken.deleteMany();
+    await prisma.booking.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+  });
+
+  it('should delete the authenticated account with the correct password', async () => {
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'delete.me@example.com',
+        phoneNumber: '+7777777777',
+        password: 'password123',
+      });
+
+    const accessToken = registerResponse.body.accessToken as string;
+    const userId = registerResponse.body.user.id as string;
+
+    const deleteResponse = await request(app)
+      .delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: 'password123' });
+
+    expect(deleteResponse.status).toBe(200);
+    expect(deleteResponse.body.message).toBe('Account deleted successfully');
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    expect(user).toBeNull();
+
+    const tokenCount = await prisma.refreshToken.count({ where: { userId } });
+    expect(tokenCount).toBe(0);
+  });
+
+  it('should return 401 when password is incorrect', async () => {
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'wrong.pass@example.com',
+        phoneNumber: '+7888888888',
+        password: 'password123',
+      });
+
+    const accessToken = registerResponse.body.accessToken as string;
+    const userId = registerResponse.body.user.id as string;
+
+    const deleteResponse = await request(app)
+      .delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: 'invalid-password' });
+
+    expect(deleteResponse.status).toBe(401);
+    expect(deleteResponse.body.error.code).toBe('INVALID_CREDENTIALS');
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    expect(user).not.toBeNull();
+  });
+
+  it('should return 403 for super admin accounts', async () => {
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'super.admin@example.com',
+        phoneNumber: '+7000000001',
+        password: 'password123',
+      });
+
+    const accessToken = registerResponse.body.accessToken as string;
+    const userId = registerResponse.body.user.id as string;
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isSuperAdmin: true },
+    });
+
+    const deleteResponse = await request(app)
+      .delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: 'password123' });
+
+    expect(deleteResponse.status).toBe(403);
+    expect(deleteResponse.body.error.code).toBe('FORBIDDEN');
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    expect(user).not.toBeNull();
+  });
+
+  it('should return 400 when password is missing', async () => {
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'missing.password@example.com',
+        phoneNumber: '+7999999999',
+        password: 'password123',
+      });
+
+    const accessToken = registerResponse.body.accessToken as string;
+
+    const deleteResponse = await request(app)
+      .delete('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({});
+
+    expect(deleteResponse.status).toBe(400);
+    expect(deleteResponse.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('should return 401 when auth token is missing', async () => {
+    const deleteResponse = await request(app)
+      .delete('/api/v1/auth/me')
+      .send({ password: 'password123' });
+
+    expect(deleteResponse.status).toBe(401);
+    expect(deleteResponse.body.error.code).toBe('UNAUTHORIZED');
+  });
+});

@@ -4,7 +4,6 @@
 
 import { z } from 'zod';
 
-// ... (keep your existing registerSchema, loginSchema, etc.) ...
 export const registerSchema = z.object({
   email: z.string().email('Invalid email format').toLowerCase().trim(),
   phoneNumber: z.string().min(1, 'Phone number is required'),
@@ -38,15 +37,17 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
-// --- NEW SCHEMAS ---
-
 export const updateProfileSchema = z.object({
   email: z.string().email('Format email invalide').toLowerCase().trim().optional(),
-  phoneNumber: z.string().min(1, 'Numéro de téléphone invalide').optional(),
+  phoneNumber: z.string().min(1, 'Numero de telephone invalide').optional(),
   fullName: z.string().min(1, 'Nom complet invalide').optional(),
 });
 
 export const changePasswordSchema = z.object({
   oldPassword: z.string().min(1, 'L\'ancien mot de passe est requis'),
-  newPassword: z.string().min(8, 'Le nouveau mot de passe doit faire 8 caractères min.'),
+  newPassword: z.string().min(8, 'Le nouveau mot de passe doit faire 8 caracteres min.'),
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Le mot de passe est requis'),
 });

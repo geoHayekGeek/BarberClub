@@ -358,76 +358,191 @@ export class AuthService {
 
     return user;
   }
-  // ... existing imports
-// Make sure you import the password helpers at the top:
-
-// ... inside AuthService class ...
 
   /**
    * Update user profile
    */
   async updateProfile(userId: string, data: { email?: string; phoneNumber?: string; fullName?: string }) {
-    // 1. Check if email or phone is already taken by ANOTHER user
-    if (data.email || data.phoneNumber) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
+    }
+
+    if (!user.isActive) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Account is inactive', 403);
+    }
+
+    const normalizedEmail = data.email?.toLowerCase().trim();
+    const normalizedPhone = data.phoneNumber ? validatePhoneNumber(data.phoneNumber) : undefined;
+
+    const conflictConditions: Prisma.UserWhereInput[] = [];
+    if (normalizedEmail) {
+      conflictConditions.push({ email: normalizedEmail });
+    }
+    if (normalizedPhone) {
+      conflictConditions.push({ phoneNumber: normalizedPhone });
+    }
+
+    if (conflictConditions.length > 0) {
       const existingUser = await prisma.user.findFirst({
         where: {
-          OR: [
-            data.email ? { email: data.email } : {},
-            data.phoneNumber ? { phoneNumber: data.phoneNumber } : {},
-          ],
-          NOT: { id: userId }, // Exclude the user currently requesting the update
+          OR: conflictConditions,
+          NOT: { id: userId },
+        },
+        select: {
+          email: true,
+          phoneNumber: true,
         },
       });
 
       if (existingUser) {
-        // Use existing code from errors.ts
-        throw new AppError(ErrorCode.USER_ALREADY_EXISTS, 'Email ou numéro de téléphone déjà utilisé', 409);
+        const fields: Record<string, boolean> = {};
+        if (normalizedEmail && existingUser.email === normalizedEmail) {
+          fields.email = true;
+        }
+        if (normalizedPhone && existingUser.phoneNumber === normalizedPhone) {
+          fields.phoneNumber = true;
+        }
+
+        throw new AppError(
+          ErrorCode.USER_ALREADY_EXISTS,
+          'Email or phone number already in use',
+          409,
+          fields
+        );
       }
     }
 
-    // 2. Update the user
+    const updateData: Prisma.UserUpdateInput = {};
+    if (normalizedEmail !== undefined) {
+      updateData.email = normalizedEmail;
+    }
+    if (normalizedPhone !== undefined) {
+      updateData.phoneNumber = normalizedPhone;
+    }
+    if (data.fullName !== undefined) {
+      const trimmedName = data.fullName.trim();
+      updateData.fullName = trimmedName.length > 0 ? trimmedName : null;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-        fullName: data.fullName,
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        phoneNumber: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
       },
     });
 
-    // Return user without sensitive data
-    const { passwordHash, ...safeUser } = updatedUser;
-    return safeUser;
+    return updatedUser;
   }
 
   /**
-   * Change password
+   * Change account password and revoke active refresh tokens.
    */
-// backend/src/modules/auth/service.ts
-
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true, isActive: true },
+    });
+
     if (!user) {
-      throw new AppError(ErrorCode.NOT_FOUND, 'Utilisateur introuvable', 404);
+      throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
+    }
+
+    if (!user.isActive) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Account is inactive', 403);
     }
 
     const valid = await verifyPassword(user.passwordHash, oldPassword);
     if (!valid) {
-      // CHANGE THIS LINE: 401 -> 400
       throw new AppError(
-        ErrorCode.INVALID_CREDENTIALS, 
-        'Ancien mot de passe incorrect', 
-        400 // <--- CHANGED FROM 401 to 400
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is incorrect',
+        401
       );
     }
 
     const passwordHash = await hashPassword(newPassword);
+    const now = new Date();
 
-    await prisma.user.update({
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: now },
+      }),
+    ]);
+
+    logger.info('Password changed', { userId });
+  }
+
+  /**
+   * Permanently delete the authenticated account and all cascade-related data.
+   */
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    const user = await prisma.user.findUnique({
       where: { id: userId },
-      data: { passwordHash },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        isActive: true,
+        isSuperAdmin: true,
+      },
     });
+
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
+    }
+
+    if (!user.isActive) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Account is inactive', 403);
+    }
+
+    if (user.isSuperAdmin) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Super admin accounts cannot be deleted via this endpoint',
+        403
+      );
+    }
+
+    const isValidPassword = await verifyPassword(user.passwordHash, password);
+    if (!isValidPassword) {
+      throw new AppError(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is incorrect',
+        401
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      await tx.user.delete({
+        where: { id: userId },
+      });
+    });
+
+    logger.info('Account deleted', { userId, email: user.email });
   }
 }
 

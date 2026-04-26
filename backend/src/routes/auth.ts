@@ -12,7 +12,8 @@ import {
   forgotPasswordSchema, 
   resetPasswordSchema,
   updateProfileSchema, 
-  changePasswordSchema
+  changePasswordSchema,
+  deleteAccountSchema,
 } from '../modules/auth/validation';
 import { validate } from '../middleware/validate';
 import { authenticate, AuthRequest } from '../middleware/auth';
@@ -436,6 +437,68 @@ router.post(
         req.body.newPassword
       );
       res.status(200).json({ message: 'Mot de passe mis à jour avec succès' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/auth/me:
+ *   delete:
+ *     summary: Delete authenticated account
+ *     description: Permanently deletes the authenticated user and cascades related data.
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 description: Current password for re-authentication
+ *     responses:
+ *       200:
+ *         description: Account deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized or invalid password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.delete(
+  '/me',
+  authenticate,
+  validate(deleteAccountSchema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) {
+        throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      }
+
+      await authService.deleteAccount(req.userId, req.body.password);
+      res.status(200).json({ message: 'Account deleted successfully' });
     } catch (error) {
       next(error);
     }
