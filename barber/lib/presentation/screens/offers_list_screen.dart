@@ -67,6 +67,7 @@ class _OffresEnCoursTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAuthenticated = ref.watch(authStateProvider).status == AuthStatus.authenticated;
     final offersAsync = ref.watch(currentOffersProvider);
     final statesAsync = ref.watch(activationStatesProvider);
 
@@ -91,6 +92,8 @@ class _OffresEnCoursTab extends ConsumerWidget {
                   onRequestActivation: offer.supportsQrActivation
                       ? () => _requestActivation(context, ref, offer.id)
                       : null,
+                  isAuthenticated: isAuthenticated,
+                  onLoginRequired: () => context.go('/login?redirect=%2Foffres'),
                 );
               },
             );
@@ -106,6 +109,8 @@ class _OffresEnCoursTab extends ConsumerWidget {
               onRequestActivation: offers[i].supportsQrActivation
                   ? () => _requestActivation(context, ref, offers[i].id)
                   : null,
+              isAuthenticated: isAuthenticated,
+              onLoginRequired: () => context.go('/login?redirect=%2Foffres'),
             ),
           ),
           error: (_, __) => ListView.builder(
@@ -119,6 +124,8 @@ class _OffresEnCoursTab extends ConsumerWidget {
               onRequestActivation: offers[i].supportsQrActivation
                   ? () => _requestActivation(context, ref, offers[i].id)
                   : null,
+              isAuthenticated: isAuthenticated,
+              onLoginRequired: () => context.go('/login?redirect=%2Foffres'),
             ),
           ),
         );

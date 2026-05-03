@@ -84,7 +84,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (next.user?.isAdmin == true) {
           context.go('/admin');
         } else {
-          context.go('/home');
+          final redirect = GoRouterState.of(context).uri.queryParameters['redirect'];
+          if (redirect != null && redirect.isNotEmpty) {
+            context.go(Uri.decodeComponent(redirect));
+          } else {
+            context.go('/home');
+          }
         }
       }
     });
@@ -200,6 +205,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white24),
+                      foregroundColor: Colors.white70,
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                    onPressed: isLoading ? null : () => context.go('/home'),
+                    child: const Text('Continuer en invité'),
+                  ),
+                  const SizedBox(height: 8),
                   TextButton(
                     style: TextButton.styleFrom(foregroundColor: Colors.white), // White text
                     onPressed: isLoading

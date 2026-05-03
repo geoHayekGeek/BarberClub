@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// Solid black bottom navigation bar.
 /// Center item (RDV, index 2) is elevated slightly above the bar using a Stack.
 /// Tab order matches StatefulShellBranch indexes in app_router.dart:
 /// 0: Accueil, 1: Barbers, 2: RDV (center), 3: Fidélité, 4: Offres
-class BottomNavBar extends StatelessWidget {
+class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key, this.navigationShell});
   final StatefulNavigationShell? navigationShell;
 
@@ -38,7 +39,7 @@ class BottomNavBar extends StatelessWidget {
     return false;
   }
 
-  void _onTabTapped(BuildContext context, int index) {
+  void _onTabTapped(BuildContext context, WidgetRef ref, int index) {
     if (navigationShell != null) {
       navigationShell!.goBranch(index);
       return;
@@ -47,7 +48,7 @@ class BottomNavBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = _getCurrentIndex(context);
 
     return Container(
@@ -68,7 +69,7 @@ class BottomNavBar extends StatelessWidget {
                     return Expanded(
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => _onTabTapped(context, index),
+                        onTap: () => _onTabTapped(context, ref, index),
                         child: _buildCenterLabel(
                           _tabs[index].label,
                           index == currentIndex,
@@ -79,6 +80,7 @@ class BottomNavBar extends StatelessWidget {
                   return Expanded(
                     child: _buildRegularItem(
                       context,
+                      ref,
                       _tabs[index],
                       index == currentIndex,
                       index,
@@ -94,7 +96,7 @@ class BottomNavBar extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: GestureDetector(
-                    onTap: () => _onTabTapped(context, _centerIndex),
+                    onTap: () => _onTabTapped(context, ref, _centerIndex),
                     child: AnimatedScale(
                       scale: currentIndex == _centerIndex ? 1.05 : 1.0,
                       duration: const Duration(milliseconds: 200),
@@ -129,10 +131,10 @@ class BottomNavBar extends StatelessWidget {
     );
   }
 
-  Widget _buildRegularItem(BuildContext context, _NavItem item, bool isActive, int index) {
+  Widget _buildRegularItem(BuildContext context, WidgetRef ref, _NavItem item, bool isActive, int index) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _onTabTapped(context, index),
+      onTap: () => _onTabTapped(context, ref, index),
       child: Center(
         child: SizedBox(
           width: 72,

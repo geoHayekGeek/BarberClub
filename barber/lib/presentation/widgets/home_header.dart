@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 /// Header widget for Home screen
 /// Displays profile icon (left) and website/Instagram icons (right)
-class HomeHeader extends StatelessWidget {
+class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
   Future<void> _openUrl(BuildContext context, Uri uri, {LaunchMode mode = LaunchMode.externalApplication}) async {
@@ -45,7 +46,7 @@ class HomeHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -57,7 +58,9 @@ class HomeHeader extends StatelessWidget {
             Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => context.go('/compte'),
+                onTap: () {
+                  context.go('/compte');
+                },
                 borderRadius: BorderRadius.circular(22),
                 child: Container(
                   width: 44,

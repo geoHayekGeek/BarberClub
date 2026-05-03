@@ -21,12 +21,16 @@ class OfferPublicCard extends StatefulWidget {
     required this.isUpcoming,
     required this.activationStatus,
     this.onRequestActivation,
+    this.onLoginRequired,
+    this.isAuthenticated = false,
   });
 
   final ClientOffer offer;
   final bool isUpcoming;
   final String activationStatus;
   final Future<void> Function()? onRequestActivation;
+  final VoidCallback? onLoginRequired;
+  final bool isAuthenticated;
 
   @override
   State<OfferPublicCard> createState() => _OfferPublicCardState();
@@ -50,8 +54,9 @@ class _OfferPublicCardState extends State<OfferPublicCard> {
     final offer = widget.offer;
     final imageUrl = AppConfig.resolveImageUrl(offer.imageUrl);
     final upcoming = widget.isUpcoming;
-    final canActivate =
-        !upcoming && offer.supportsQrActivation && widget.onRequestActivation != null;
+    final showActivationCta = !upcoming && offer.supportsQrActivation;
+    final canActivate = showActivationCta && widget.isAuthenticated && widget.onRequestActivation != null;
+    final needsLoginToActivate = showActivationCta && !widget.isAuthenticated;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -227,6 +232,13 @@ class _OfferPublicCardState extends State<OfferPublicCard> {
                     activationStatus: widget.activationStatus,
                     isActivating: _isActivating,
                     onActivate: _handleActivate,
+                  )
+                else if (needsLoginToActivate)
+                  _GlassShell(
+                    label: 'Se connecter pour activer',
+                    onTap: widget.onLoginRequired,
+                    isActivated: false,
+                    showCheck: false,
                   )
                 else
                   const SizedBox.shrink(),

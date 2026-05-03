@@ -47,7 +47,30 @@ class CompteScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: user == null
-            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Vous êtes en mode invité.\nConnectez-vous pour accéder aux fonctionnalités premium et à votre compte.',
+                        style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () => context.go('/login?redirect=%2Fcompte'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white12,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Se connecter'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -176,7 +199,7 @@ class CompteScreen extends ConsumerWidget {
                       child: ElevatedButton.icon( 
                         onPressed: () async {
                           await ref.read(authStateProvider.notifier).logout();
-                          if (context.mounted) context.go('/login');
+                          if (context.mounted) context.go('/home');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.05),
