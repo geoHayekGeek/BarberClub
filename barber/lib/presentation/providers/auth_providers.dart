@@ -339,6 +339,15 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Delete authenticated account permanently then clear local session.
+  Future<void> deleteAccount({
+    required String password,
+  }) async {
+    await _authRepository.deleteAccount(password: password);
+    await _tokenRepository.clearTokens();
+    state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
   /// Clear error message
   void clearError() {
     state = state.copyWith(clearError: true);

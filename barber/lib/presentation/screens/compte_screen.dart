@@ -192,6 +192,29 @@ class CompteScreen extends ConsumerWidget {
 
                     const SizedBox(height: 40),
 
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showDeleteAccountDialog(context, ref),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3A1010),
+                          foregroundColor: Colors.redAccent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color(0x66FF5252)),
+                          ),
+                        ),
+                        icon: const Icon(Icons.delete_forever_outlined),
+                        label: const Text(
+                          'Supprimer mon compte',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     // 4. Logout Button
                     SizedBox(
                       width: double.infinity,
@@ -223,6 +246,132 @@ class CompteScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: const BottomNavBar(),
     );
+  }
+
+  Future<void> _showDeleteAccountDialog(BuildContext context, WidgetRef ref) async {
+    final passwordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isDeleting = false;
+    bool obscurePassword = true;
+
+    final deleted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1C1C1C),
+              title: const Text(
+                'Supprimer mon compte',
+                style: TextStyle(color: Colors.white),
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Cette action est définitive. Votre compte et vos données personnelles seront supprimés. '
+                      'Vos données fidélité, récompenses et informations de compte ne seront plus disponibles.',
+                      style: TextStyle(color: Colors.white70, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Mot de passe actuel',
+                        labelStyle: const TextStyle(color: Colors.white54),
+                        enabledBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white54),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: Colors.white54,
+                          ),
+                          onPressed: () {
+                            setModalState(() => obscurePassword = !obscurePassword);
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Veuillez saisir votre mot de passe.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setModalState(() => isDeleting = true);
+                          try {
+                            await ref.read(authStateProvider.notifier).deleteAccount(
+                                  password: passwordController.text,
+                                );
+                            if (!dialogContext.mounted) return;
+                            Navigator.of(dialogContext, rootNavigator: true).pop(true);
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            setModalState(() => isDeleting = false);
+                            final message = e.toString().replaceAll('Exception:', '').trim();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  message.isEmpty
+                                      ? 'Impossible de supprimer le compte. Veuillez réessayer.'
+                                      : message,
+                                ),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5A1717),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isDeleting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Confirmer la suppression'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    passwordController.dispose();
+
+    if (deleted == true) {
+      if (!context.mounted) return;
+      context.go('/home');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Votre compte a été supprimé avec succès.'),
+        ),
+      );
+    }
   }
 
   Widget _buildInfoTile(BuildContext context,
@@ -552,3 +701,5 @@ class CompteScreen extends ConsumerWidget {
     );
   }
 }
+
+
