@@ -48,7 +48,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   });
   return GoRouter(
     navigatorKey: navigatorKey,
-    initialLocation: '/login',
+    initialLocation: '/home',
     refreshListenable: refreshNotifier,
     redirect: (BuildContext context, GoRouterState state) {
       final auth = ref.read(authStateProvider);
@@ -63,11 +63,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (loc == '/login' || loc == '/signup') return '/home';
         if (loc.startsWith('/admin')) return '/home';
       } else {
-        if (loc.startsWith('/admin') || loc.startsWith('/home') || loc.startsWith('/carte-fidelite') ||
-            loc.startsWith('/rdv') || loc.startsWith('/coiffeurs') || loc.startsWith('/offres') ||
-            loc == '/compte') return '/login';
+        if (loc.startsWith('/admin')) return '/login';
       }
-      if (isAuth && !isAdmin && loc.startsWith('/salons')) return '/home';
       return null;
     },
     routes: [

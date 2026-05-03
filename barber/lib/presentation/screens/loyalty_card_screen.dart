@@ -38,7 +38,7 @@ class LoyaltyCardScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    LoyaltyStrings.loginPrompt,
+                    'Vous êtes en mode invité.\nConnectez-vous pour accéder à la carte fidélité et aux avantages premium.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white.withOpacity(0.9),
                         ),
@@ -48,8 +48,8 @@ class LoyaltyCardScreen extends ConsumerWidget {
                   SizedBox(
                     height: LoyaltyUIConstants.minTouchTargetSize,
                     child: FilledButton(
-                      onPressed: () => context.push('/login'),
-                      child: const Text(LoyaltyStrings.loginButton),
+                      onPressed: () => context.go('/login?redirect=%2Fcarte-fidelite'),
+                      child: const Text('Se connecter'),
                     ),
                   ),
                 ],
