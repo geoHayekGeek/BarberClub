@@ -67,4 +67,12 @@ abstract class AuthRepository {
     required String oldPassword,
     required String newPassword,
   });
+
+  /// Delete the authenticated user account permanently.
+  ///
+  /// Requires current account password.
+  /// Throws [ApiError] on failure.
+  Future<void> deleteAccount({
+    required String password,
+  });
 }

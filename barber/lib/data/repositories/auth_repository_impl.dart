@@ -164,6 +164,22 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  @override
+  Future<void> deleteAccount({
+    required String password,
+  }) async {
+    try {
+      await _dio.delete(
+        '/api/v1/auth/me',
+        data: {
+          'password': password,
+        },
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   // -------------------
 
   /// Convert DioException to ApiError
