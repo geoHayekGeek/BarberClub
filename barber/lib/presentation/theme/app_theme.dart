@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Uses [GlowingOverscrollIndicator] to avoid "Build scheduled during frame"
 /// from [StretchingOverscrollIndicator] when scroll ends during layout.
@@ -19,13 +20,12 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 
 /// Premium dark theme for Barber Club
 class AppTheme {
-  static const String fontFamily = 'Orbitron';
+  static const String titleFontFamily = 'Orbitron';
 
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: fontFamily,
       colorScheme: ColorScheme.dark(
         primary: const Color(0xFFD4AF37), // Gold
         secondary: const Color(0xFFF5E6D3), // Beige
@@ -81,6 +81,7 @@ class AppTheme {
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            fontFamily: titleFontFamily,
           ),
         ),
       ),
@@ -88,28 +89,39 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: const Color(0xFFD4AF37),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          textStyle: const TextStyle(
+            fontFamily: titleFontFamily,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
-      textTheme: ThemeData.dark().textTheme.apply(
-        fontFamily: fontFamily,
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          textStyle: const TextStyle(
+            fontFamily: titleFontFamily,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).apply(
         bodyColor: Colors.white,
         displayColor: Colors.white,
       ).copyWith(
-        displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: fontFamily),
-        displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: fontFamily),
-        displaySmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: fontFamily),
-        headlineLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: fontFamily),
-        headlineMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: fontFamily),
-        headlineSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: fontFamily),
-        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: fontFamily),
-        titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: fontFamily),
-        titleSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: fontFamily),
-        bodyLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontFamily: fontFamily),
-        bodyMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontFamily: fontFamily),
-        bodySmall: TextStyle(color: Colors.white70, fontWeight: FontWeight.w400, fontFamily: fontFamily),
-        labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontFamily: fontFamily),
-        labelMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontFamily: fontFamily),
-        labelSmall: TextStyle(color: Colors.white70, fontWeight: FontWeight.w400, fontFamily: fontFamily),
+        displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: titleFontFamily),
+        displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: titleFontFamily),
+        displaySmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: titleFontFamily),
+        headlineLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: titleFontFamily),
+        headlineMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
+        headlineSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
+        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
+        titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: titleFontFamily),
+        titleSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: titleFontFamily),
+        bodyLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        bodySmall: TextStyle(color: Colors.white70, fontWeight: FontWeight.w400),
+        labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        labelMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        labelSmall: TextStyle(color: Colors.white70, fontWeight: FontWeight.w400),
       ),
     );
   }
