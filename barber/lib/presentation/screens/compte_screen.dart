@@ -353,7 +353,7 @@ class CompteScreen extends ConsumerWidget {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Confirmer la suppression'),
+                      : const Text('Confirmer'),
                 ),
               ],
             );
