@@ -136,7 +136,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
                     label: 'E-mail *',
-                    hint: 'exemple@email.com',
+                    hint: 'exemple@email.com',                 
                     icon: Icons.email_outlined,
                   ),
                   keyboardType: TextInputType.emailAddress,

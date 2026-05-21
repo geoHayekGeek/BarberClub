@@ -52,7 +52,7 @@ class BarbersBySalonScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: CustomScrollView(
                 slivers: [
-SliverToBoxAdapter(
+              SliverToBoxAdapter(
                     child: Column(
                       children: [
                         const SizedBox(height: 16),
