@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 /// Header widget for Home screen
-/// Displays profile icon (left) and website/Instagram icons (right)
+/// Displays centered crown with side actions.
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
-  Future<void> _openUrl(BuildContext context, Uri uri, {LaunchMode mode = LaunchMode.externalApplication}) async {
+  Future<void> _openUrl(
+    BuildContext context,
+    Uri uri, {
+    LaunchMode mode = LaunchMode.externalApplication,
+  }) async {
     try {
       if (await launchUrl(uri, mode: mode)) {
         return;
       }
     } catch (_) {}
+
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Impossible d\'ouvrir le lien')),
@@ -28,16 +33,24 @@ class HomeHeader extends ConsumerWidget {
   }
 
   Future<void> _openInstagram(BuildContext context) async {
-    // Try Instagram app first, then fallback to browser
     const instagramWeb = 'https://www.instagram.com/barberclub_grenoble';
     const instagramApp = 'instagram://user?username=barberclub_grenoble';
 
     try {
-      if (await launchUrl(Uri.parse(instagramApp))) return;
+      if (await launchUrl(Uri.parse(instagramApp))) {
+        return;
+      }
     } catch (_) {}
+
     try {
-      if (await launchUrl(Uri.parse(instagramWeb), mode: LaunchMode.externalApplication)) return;
+      if (await launchUrl(
+        Uri.parse(instagramWeb),
+        mode: LaunchMode.externalApplication,
+      )) {
+        return;
+      }
     } catch (_) {}
+
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Impossible d\'ouvrir Instagram')),
@@ -50,80 +63,104 @@ class HomeHeader extends ConsumerWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Profile icon (left)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  context.go('/compte');
-                },
-                borderRadius: BorderRadius.circular(22),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+        child: SizedBox(
+          height: 56,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned(
+                left: 0,
+                child: Row(
+                  children: [
+                    _HeaderAction(
+                      onTap: () => _openWebsite(context),
+                      icon: Icons.language,
+                      tooltip: 'Site web',
                     ),
-                  ),
-                  child: Icon(
-                    Icons.person_outline,
-                    color: Colors.white.withOpacity(0.9),
-                    size: 24,
-                  ),
+                    const SizedBox(width: 10),
+                    _HeaderAction(
+                      onTap: () => _openInstagram(context),
+                      tooltip: 'Instagram',
+                      child: FaIcon(
+                        FontAwesomeIcons.instagram,
+                        color: Colors.white.withOpacity(0.92),
+                        size: 18,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            // Website and Instagram icons (right)
-            Row(
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _openWebsite(context),
-                    borderRadius: BorderRadius.circular(22),
-                    child: SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Icon(
-                        Icons.language,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 24,
-                      ),
-                    ),
-                  ),
+              Center(
+                child: Image.asset(
+                  'assets/images/couronne_white.png',
+                  width: 64,
+                  height: 64,
+                  fit: BoxFit.contain,
                 ),
-                const SizedBox(width: 12),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _openInstagram(context),
-                    borderRadius: BorderRadius.circular(22),
-                    child: SizedBox(
-                      width: 44,
-                      height: 44,
-                      // 👇 CHANGED TO INSTAGRAM ICON 👇
-                      child: Center(
-                        child: FaIcon(
-                          FontAwesomeIcons.instagram,
-                          color: Colors.white.withOpacity(0.9),
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                  ),
+              ),
+              Positioned(
+                right: 0,
+                child: _HeaderAction(
+                  onTap: () => context.go('/compte'),
+                  icon: Icons.person_outline,
+                  tooltip: 'Mon compte',
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class _HeaderAction extends StatelessWidget {
+  final VoidCallback onTap;
+  final IconData? icon;
+  final Widget? child;
+  final String? tooltip;
+
+  const _HeaderAction({
+    required this.onTap,
+    this.icon,
+    this.child,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final content = SizedBox(
+      width: 40,
+      height: 40,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.18),
+                width: 1,
+              ),
+            ),
+            child: Center(
+              child:
+                  child ??
+                  Icon(icon, color: Colors.white.withOpacity(0.92), size: 20),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (tooltip == null || tooltip!.isEmpty) {
+      return content;
+    }
+
+    return Tooltip(message: tooltip!, child: content);
   }
 }
