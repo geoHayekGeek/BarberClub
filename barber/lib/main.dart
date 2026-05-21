@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -18,16 +20,14 @@ import 'core/network/dio_client.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     await FcmService.initialize();
   } catch (_) {
     // Firebase init failed
   }
-  runApp(
-    const ProviderScope(
-      child: MainApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MainApp()));
 }
 
 class MainApp extends ConsumerStatefulWidget {
@@ -39,10 +39,13 @@ class MainApp extends ConsumerStatefulWidget {
 
 class _MainAppState extends ConsumerState<MainApp> {
   final _deepLinkService = DeepLinkService();
+  bool _showLaunchOverlay = true;
+  double _launchOverlayOpacity = 1;
 
   @override
   void initState() {
     super.initState();
+    _startLaunchTransition();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authStateProvider.notifier).bootstrapSession();
       final fcmService = ref.read(fcmServiceProvider);
@@ -82,6 +85,22 @@ class _MainAppState extends ConsumerState<MainApp> {
 
         ref.invalidate(loyaltyCardProvider);
         ref.invalidate(loyaltyCouponsProvider);
+      });
+    });
+  }
+
+  void _startLaunchTransition() {
+    Future<void>.delayed(const Duration(milliseconds: 320), () {
+      if (!mounted) return;
+      setState(() {
+        _launchOverlayOpacity = 0;
+      });
+
+      Future<void>.delayed(const Duration(milliseconds: 650), () {
+        if (!mounted) return;
+        setState(() {
+          _showLaunchOverlay = false;
+        });
       });
     });
   }
@@ -158,7 +177,7 @@ class _MainAppState extends ConsumerState<MainApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
-    
+
     // Initialize deep link service when router is available
     // Use post-frame callback to ensure router is fully ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -171,6 +190,44 @@ class _MainAppState extends ConsumerState<MainApp> {
       scrollBehavior: AppScrollBehavior(),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            content,
+            if (_showLaunchOverlay)
+              IgnorePointer(
+                ignoring: true,
+                child: AnimatedOpacity(
+                  opacity: _launchOverlayOpacity,
+                  duration: const Duration(milliseconds: 650),
+                  curve: Curves.easeOutCubic,
+                  child: const _LaunchOverlay(),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LaunchOverlay extends StatelessWidget {
+  const _LaunchOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Image.asset(
+          'assets/images/couronne_white_splash.png',
+          width: 74,
+          height: 74,
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 }

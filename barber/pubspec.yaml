@@ -1,7 +1,7 @@
 name: barber
 description: "Barber Club - Flutter App"
 publish_to: 'none'
-version: 0.1.0
+version: 1.0.0+2
 
 environment:
   sdk: ^3.10.7
@@ -66,13 +66,13 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#000000"
-  image: assets/images/barber_club_logo.png
+  image: assets/images/couronne_white_splash.png
   
   # This section is what fixes the white screen in your screenshot
   android_12:
     color: "#000000"
     icon_background_color: "#000000" 
-    image: assets/images/barber_club_logo.png
+    image: assets/images/couronne_white_splash.png
 
 flutter_launcher_icons:
   android: true
