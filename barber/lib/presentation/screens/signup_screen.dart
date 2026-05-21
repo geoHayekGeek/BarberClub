@@ -121,17 +121,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   style: const TextStyle(color: Colors.white),
                   cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
-                    label: 'Nom complet (optionnel)',
+                    label: 'Nom complet *',
                     hint: 'Jean Dupont',
                     icon: Icons.person_outline,
                   ),
                   textInputAction: TextInputAction.next,
-                  validator: (value) {
-                    if (value != null && value.trim().isNotEmpty) {
-                      return AuthValidators.validateFullName(value);
-                    }
-                    return null;
-                  },
+                  validator: AuthValidators.validateFullName,
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),

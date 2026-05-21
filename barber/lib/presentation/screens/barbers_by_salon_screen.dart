@@ -52,28 +52,31 @@ class BarbersBySalonScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: CustomScrollView(
                 slivers: [
-                  SliverToBoxAdapter(
+SliverToBoxAdapter(
                     child: Column(
                       children: [
-                        Text(
-                          'NOS COIFFEURS',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 34,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
-                          ),
+                        const SizedBox(height: 16),
+                        // Intégration du logo BarberClub
+                        Image.asset(
+                          'assets/images/barber_club_full_logo.png',
+                          width: 180,
+                          fit: BoxFit.contain,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 20),
+                        // Titre mis à jour avec la typographie globale Orbitron
                         Text(
-                          salonName.toUpperCase(),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 14,
-                            letterSpacing: 3,
-                          ),
+                          'NOS BARBERS',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 3,
+                              ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
+                      
+                        
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),

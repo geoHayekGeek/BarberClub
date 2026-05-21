@@ -653,7 +653,7 @@ class _CtaButtonState extends ConsumerState<_CtaButton> {
                     const Icon(Icons.calendar_today, color: Colors.black87, size: 22),
                     const SizedBox(width: 12),
                     Text(
-                      'PRENDRE RDV AVEC ${widget.barber.displayName.toUpperCase()}',
+                      'RÉSERVER AVEC ${widget.barber.displayName.toUpperCase()}',
                       style: const TextStyle(
                         color: Colors.black87,
                         fontSize: 14,

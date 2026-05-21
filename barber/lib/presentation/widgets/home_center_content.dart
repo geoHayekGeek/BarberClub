@@ -27,9 +27,9 @@ class HomeCenterContent extends StatelessWidget {
             ),
             
             const SizedBox(height: 32), // Add spacing between logo and subtitle
-            // Subtitle
+            // Subtitle (Phrase d'accroche modifiée)
             Text(
-              'Des coupes sur-mesure, une expérience premium.',
+              'Nous ne suivons pas la tendance, nous la créons.',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontSize: 18,
                 color: Colors.white.withOpacity(0.8),
@@ -42,7 +42,7 @@ class HomeCenterContent extends StatelessWidget {
             const SizedBox(height: 48),
             // CTA Button
             AppPrimaryButton(
-              label: 'DÉBUTER',
+              label: 'Prendre rendez-vous',
               onTap: () => context.go('/rdv'),
             ),
           ],

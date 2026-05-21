@@ -299,7 +299,7 @@ class _SalonDetailContent extends StatelessWidget {
                           ),
                         ),
                         child: const Text(
-                          'Prendre RDV ici',
+                          'Réserver ici',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                       ),
