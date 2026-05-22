@@ -31,7 +31,7 @@ class BottomNavBar extends ConsumerWidget {
       path: '/rdv',
       icon: Icons.calendar_today_outlined,
       activeIcon: Icons.calendar_today,
-      label: 'RESERVER',
+      label: 'RÉSERVER',
       isCenter: true,
     ),
     _DockItem(
