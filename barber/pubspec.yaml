@@ -51,6 +51,7 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   font_awesome_flutter: ^10.12.0
   google_fonts: ^6.3.2
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:
@@ -99,3 +100,4 @@ flutter:
   # Assets
   assets:
   - assets/images/
+  - assets/icons/

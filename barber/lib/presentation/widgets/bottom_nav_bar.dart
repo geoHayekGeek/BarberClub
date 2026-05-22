@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 /// Website-style bottom dock:
@@ -15,37 +16,32 @@ class BottomNavBar extends ConsumerWidget {
     _DockItem(
       branchIndex: 1,
       path: '/coiffeurs',
-      icon: Icons.groups_2_outlined,
-      activeIcon: Icons.groups_2,
+      iconAsset: 'assets/icons/nav_barbers.svg',
       label: 'BARBERS',
     ),
     _DockItem(
       branchIndex: 3,
       path: '/carte-fidelite',
-      icon: Icons.sell_outlined,
-      activeIcon: Icons.sell,
+      iconAsset: 'assets/icons/nav_tarifs.svg',
       label: 'TARIFS',
     ),
     _DockItem(
       branchIndex: 2,
       path: '/rdv',
-      icon: Icons.calendar_today_outlined,
-      activeIcon: Icons.calendar_today,
+      iconAsset: 'assets/icons/nav_reserver_small.svg',
       label: 'RÉSERVER',
       isCenter: true,
     ),
     _DockItem(
       branchIndex: 4,
       path: '/offres',
-      icon: Icons.percent,
-      activeIcon: Icons.percent,
+      iconAsset: 'assets/icons/nav_offres.svg',
       label: 'OFFRES',
     ),
     _DockItem(
       branchIndex: 0,
       path: '/home',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home,
+      iconAsset: 'assets/icons/nav_salon.svg',
       label: 'SALON',
     ),
   ];
@@ -59,8 +55,9 @@ class BottomNavBar extends ConsumerWidget {
     if (path == '/home' || path.startsWith('/home')) return 0;
     if (path == '/coiffeurs' || path.startsWith('/coiffeurs')) return 1;
     if (path == '/rdv' || path.startsWith('/rdv')) return 2;
-    if (path == '/carte-fidelite' || path.startsWith('/carte-fidelite'))
+    if (path == '/carte-fidelite' || path.startsWith('/carte-fidelite')) {
       return 3;
+    }
     if (path == '/offres' || path.startsWith('/offres/')) return 4;
     return 0;
   }
@@ -88,7 +85,7 @@ class BottomNavBar extends ConsumerWidget {
       top: false,
       bottom: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(14, 8, 14, dockBottomPadding),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, dockBottomPadding),
         child: SizedBox(
           height: 86,
           child: Stack(
@@ -102,25 +99,25 @@ class BottomNavBar extends ConsumerWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
                     child: Container(
                       height: 58,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xE6050505),
+                        color: const Color(0xF20A0A0A),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: const Color(0xFF2A2A2A),
+                          color: const Color(0x1AFFFFFF),
                           width: 1,
                         ),
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x99000000),
-                            blurRadius: 22,
-                            offset: Offset(0, 10),
+                            color: Color(0x80000000),
+                            blurRadius: 32,
+                            offset: Offset(0, 8),
                           ),
                         ],
                       ),
@@ -155,7 +152,6 @@ class BottomNavBar extends ConsumerWidget {
                 top: 0,
                 child: _CenterReserveItem(
                   item: centerItem,
-                  isActive: currentBranch == centerItem.branchIndex,
                   onTap: () => _onTap(context, centerItem),
                 ),
               ),
@@ -168,45 +164,48 @@ class BottomNavBar extends ConsumerWidget {
 }
 
 class _SideDockItem extends StatelessWidget {
-  final _DockItem item;
-  final bool isActive;
-  final VoidCallback onTap;
-
   const _SideDockItem({
     required this.item,
     required this.isActive,
     required this.onTap,
   });
 
+  final _DockItem item;
+  final bool isActive;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? Colors.white : Colors.white.withOpacity(0.58);
+    final color = isActive ? Colors.white : Colors.white.withValues(alpha: 0.4);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(30),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                isActive ? item.activeIcon : item.icon,
-                size: 18,
-                color: color,
+              SvgPicture.asset(
+                item.iconAsset,
+                width: 20,
+                height: 20,
+                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
               ),
               const SizedBox(height: 4),
               Text(
                 item.label,
+                textScaler: const TextScaler.linear(1),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 9,
-                  letterSpacing: 0.6,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                  height: 1,
+                  letterSpacing: 0.35,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                   color: color,
                 ),
               ),
@@ -219,15 +218,10 @@ class _SideDockItem extends StatelessWidget {
 }
 
 class _CenterReserveItem extends StatelessWidget {
-  final _DockItem item;
-  final bool isActive;
-  final VoidCallback onTap;
+  const _CenterReserveItem({required this.item, required this.onTap});
 
-  const _CenterReserveItem({
-    required this.item,
-    required this.isActive,
-    required this.onTap,
-  });
+  final _DockItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -242,31 +236,41 @@ class _CenterReserveItem extends StatelessWidget {
             Container(
               width: 52,
               height: 52,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withOpacity(isActive ? 0.28 : 0.18),
-                    blurRadius: isActive ? 22 : 16,
-                    spreadRadius: 0.8,
+                    color: Color(0x4DFFFFFF),
+                    blurRadius: 20,
+                    offset: Offset(0, 4),
                   ),
                 ],
               ),
-              child: Icon(
-                isActive ? item.activeIcon : item.icon,
-                size: 20,
-                color: Colors.black,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: SvgPicture.asset(
+                  item.iconAsset,
+                  width: 10,
+                  height: 10,
+                  fit: BoxFit.contain,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.black,
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 6),
             Text(
               item.label,
-              style: TextStyle(
-                fontSize: 10,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w800,
-                color: Colors.white.withOpacity(isActive ? 0.98 : 0.9),
+              textScaler: const TextScaler.linear(1),
+              style: const TextStyle(
+                fontSize: 9,
+                height: 1,
+                letterSpacing: 0.35,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
           ],
@@ -280,16 +284,14 @@ class _DockItem {
   const _DockItem({
     required this.branchIndex,
     required this.path,
-    required this.icon,
-    required this.activeIcon,
+    required this.iconAsset,
     required this.label,
     this.isCenter = false,
   });
 
   final int branchIndex;
   final String path;
-  final IconData icon;
-  final IconData activeIcon;
+  final String iconAsset;
   final String label;
   final bool isCenter;
 }
