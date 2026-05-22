@@ -12,7 +12,7 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   ) {
     return GlowingOverscrollIndicator(
       axisDirection: details.direction,
-      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+      color: Colors.transparent,
       child: child,
     );
   }
@@ -26,11 +26,11 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(
-        primary: const Color(0xFFD4AF37), // Gold
-        secondary: const Color(0xFFF5E6D3), // Beige
-        surface: const Color(0xFF1A1A1A),
-        error: const Color(0xFFCF6679),
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFFD4AF37), // Gold
+        secondary: Color(0xFFF5E6D3), // Beige
+        surface: Color(0xFF1A1A1A),
+        error: Color(0xFFCF6679),
         onPrimary: Colors.black,
         onSecondary: Colors.black,
         onSurface: Colors.white,
@@ -41,6 +41,9 @@ class AppTheme {
         backgroundColor: Color(0xFF1A1A1A),
         elevation: 0,
         centerTitle: true,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: Colors.white,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -72,7 +75,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFD4AF37),
+          backgroundColor: const Color(0xFFD4AF37), // Garde l'or pour les gros boutons d'action principale
           foregroundColor: Colors.black,
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: const RoundedRectangleBorder(
@@ -85,9 +88,12 @@ class AppTheme {
           ),
         ),
       ),
+      
+      // --- MODIFICATION GLOBALE ICI ---
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFFD4AF37),
+          // On remplace Color(0xFFD4AF37) par Colors.white pour un style neutre premium
+          foregroundColor: Colors.white, 
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           textStyle: const TextStyle(
             fontFamily: titleFontFamily,
@@ -95,8 +101,11 @@ class AppTheme {
           ),
         ),
       ),
+      // --------------------------------
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white, // Assure que les boutons aux contours soient blancs aussi
           textStyle: const TextStyle(
             fontFamily: titleFontFamily,
             fontWeight: FontWeight.w600,
@@ -107,21 +116,21 @@ class AppTheme {
         bodyColor: Colors.white,
         displayColor: Colors.white,
       ).copyWith(
-        displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: titleFontFamily),
-        displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: titleFontFamily),
-        displaySmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: titleFontFamily),
-        headlineLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: titleFontFamily),
-        headlineMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
-        headlineSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
-        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
-        titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: titleFontFamily),
-        titleSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: titleFontFamily),
-        bodyLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
-        bodyMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
-        bodySmall: TextStyle(color: Colors.white70, fontWeight: FontWeight.w400),
-        labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
-        labelMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
-        labelSmall: TextStyle(color: Colors.white70, fontWeight: FontWeight.w400),
+        displayLarge: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: titleFontFamily),
+        displayMedium: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 3, fontFamily: titleFontFamily),
+        displaySmall: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: titleFontFamily),
+        headlineLarge: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 2, fontFamily: titleFontFamily),
+        headlineMedium: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
+        headlineSmall: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
+        titleLarge: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 2, fontFamily: titleFontFamily),
+        titleMedium: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: titleFontFamily),
+        titleSmall: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: titleFontFamily),
+        bodyLarge: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        bodyMedium: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        bodySmall: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w400),
+        labelLarge: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        labelMedium: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400),
+        labelSmall: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w400),
       ),
     );
   }
