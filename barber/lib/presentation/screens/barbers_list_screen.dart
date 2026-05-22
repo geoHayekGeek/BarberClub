@@ -35,22 +35,30 @@ class BarbersListScreen extends ConsumerWidget {
                   SliverToBoxAdapter(
                     child: Column(
                       children: [
+                        const SizedBox(height: 16),
+                        // Intégration du logo BarberClub
+                        Image.asset(
+                          'assets/images/barber_club_full_logo.png',
+                          width: 180,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 20),
+                        // Titre mis à jour avec la typographie globale Orbitron
                         Text(
-                          _title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 34,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
-                          ),
+                          'NOS BARBERS',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 3,
+                              ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         
                         // --- PREMIUM SEPARATOR ---
-                        // Added here to divide the header from the grid content.
                         const GlowingSeparator(),
                         
-                        const SizedBox(height: 32), // Breathing room for the glow effect
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),

@@ -48,7 +48,7 @@ class BarberStrings {
   static const String retry = 'Réessayer';
   static const String centresInteret = 'Centres d\'intérêt';
   static const String galerie = 'Galerie';
-  static const String ctaRdv = 'Prendre RDV avec ce coiffeur';
+  static const String ctaRdv = 'Réserver avec ce coiffeur';
   static const String ctaSoon = 'Bientôt disponible';
 
   static String levelLabel(String level) {
