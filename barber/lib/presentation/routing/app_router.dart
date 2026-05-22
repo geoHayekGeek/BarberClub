@@ -109,10 +109,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Admin app: shell (scanner + compte), no bottom nav
       ShellRoute(
-        builder: (context, state, child) => AdminAppShell(
-          matchedLocation: state.matchedLocation,
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            AdminAppShell(matchedLocation: state.matchedLocation, child: child),
         routes: [
           GoRoute(
             path: '/admin',
@@ -144,12 +142,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Main app: 5 tabs with floating dock navigation
       StatefulShellRoute.indexedStack(
-        builder: (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) {
-          return Scaffold(
-            body: navigationShell,
-            bottomNavigationBar: BottomNavBar(navigationShell: navigationShell),
-          );
-        },
+        builder:
+            (
+              BuildContext context,
+              GoRouterState state,
+              StatefulNavigationShell navigationShell,
+            ) {
+              return Scaffold(
+                extendBody: true,
+                body: navigationShell,
+                bottomNavigationBar: BottomNavBar(
+                  navigationShell: navigationShell,
+                ),
+              );
+            },
         branches: [
           // index 0: Accueil (Home + Prestations as part of home flow)
           StatefulShellBranch(
@@ -164,8 +170,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: 'salon-prestations',
                     builder: (context, state) {
                       final salonId = state.pathParameters['salonId'] ?? '';
-                      final salonName = state.uri.queryParameters['name'] != null
-                          ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                      final salonName =
+                          state.uri.queryParameters['name'] != null
+                          ? Uri.decodeComponent(
+                              state.uri.queryParameters['name']!,
+                            )
                           : 'Salon';
                       return SalonOffersDetailScreen(
                         salonId: salonId,
@@ -190,8 +199,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     name: 'barbers-by-salon',
                     builder: (context, state) {
                       final salonId = state.pathParameters['salonId'] ?? '';
-                      final salonName = state.uri.queryParameters['name'] != null
-                          ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                      final salonName =
+                          state.uri.queryParameters['name'] != null
+                          ? Uri.decodeComponent(
+                              state.uri.queryParameters['name']!,
+                            )
                           : 'Salon';
                       return BarbersBySalonScreen(
                         salonId: salonId,
@@ -204,10 +216,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         name: 'barber-detail',
                         builder: (context, state) {
                           final id = state.pathParameters['id'] ?? '';
-                          final salonName = state.uri.queryParameters['name'] != null
-                              ? Uri.decodeComponent(state.uri.queryParameters['name']!)
+                          final salonName =
+                              state.uri.queryParameters['name'] != null
+                              ? Uri.decodeComponent(
+                                  state.uri.queryParameters['name']!,
+                                )
                               : null;
-                          return BarberDetailScreen(barberId: id, salonName: salonName);
+                          return BarberDetailScreen(
+                            barberId: id,
+                            salonName: salonName,
+                          );
                         },
                       ),
                     ],
@@ -248,10 +266,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'activation-qr',
                     name: 'offer-activation-qr',
                     builder: (context, state) {
-                      final extra = state.extra is Map ? state.extra as Map<Object?, Object?> : null;
-                      final offerId = extra?['offerId'] is String ? extra!['offerId'] as String : '';
-                      final qrPayload = extra?['qrPayload'] is String ? extra!['qrPayload'] as String : '';
-                      return OfferActivationQrScreen(offerId: offerId, qrPayload: qrPayload);
+                      final extra = state.extra is Map
+                          ? state.extra as Map<Object?, Object?>
+                          : null;
+                      final offerId = extra?['offerId'] is String
+                          ? extra!['offerId'] as String
+                          : '';
+                      final qrPayload = extra?['qrPayload'] is String
+                          ? extra!['qrPayload'] as String
+                          : '';
+                      return OfferActivationQrScreen(
+                        offerId: offerId,
+                        qrPayload: qrPayload,
+                      );
                     },
                   ),
                 ],

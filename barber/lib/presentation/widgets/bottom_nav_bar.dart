@@ -1,169 +1,214 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Solid black bottom navigation bar.
-/// Center item (RDV, index 2) is elevated slightly above the bar using a Stack.
-/// Tab order matches StatefulShellBranch indexes in app_router.dart:
-/// 0: Accueil, 1: Barbers, 2: RDV (center), 3: Fidélité, 4: Offres
+/// Website-style bottom dock:
+/// left 2 tabs + center elevated reserve button + right 2 tabs.
 class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key, this.navigationShell});
+
   final StatefulNavigationShell? navigationShell;
 
-  static const int _centerIndex = 2;
-
-  static const _tabs = [
-    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'ACCUEIL', path: '/home'),
-    _NavItem(icon: Icons.content_cut_outlined, activeIcon: Icons.content_cut, label: 'BARBERS', path: '/coiffeurs'),
-    _NavItem(icon: Icons.calendar_today_outlined, activeIcon: Icons.calendar_today, label: 'RÉSERVER', path: '/rdv'),
-    _NavItem(icon: Icons.card_giftcard_outlined, activeIcon: Icons.card_giftcard, label: 'FIDÉLITÉ', path: '/carte-fidelite'),
-    _NavItem(icon: Icons.local_offer_outlined, activeIcon: Icons.local_offer, label: 'OFFRES', path: '/offres'),
+  static const _items = [
+    _DockItem(
+      branchIndex: 1,
+      path: '/coiffeurs',
+      icon: Icons.groups_2_outlined,
+      activeIcon: Icons.groups_2,
+      label: 'BARBERS',
+    ),
+    _DockItem(
+      branchIndex: 3,
+      path: '/carte-fidelite',
+      icon: Icons.sell_outlined,
+      activeIcon: Icons.sell,
+      label: 'TARIFS',
+    ),
+    _DockItem(
+      branchIndex: 2,
+      path: '/rdv',
+      icon: Icons.calendar_today_outlined,
+      activeIcon: Icons.calendar_today,
+      label: 'RESERVER',
+      isCenter: true,
+    ),
+    _DockItem(
+      branchIndex: 4,
+      path: '/offres',
+      icon: Icons.percent,
+      activeIcon: Icons.percent,
+      label: 'OFFRES',
+    ),
+    _DockItem(
+      branchIndex: 0,
+      path: '/home',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home,
+      label: 'SALON',
+    ),
   ];
 
-  int _getCurrentIndex(BuildContext context) {
+  int _getCurrentBranchIndex(BuildContext context) {
     if (navigationShell != null) {
       return navigationShell!.currentIndex;
     }
+
     final path = GoRouterState.of(context).uri.path;
-    final idx = _tabs.indexWhere((t) => _pathMatches(path, t.path));
-    return idx >= 0 ? idx : 0;
+    if (path == '/home' || path.startsWith('/home')) return 0;
+    if (path == '/coiffeurs' || path.startsWith('/coiffeurs')) return 1;
+    if (path == '/rdv' || path.startsWith('/rdv')) return 2;
+    if (path == '/carte-fidelite' || path.startsWith('/carte-fidelite'))
+      return 3;
+    if (path == '/offres' || path.startsWith('/offres/')) return 4;
+    return 0;
   }
 
-  bool _pathMatches(String path, String tabPath) {
-    final base = tabPath.split('?').first;
-    if (path == base) return true;
-    if (base == '/home' && path.startsWith('/home')) return true;
-    if (base == '/coiffeurs' && path.startsWith('/coiffeurs')) return true;
-    if (base == '/rdv' && path.startsWith('/rdv')) return true;
-    if (base == '/offres' && (path == '/offres' || path.startsWith('/offres/'))) return true;
-    return false;
-  }
-
-  void _onTabTapped(BuildContext context, WidgetRef ref, int index) {
+  void _onTap(BuildContext context, _DockItem item) {
     if (navigationShell != null) {
-      navigationShell!.goBranch(index);
+      navigationShell!.goBranch(item.branchIndex);
       return;
     }
-    context.go(_tabs[index].path);
+
+    context.go(item.path);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = _getCurrentIndex(context);
+    final currentBranch = _getCurrentBranchIndex(context);
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    final dockBottomPadding = bottomInset > 0 ? bottomInset + 6 : 12.0;
 
-    return Container(
-      color: Colors.black,
-      child: SafeArea(
-        top: false,
+    final leftItems = [_items[0], _items[1]];
+    final centerItem = _items[2];
+    final rightItems = [_items[3], _items[4]];
+
+    return SafeArea(
+      top: false,
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(14, 8, 14, dockBottomPadding),
         child: SizedBox(
-          height: 72,
+          height: 86,
           child: Stack(
             clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
             children: [
-              // Row of all tab items
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_tabs.length, (index) {
-                  if (index == _centerIndex) {
-                    // Empty space for center — the circle floats above via Positioned
-                    return Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _onTabTapped(context, ref, index),
-                        child: _buildCenterLabel(
-                          _tabs[index].label,
-                          index == currentIndex,
-                        ),
-                      ),
-                    );
-                  }
-                  return Expanded(
-                    child: _buildRegularItem(
-                      context,
-                      ref,
-                      _tabs[index],
-                      index == currentIndex,
-                      index,
-                    ),
-                  );
-                }),
-              ),
-              // RDV circle — elevated above bar
               Positioned(
-                top: -18,
                 left: 0,
                 right: 0,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: GestureDetector(
-                    onTap: () => _onTabTapped(context, ref, _centerIndex),
-                    child: AnimatedScale(
-                      scale: currentIndex == _centerIndex ? 1.05 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Container(
-                        height: 52,
-                        width: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.12),
-                              blurRadius: 10,
-                              spreadRadius: 1,
+                bottom: 0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      height: 58,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6050505),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: const Color(0xFF2A2A2A),
+                          width: 1,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x99000000),
+                            blurRadius: 22,
+                            offset: Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          ...leftItems.map(
+                            (item) => Expanded(
+                              child: _SideDockItem(
+                                item: item,
+                                isActive: currentBranch == item.branchIndex,
+                                onTap: () => _onTap(context, item),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.calendar_today,
-                          color: Colors.black,
-                          size: 24,
-                        ),
+                          ),
+                          const SizedBox(width: 84),
+                          ...rightItems.map(
+                            (item) => Expanded(
+                              child: _SideDockItem(
+                                item: item,
+                                isActive: currentBranch == item.branchIndex,
+                                onTap: () => _onTap(context, item),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
+              Positioned(
+                top: 0,
+                child: _CenterReserveItem(
+                  item: centerItem,
+                  isActive: currentBranch == centerItem.branchIndex,
+                  onTap: () => _onTap(context, centerItem),
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildRegularItem(BuildContext context, WidgetRef ref, _NavItem item, bool isActive, int index) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _onTabTapped(context, ref, index),
-      child: Center(
-        child: SizedBox(
-          width: 72,
-          height: 72,
+class _SideDockItem extends StatelessWidget {
+  final _DockItem item;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _SideDockItem({
+    required this.item,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? Colors.white : Colors.white.withOpacity(0.58);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              AnimatedScale(
-                scale: isActive ? 1.1 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  isActive ? item.activeIcon : item.icon,
-                  size: 22,
-                  color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
-                ),
+              Icon(
+                isActive ? item.activeIcon : item.icon,
+                size: 18,
+                color: color,
               ),
               const SizedBox(height: 4),
               Text(
                 item.label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                  letterSpacing: 0.8,
-                  color: isActive ? Colors.white : Colors.white.withOpacity(0.55),
-                ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  letterSpacing: 0.6,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -171,29 +216,59 @@ class BottomNavBar extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildCenterLabel(String label, bool isActive) {
-    return Center(
-      child: SizedBox(
-        width: 72,
-        height: 72,
+class _CenterReserveItem extends StatelessWidget {
+  final _DockItem item;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _CenterReserveItem({
+    required this.item,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(isActive ? 0.28 : 0.18),
+                    blurRadius: isActive ? 22 : 16,
+                    spreadRadius: 0.8,
+                  ),
+                ],
+              ),
+              child: Icon(
+                isActive ? item.activeIcon : item.icon,
+                size: 20,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 6),
             Text(
-              label,
+              item.label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
-                color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
+                fontWeight: FontWeight.w800,
+                color: Colors.white.withOpacity(isActive ? 0.98 : 0.9),
               ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -201,15 +276,20 @@ class BottomNavBar extends ConsumerWidget {
   }
 }
 
-class _NavItem {
-  const _NavItem({
+class _DockItem {
+  const _DockItem({
+    required this.branchIndex,
+    required this.path,
     required this.icon,
     required this.activeIcon,
     required this.label,
-    required this.path,
+    this.isCenter = false,
   });
+
+  final int branchIndex;
+  final String path;
   final IconData icon;
   final IconData activeIcon;
   final String label;
-  final String path;
+  final bool isCenter;
 }
