@@ -63,7 +63,9 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// FCM service provider
 final fcmServiceProvider = Provider<FcmService>((ref) {
   final dioClient = ref.watch(dioClientProvider);
-  return FcmService(dioClient: dioClient);
+  final service = FcmService(dioClient: dioClient);
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 /// Auth state provider

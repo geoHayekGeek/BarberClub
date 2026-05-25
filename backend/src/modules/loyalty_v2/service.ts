@@ -398,6 +398,8 @@ export async function adminEarnPoints(
             });
           }
         }
+      } else {
+        logger.warn('Firebase messaging not initialized; skipping LOYALTY_EARN push');
       }
     } catch (err) {
       logger.warn('FCM push failed LOYALTY_EARN', { accountId, error: err instanceof Error ? err.message : err });
@@ -476,6 +478,8 @@ export async function adminRedeemVoucher(qrPayload: string): Promise<{
             newBalance: String(newBalance),
           },
         });
+      } else {
+        logger.warn('Firebase messaging not initialized; skipping LOYALTY_REDEEM push');
       }
     } catch (err) {
       logger.warn('FCM push failed LOYALTY_REDEEM', { error: err instanceof Error ? err.message : err });

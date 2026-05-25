@@ -22,8 +22,8 @@ class BottomNavBar extends ConsumerWidget {
     _DockItem(
       branchIndex: 3,
       path: '/carte-fidelite',
-      iconAsset: 'assets/icons/nav_tarifs.svg',
-      label: 'TARIFS',
+      iconAsset: 'assets/icons/nav_carte_fidelite.svg',
+      label: 'CARTE FIDÉLITÉ',
     ),
     _DockItem(
       branchIndex: 2,

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/api_error.dart';
@@ -16,19 +17,31 @@ final offerRepositoryProvider = Provider<OfferRepository>((ref) {
 });
 
 /// Global offers (promotions) - legacy, returns empty
-final globalOffersListProvider = FutureProvider.autoDispose<List<GlobalOffer>>((ref) async {
+final globalOffersListProvider = FutureProvider.autoDispose<List<GlobalOffer>>((
+  ref,
+) async {
   final repository = ref.watch(offerRepositoryProvider);
   return repository.getGlobalOffers();
 });
 
 /// Raw public feed from GET /api/v1/offers: non-expired offers (current window + upcoming).
-final publicOffersFeedProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
+final publicOffersFeedProvider = FutureProvider.autoDispose<List<ClientOffer>>((
+  ref,
+) async {
   final repository = ref.watch(offerRepositoryProvider);
-  return repository.getActiveOffers();
+  try {
+    return await repository.getActiveOffers();
+  } catch (_) {
+    // Keep offers UI testable in debug when backend connectivity is flaky.
+    if (kDebugMode) return _debugPreviewOffers();
+    rethrow;
+  }
 });
 
 /// Offres en cours: started, not expired.
-final currentOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
+final currentOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((
+  ref,
+) async {
   final list = await ref.watch(publicOffersFeedProvider.future);
   final now = DateTime.now();
   final filtered = list.where((o) => o.isCurrentlyAvailable(now)).toList();
@@ -36,8 +49,10 @@ final currentOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref
   return filtered;
 });
 
-/// Offres à venir: future start, not expired.
-final upcomingOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((ref) async {
+/// Offres Ã  venir: future start, not expired.
+final upcomingOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((
+  ref,
+) async {
   final list = await ref.watch(publicOffersFeedProvider.future);
   final now = DateTime.now();
   final filtered = list.where((o) => o.isUpcoming(now)).toList();
@@ -46,7 +61,9 @@ final upcomingOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((re
 });
 
 /// User's activated offers (Mes offres). Requires auth. Returns [] when unauthenticated or error.
-final myOffersProvider = FutureProvider.autoDispose<List<MyOfferItem>>((ref) async {
+final myOffersProvider = FutureProvider.autoDispose<List<MyOfferItem>>((
+  ref,
+) async {
   try {
     final repository = ref.watch(offerRepositoryProvider);
     return await repository.getMyOffers();
@@ -55,8 +72,10 @@ final myOffersProvider = FutureProvider.autoDispose<List<MyOfferItem>>((ref) asy
   }
 });
 
-/// Set of offer IDs the current user has activated (for feed "Offre activée" state)
-final activatedOfferIdsProvider = FutureProvider.autoDispose<Set<String>>((ref) async {
+/// Set of offer IDs the current user has activated (for feed "Offre activÃ©e" state)
+final activatedOfferIdsProvider = FutureProvider.autoDispose<Set<String>>((
+  ref,
+) async {
   final myOffers = await ref.watch(myOffersProvider.future);
   return myOffers
       .where((o) => o.status == 'activated')
@@ -65,20 +84,22 @@ final activatedOfferIdsProvider = FutureProvider.autoDispose<Set<String>>((ref) 
 });
 
 /// Activation status per offer (pending_scan, activated, used, etc.) for feed button states.
-final activationStatesProvider = FutureProvider.autoDispose<Map<String, String>>((ref) async {
-  try {
-    final repository = ref.watch(offerRepositoryProvider);
-    return await repository.getActivationStates();
-  } catch (_) {
-    return {};
-  }
-});
+final activationStatesProvider =
+    FutureProvider.autoDispose<Map<String, String>>((ref) async {
+      try {
+        final repository = ref.watch(offerRepositoryProvider);
+        return await repository.getActivationStates();
+      } catch (_) {
+        return {};
+      }
+    });
 
 /// Prestations (pricing) for a single salon
-final prestationsListProvider = FutureProvider.autoDispose.family<List<Offer>, String>((ref, salonId) async {
-  final repository = ref.watch(offerRepositoryProvider);
-  return repository.getPrestations(salonId);
-});
+final prestationsListProvider = FutureProvider.autoDispose
+    .family<List<Offer>, String>((ref, salonId) async {
+      final repository = ref.watch(offerRepositoryProvider);
+      return repository.getPrestations(salonId);
+    });
 
 int _compareCurrentOffers(ClientOffer a, ClientOffer b) {
   final aEnd = a.endsAt;
@@ -94,9 +115,9 @@ String getOfferFeedErrorMessage(Object error, [StackTrace? stackTrace]) {
   if (error is ApiError) {
     switch (error.code) {
       case 'NETWORK_ERROR':
-        return 'Impossible de se connecter. Vérifiez votre connexion.';
+        return 'Impossible de se connecter. VÃ©rifiez votre connexion.';
       default:
-        return 'Impossible de charger les offres. Réessayez plus tard.';
+        return 'Impossible de charger les offres. RÃ©essayez plus tard.';
     }
   }
   if (error is DioException) {
@@ -104,8 +125,59 @@ String getOfferFeedErrorMessage(Object error, [StackTrace? stackTrace]) {
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return 'Impossible de se connecter. Vérifiez votre connexion.';
+      return 'Impossible de se connecter. VÃ©rifiez votre connexion.';
     }
   }
-  return 'Impossible de charger les offres. Réessayez plus tard.';
+  return 'Impossible de charger les offres. RÃ©essayez plus tard.';
+}
+
+List<ClientOffer> _debugPreviewOffers() {
+  final now = DateTime.now();
+  return [
+    ClientOffer(
+      id: 'debug-offer-anniversaire',
+      type: 'permanent',
+      title: 'Offre anniversaire',
+      description:
+          'À votre anniversaire, bénéficiez de -20% sur une prestation. Ajoutez votre date de naissance dans votre profil.',
+      discountType: 'percentage',
+      discountValue: 20,
+      startsAt: now.subtract(const Duration(days: 14)),
+      endsAt: null,
+      maxSpots: null,
+      spotsTaken: 0,
+      imageUrl: null,
+      applicableServices: const [],
+    ),
+    ClientOffer(
+      id: 'debug-offer-pack',
+      type: 'pack',
+      title: 'Pack Coupe + Barbe + Soin',
+      description:
+          'Les trois prestations ensemble à prix pack. Économisez sur votre coupe, barbe et soin.',
+      discountType: 'fixed',
+      discountValue: 49,
+      startsAt: now.subtract(const Duration(days: 7)),
+      endsAt: null,
+      maxSpots: null,
+      spotsTaken: 0,
+      imageUrl: null,
+      applicableServices: const [],
+    ),
+    ClientOffer(
+      id: 'debug-offer-parrainage',
+      type: 'permanent',
+      title: 'Parrainage',
+      description:
+          'Parrainez un ami: vous recevez tous les deux une réduction sur votre prochaine visite.',
+      discountType: 'percentage',
+      discountValue: 10,
+      startsAt: now.subtract(const Duration(days: 21)),
+      endsAt: null,
+      maxSpots: null,
+      spotsTaken: 0,
+      imageUrl: null,
+      applicableServices: const [],
+    ),
+  ];
 }

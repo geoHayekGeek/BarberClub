@@ -24,8 +24,8 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await FcmService.initialize();
-  } catch (_) {
-    // Firebase init failed
+  } catch (e) {
+    debugPrint('[FCM] Firebase init failed: $e');
   }
   runApp(const ProviderScope(child: MainApp()));
 }

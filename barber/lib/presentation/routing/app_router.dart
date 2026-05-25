@@ -43,7 +43,7 @@ final _authRefreshNotifierProvider = Provider<_AuthRefreshNotifier>((ref) {
 /// Role-based: ADMIN -> /admin (QR scanner only). USER -> bottom nav shell.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(_authRefreshNotifierProvider);
-  ref.listen<AuthState>(authStateProvider, (_, __) {
+  ref.listen<AuthState>(authStateProvider, (previous, next) {
     refreshNotifier.refresh();
   });
   return GoRouter(

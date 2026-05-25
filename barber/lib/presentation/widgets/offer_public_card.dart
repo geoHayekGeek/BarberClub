@@ -9,11 +9,11 @@ String _typeLabelFr(ClientOffer o) {
   if (o.isFlash) return 'Offre flash';
   if (o.isPack) return 'Pack';
   if (o.isPermanent) return 'Offre permanente';
-  if (o.isEvent) return 'Événement';
+  if (o.isEvent) return 'Evenement';
   return o.type;
 }
 
-/// Card for [ClientOffer] in Offres en cours / Offres à venir feeds.
+/// Card for [ClientOffer] in "Offres en cours" / "Offres a venir" feeds.
 class OfferPublicCard extends StatefulWidget {
   const OfferPublicCard({
     super.key,
@@ -36,8 +36,30 @@ class OfferPublicCard extends StatefulWidget {
   State<OfferPublicCard> createState() => _OfferPublicCardState();
 }
 
-class _OfferPublicCardState extends State<OfferPublicCard> {
+class _OfferPublicCardState extends State<OfferPublicCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _holoController;
+  late final Animation<double> _holoShift;
   bool _isActivating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _holoController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+    _holoShift = CurvedAnimation(
+      parent: _holoController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _holoController.dispose();
+    super.dispose();
+  }
 
   void _handleActivate() {
     if (_isActivating || widget.onRequestActivation == null) return;
@@ -53,200 +75,367 @@ class _OfferPublicCardState extends State<OfferPublicCard> {
   Widget build(BuildContext context) {
     final offer = widget.offer;
     final imageUrl = AppConfig.resolveImageUrl(offer.imageUrl);
+    final hasImage = imageUrl != null && imageUrl.startsWith('http');
+
     final upcoming = widget.isUpcoming;
     final showActivationCta = !upcoming && offer.supportsQrActivation;
-    final canActivate = showActivationCta && widget.isAuthenticated && widget.onRequestActivation != null;
+    final canActivate =
+        showActivationCta &&
+        widget.isAuthenticated &&
+        widget.onRequestActivation != null;
     final needsLoginToActivate = showActivationCta && !widget.isAuthenticated;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1C),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
+          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF090909),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withOpacity(0.06),
+              Colors.white.withOpacity(0.02),
+            ],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 22,
+              offset: Offset(0, 10),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
           children: [
-            if (imageUrl != null && imageUrl.startsWith('http'))
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _holoShift,
+                  builder: (context, _) {
+                    return CustomPaint(
+                      painter: _HoloSweepPainter(progress: _holoShift.value),
+                    );
+                  },
                 ),
               ),
-            if (imageUrl != null && imageUrl.startsWith('http')) const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            ),
+            Positioned(
+              top: 20,
+              right: 20,
+              child: IgnorePointer(
+                child: Container(
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _typeLabelFr(offer),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.75),
-                      letterSpacing: 0.5,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.03),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 10),
-            Row(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    offer.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                if (hasImage)
+                  _OfferHeroImage(
+                    imageUrl: imageUrl,
+                    label: _typeLabelFr(offer).toUpperCase(),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    offer.discountBadge,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (offer.description != null && offer.description!.trim().isNotEmpty)
-              Text(
-                offer.description!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            if (upcoming) ...[
-              const SizedBox(height: 10),
-              Text(
-                'Disponible à partir du ${formatOfferDateTimeFr(offer.startsAt)}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFFD4AF37).withOpacity(0.95),
-                ),
-              ),
-              if (offer.endsAt != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Jusqu\'au ${formatOfferDateTimeFr(offer.endsAt!)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.65),
-                  ),
-                ),
-              ],
-            ],
-            if (!upcoming && offer.isFlash && offer.maxSpots != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Places restantes : ${(offer.maxSpots! - offer.spotsTaken).clamp(0, offer.maxSpots!)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: offer.maxSpots! > 0
-                      ? (offer.spotsTaken / offer.maxSpots!).clamp(0.0, 1.0)
-                      : 0,
-                  backgroundColor: Colors.white12,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
-                  minHeight: 6,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: upcoming
-                      ? const SizedBox.shrink()
-                      : (offer.endsAt != null
-                          ? OfferCountdownTimer(
-                              endsAt: offer.endsAt,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.75),
-                                fontWeight: FontWeight.w500,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _MetaPill(label: _typeLabelFr(offer).toUpperCase()),
+                          if (upcoming) const _MetaPill(label: 'A VENIR'),
+                          if (!upcoming && offer.isFlash)
+                            const _MetaPill(label: 'FLASH'),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              offer.title,
+                              style: const TextStyle(
+                                fontFamily: 'Orbitron',
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.45,
+                                color: Colors.white,
+                                height: 1.2,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _DiscountBadge(label: offer.discountBadge),
+                        ],
+                      ),
+                      if (offer.description != null &&
+                          offer.description!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          offer.description!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.74),
+                            height: 1.45,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (upcoming) ...[
+                        const SizedBox(height: 12),
+                        _InfoLine(
+                          icon: Icons.event_available_rounded,
+                          text:
+                              'Disponible a partir du ${formatOfferDateTimeFr(offer.startsAt)}',
+                          strong: true,
+                        ),
+                        if (offer.endsAt != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: _InfoLine(
+                              icon: Icons.schedule_rounded,
+                              text:
+                                  'Jusqu\'au ${formatOfferDateTimeFr(offer.endsAt!)}',
+                            ),
+                          ),
+                      ],
+                      if (!upcoming &&
+                          offer.isFlash &&
+                          offer.maxSpots != null) ...[
+                        const SizedBox(height: 12),
+                        _SpotsProgress(offer: offer),
+                      ],
+                      const SizedBox(height: 14),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: upcoming
+                                ? const SizedBox.shrink()
+                                : (offer.endsAt != null
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(
+                                              0.04,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(
+                                                0.08,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.timer_outlined,
+                                                size: 15,
+                                                color: Colors.white.withOpacity(
+                                                  0.6,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: OfferCountdownTimer(
+                                                  endsAt: offer.endsAt,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.white
+                                                        .withOpacity(0.75),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : Text(
+                                          'Sans date de fin',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white.withOpacity(
+                                              0.56,
+                                            ),
+                                          ),
+                                        )),
+                          ),
+                          const SizedBox(width: 10),
+                          if (upcoming)
+                            const _ActionPill(
+                              label: 'Bientot disponible',
+                              enabled: false,
                             )
-                          : Text(
-                              'Sans date de fin',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.55),
-                              ),
-                            )),
+                          else if (canActivate)
+                            _ActivationButton(
+                              activationStatus: widget.activationStatus,
+                              isActivating: _isActivating,
+                              onActivate: _handleActivate,
+                            )
+                          else if (needsLoginToActivate)
+                            _ActionPill(
+                              label: 'Se connecter',
+                              enabled: true,
+                              onTap: widget.onLoginRequired,
+                            )
+                          else
+                            const SizedBox.shrink(),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                if (upcoming)
-                  _GlassShell(
-                    label: 'Bientôt disponible',
-                    onTap: null,
-                    isActivated: false,
-                    showCheck: false,
-                  )
-                else if (canActivate)
-                  _ActivationButton(
-                    activationStatus: widget.activationStatus,
-                    isActivating: _isActivating,
-                    onActivate: _handleActivate,
-                  )
-                else if (needsLoginToActivate)
-                  _GlassShell(
-                    label: 'Se connecter pour activer',
-                    onTap: widget.onLoginRequired,
-                    isActivated: false,
-                    showCheck: false,
-                  )
-                else
-                  const SizedBox.shrink(),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _OfferHeroImage extends StatelessWidget {
+  const _OfferHeroImage({required this.imageUrl, required this.label});
+
+  final String imageUrl;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.75,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFF121212)),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.12),
+                  Colors.black.withOpacity(0.6),
+                  Colors.black.withOpacity(0.86),
+                ],
+                stops: const [0.0, 0.58, 1.0],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            top: 12,
+            child: _MetaPill(label: label, compact: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({
+    required this.icon,
+    required this.text,
+    this.strong = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = strong
+        ? Colors.white.withOpacity(0.88)
+        : Colors.white.withOpacity(0.62);
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
+              height: 1.25,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SpotsProgress extends StatelessWidget {
+  const _SpotsProgress({required this.offer});
+
+  final ClientOffer offer;
+
+  @override
+  Widget build(BuildContext context) {
+    final max = offer.maxSpots ?? 0;
+    final taken = offer.spotsTaken;
+    final remaining = (max - taken).clamp(0, max);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Places restantes : $remaining',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.7),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 7),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: max > 0 ? (taken / max).clamp(0.0, 1.0) : 0,
+            backgroundColor: Colors.white.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Colors.white.withOpacity(0.78),
+            ),
+            minHeight: 6,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -268,65 +457,72 @@ class _ActivationButton extends StatelessWidget {
     final isActivated = activationStatus == 'activated';
     final isPendingScan = activationStatus == 'pending_scan';
     final disabled = isUsed || isActivated || isPendingScan || isActivating;
-    String labelBtn;
+
+    late final String label;
     if (isUsed) {
-      labelBtn = 'Utilisée';
+      label = 'Utilisee';
     } else if (isActivated) {
-      labelBtn = 'Offre activée';
+      label = 'Offre activee';
     } else if (isPendingScan || isActivating) {
-      labelBtn = 'En attente de validation';
+      label = 'En attente';
     } else {
-      labelBtn = 'Activer l\'offre';
+      label = 'Activer';
     }
-    return _GlassShell(
-      label: labelBtn,
-      onTap: disabled ? null : onActivate,
-      isActivated: isActivated,
+
+    return _ActionPill(
+      label: label,
+      enabled: !disabled,
+      emphasized: isActivated,
+      showArrow: !disabled && !isActivated,
       showCheck: isActivated,
+      onTap: disabled ? null : onActivate,
     );
   }
 }
 
-class _GlassShell extends StatelessWidget {
-  const _GlassShell({
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
     required this.label,
-    this.onTap,
-    this.isActivated = false,
+    this.enabled = true,
+    this.emphasized = false,
+    this.showArrow = false,
     this.showCheck = false,
+    this.onTap,
   });
 
   final String label;
-  final VoidCallback? onTap;
-  final bool isActivated;
+  final bool enabled;
+  final bool emphasized;
+  final bool showArrow;
   final bool showCheck;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final background = emphasized
+        ? Colors.white
+        : (enabled
+              ? Colors.white.withOpacity(0.07)
+              : Colors.white.withOpacity(0.035));
+    final border = emphasized
+        ? Colors.white
+        : (enabled
+              ? Colors.white.withOpacity(0.18)
+              : Colors.white.withOpacity(0.1));
+    final textColor = emphasized
+        ? Colors.black
+        : (enabled ? Colors.white : Colors.white.withOpacity(0.42));
+
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: onTap == null
-                ? Colors.grey.withOpacity(0.35)
-                : (isActivated ? const Color(0xFFD4AF37).withOpacity(0.5) : Colors.grey.withOpacity(0.45)),
-            width: 1,
-          ),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isActivated
-                ? [
-                    const Color(0xFFD4AF37).withOpacity(0.15),
-                    const Color(0xFFD4AF37).withOpacity(0.05),
-                  ]
-                : [
-                    const Color(0xFF2A2A2A),
-                    const Color(0xFF1F1F1F),
-                  ],
-          ),
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -334,22 +530,120 @@ class _GlassShell extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: onTap == null ? Colors.white38 : (isActivated ? const Color(0xFFD4AF37) : Colors.white),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                fontSize: 13,
+                color: textColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.55,
+                fontFamily: 'Orbitron',
               ),
             ),
             if (showCheck) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.check, color: Color(0xFFD4AF37), size: 16),
-            ] else if (onTap != null) ...[
+              Icon(Icons.check_rounded, color: textColor, size: 14),
+            ] else if (showArrow) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.arrow_forward, color: Colors.white70, size: 16),
+              Icon(Icons.arrow_forward_rounded, color: textColor, size: 14),
             ],
           ],
         ),
       ),
     );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.label, this.compact = false});
+
+  final String label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 4 : 5,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(compact ? 8 : 9),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.78),
+          fontSize: compact ? 9.6 : 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: compact ? 0.9 : 1.0,
+          fontFamily: 'Orbitron',
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscountBadge extends StatelessWidget {
+  const _DiscountBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.16)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.35,
+          color: Colors.white,
+          fontFamily: 'Orbitron',
+        ),
+      ),
+    );
+  }
+}
+
+class _HoloSweepPainter extends CustomPainter {
+  const _HoloSweepPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cardRect = Offset.zero & size;
+    final xOffset = -2.0 * size.width * progress;
+    final shaderRect = Rect.fromLTWH(
+      xOffset,
+      -size.height,
+      size.width * 3.0,
+      size.height * 3.0,
+    );
+    final paint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0x26FFFFFF),
+          Color(0x00FFFFFF),
+          Color(0x14FFFFFF),
+          Color(0x00FFFFFF),
+          Color(0x1AFFFFFF),
+        ],
+        stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+      ).createShader(shaderRect);
+    canvas.drawRect(cardRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HoloSweepPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

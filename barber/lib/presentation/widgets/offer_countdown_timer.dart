@@ -1,13 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-/// Countdown to [endsAt]. Shows "Expire dans Xj Xh Xm" or "Expiré" when past.
+/// Countdown to [endsAt]. Shows "Expire dans Xj Xh Xm" or "Expiree" when past.
 class OfferCountdownTimer extends StatelessWidget {
-  const OfferCountdownTimer({
-    super.key,
-    required this.endsAt,
-    this.style,
-  });
+  const OfferCountdownTimer({super.key, required this.endsAt, this.style});
 
   final DateTime? endsAt;
   final TextStyle? style;
@@ -37,7 +33,10 @@ class _CountdownTextState extends State<_CountdownText> {
   void initState() {
     super.initState();
     _updateRemaining();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateRemaining());
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateRemaining(),
+    );
   }
 
   void _updateRemaining() {
@@ -59,17 +58,22 @@ class _CountdownTextState extends State<_CountdownText> {
 
   @override
   Widget build(BuildContext context) {
-    final s = widget.style ?? TextStyle(
-      fontSize: 12,
-      color: Colors.white70,
-      fontWeight: FontWeight.w500,
-    );
+    final s =
+        widget.style ??
+        const TextStyle(
+          fontSize: 12,
+          color: Colors.white70,
+          fontWeight: FontWeight.w500,
+        );
+
     if (_remaining <= Duration.zero) {
-      return Text('Expiré', style: s.copyWith(color: Colors.white54));
+      return Text('Expiree', style: s.copyWith(color: Colors.white54));
     }
+
     final days = _remaining.inDays;
     final hours = _remaining.inHours % 24;
     final minutes = _remaining.inMinutes % 60;
+
     String text;
     if (days > 0) {
       text = 'Expire dans ${days}j ${hours}h';
