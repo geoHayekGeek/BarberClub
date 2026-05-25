@@ -13,6 +13,7 @@ model User {
   phoneNumber   String    @unique
   passwordHash  String    @map("password_hash")
   fullName      String?   @map("full_name")
+  avatarUrl     String?   @map("avatar_url")
   dateOfBirth   DateTime? @map("date_of_birth")
   role          UserRole  @default(USER)
   isSuperAdmin  Boolean   @default(false) @map("is_super_admin")

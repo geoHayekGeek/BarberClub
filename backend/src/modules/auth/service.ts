@@ -31,6 +31,7 @@ export interface AuthResponse {
     email: string;
     phoneNumber: string;
     fullName: string | null;
+    avatarUrl: string | null;
     role: 'USER' | 'ADMIN';
     createdAt: Date;
   };
@@ -88,6 +89,7 @@ export class AuthService {
           email: true,
           phoneNumber: true,
           fullName: true,
+          avatarUrl: true,
           role: true,
           createdAt: true,
         },
@@ -158,13 +160,13 @@ export class AuthService {
     if (input.email) {
       user = await prisma.user.findUnique({
         where: { email: input.email.toLowerCase().trim() },
-        select: { id: true, email: true, phoneNumber: true, fullName: true, role: true, createdAt: true, isActive: true, passwordHash: true },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, avatarUrl: true, role: true, createdAt: true, isActive: true, passwordHash: true },
       });
     } else if (input.phoneNumber) {
       const normalizedPhone = validatePhoneNumber(input.phoneNumber);
       user = await prisma.user.findUnique({
         where: { phoneNumber: normalizedPhone },
-        select: { id: true, email: true, phoneNumber: true, fullName: true, role: true, createdAt: true, isActive: true, passwordHash: true },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, avatarUrl: true, role: true, createdAt: true, isActive: true, passwordHash: true },
       });
     }
 
@@ -222,6 +224,7 @@ export class AuthService {
         email: user.email,
         phoneNumber: user.phoneNumber,
         fullName: user.fullName,
+        avatarUrl: user.avatarUrl,
         role: role,
         createdAt: user.createdAt,
       },
@@ -340,6 +343,7 @@ export class AuthService {
         email: true,
         phoneNumber: true,
         fullName: true,
+        avatarUrl: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -437,6 +441,44 @@ export class AuthService {
         email: true,
         phoneNumber: true,
         fullName: true,
+        avatarUrl: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+      },
+    });
+
+    return updatedUser;
+  }
+
+  /**
+   * Update user avatar URL.
+   */
+  async updateAvatarUrl(userId: string, avatarUrl: string | null) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
+    }
+
+    if (!user.isActive) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Account is inactive', 403);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      select: {
+        id: true,
+        email: true,
+        phoneNumber: true,
+        fullName: true,
+        avatarUrl: true,
         role: true,
         isActive: true,
         createdAt: true,

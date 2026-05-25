@@ -41,6 +41,10 @@
 		<true/>
 		<key>NSCameraUsageDescription</key>
 		<string>Pour scanner le QR code de la carte fidélité.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Permet de choisir une photo de profil depuis votre galerie.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>Permet d enregistrer temporairement la photo recadree pour votre profil.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>CADisableMinimumFrameDurationOnPhone</key>

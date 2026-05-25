@@ -25,6 +25,7 @@ mixin _$User {
   String get email => throw _privateConstructorUsedError;
   String get phoneNumber => throw _privateConstructorUsedError;
   String? get fullName => throw _privateConstructorUsedError;
+  String? get avatarUrl => throw _privateConstructorUsedError;
   String get role => throw _privateConstructorUsedError;
 
   /// Serializes this User to a JSON map.
@@ -46,6 +47,7 @@ abstract class $UserCopyWith<$Res> {
     String email,
     String phoneNumber,
     String? fullName,
+    String? avatarUrl,
     String role,
   });
 }
@@ -69,6 +71,7 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
     Object? email = null,
     Object? phoneNumber = null,
     Object? fullName = freezed,
+    Object? avatarUrl = freezed,
     Object? role = null,
   }) {
     return _then(
@@ -88,6 +91,10 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
             fullName: freezed == fullName
                 ? _value.fullName
                 : fullName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            avatarUrl: freezed == avatarUrl
+                ? _value.avatarUrl
+                : avatarUrl // ignore: cast_nullable_to_non_nullable
                       as String?,
             role: null == role
                 ? _value.role
@@ -112,6 +119,7 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
     String email,
     String phoneNumber,
     String? fullName,
+    String? avatarUrl,
     String role,
   });
 }
@@ -132,6 +140,7 @@ class __$$UserImplCopyWithImpl<$Res>
     Object? email = null,
     Object? phoneNumber = null,
     Object? fullName = freezed,
+    Object? avatarUrl = freezed,
     Object? role = null,
   }) {
     return _then(
@@ -152,6 +161,10 @@ class __$$UserImplCopyWithImpl<$Res>
             ? _value.fullName
             : fullName // ignore: cast_nullable_to_non_nullable
                   as String?,
+        avatarUrl: freezed == avatarUrl
+            ? _value.avatarUrl
+            : avatarUrl // ignore: cast_nullable_to_non_nullable
+                  as String?,
         role: null == role
             ? _value.role
             : role // ignore: cast_nullable_to_non_nullable
@@ -169,6 +182,7 @@ class _$UserImpl implements _User {
     required this.email,
     required this.phoneNumber,
     this.fullName,
+    this.avatarUrl,
     this.role = 'USER',
   });
 
@@ -184,12 +198,14 @@ class _$UserImpl implements _User {
   @override
   final String? fullName;
   @override
+  final String? avatarUrl;
+  @override
   @JsonKey()
   final String role;
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, phoneNumber: $phoneNumber, fullName: $fullName, role: $role)';
+    return 'User(id: $id, email: $email, phoneNumber: $phoneNumber, fullName: $fullName, avatarUrl: $avatarUrl, role: $role)';
   }
 
   @override
@@ -203,13 +219,22 @@ class _$UserImpl implements _User {
                 other.phoneNumber == phoneNumber) &&
             (identical(other.fullName, fullName) ||
                 other.fullName == fullName) &&
+            (identical(other.avatarUrl, avatarUrl) ||
+                other.avatarUrl == avatarUrl) &&
             (identical(other.role, role) || other.role == role));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, email, phoneNumber, fullName, role);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    email,
+    phoneNumber,
+    fullName,
+    avatarUrl,
+    role,
+  );
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -231,6 +256,7 @@ abstract class _User implements User {
     required final String email,
     required final String phoneNumber,
     final String? fullName,
+    final String? avatarUrl,
     final String role,
   }) = _$UserImpl;
 
@@ -244,6 +270,8 @@ abstract class _User implements User {
   String get phoneNumber;
   @override
   String? get fullName;
+  @override
+  String? get avatarUrl;
   @override
   String get role;
 

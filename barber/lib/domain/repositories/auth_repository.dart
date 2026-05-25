@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import '../models/auth_response.dart';
 import '../models/api_error.dart';
 import '../models/user.dart';
@@ -57,6 +58,15 @@ abstract class AuthRepository {
     String? email,
     String? phoneNumber,
     String? fullName,
+  });
+
+  /// Upload and update current user's avatar.
+  ///
+  /// [imageBytes] should be compressed image data.
+  /// [mimeType] must match image payload type (e.g. image/jpeg).
+  Future<User> updateAvatar({
+    required Uint8List imageBytes,
+    required String mimeType,
   });
 
   /// Change the current user's password

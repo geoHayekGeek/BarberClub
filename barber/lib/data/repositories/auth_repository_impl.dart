@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import '../../domain/models/auth_response.dart';
 import '../../domain/models/api_error.dart';
@@ -140,6 +142,31 @@ class AuthRepositoryImpl implements AuthRepository {
 
       final responseData = response.data as Map<String, dynamic>;
       // The backend returns { "user": { ... } }
+      return User.fromJson(responseData['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<User> updateAvatar({
+    required Uint8List imageBytes,
+    required String mimeType,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '/api/v1/auth/me/avatar',
+        data: imageBytes,
+        options: Options(
+          contentType: mimeType,
+          headers: {
+            'Content-Type': mimeType,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      final responseData = response.data as Map<String, dynamic>;
       return User.fromJson(responseData['user'] as Map<String, dynamic>);
     } on DioException catch (e) {
       throw _handleDioError(e);

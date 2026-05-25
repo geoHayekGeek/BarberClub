@@ -1,16 +1,254 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
+import '../../core/config/app_config.dart';
+import '../../domain/models/api_error.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/bottom_nav_bar.dart';
 
-class CompteScreen extends ConsumerWidget {
+class CompteScreen extends ConsumerStatefulWidget {
   const CompteScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CompteScreen> createState() => _CompteScreenState();
+}
+
+class _CompteScreenState extends ConsumerState<CompteScreen> {
+  final ImagePicker _imagePicker = ImagePicker();
+  bool _isUploadingAvatar = false;
+  static const int _maxAvatarBytes = 3 * 1024 * 1024;
+
+  Future<ImageSource?> _showAvatarSourceSheet(BuildContext context) {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: Colors.white),
+              title: const Text('Choisir depuis la galerie', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined, color: Colors.white),
+              title: const Text('Prendre une photo', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _compressAvatar(String path) async {
+    int quality = 85;
+    Uint8List? compressed;
+
+    while (quality >= 55) {
+      compressed = await FlutterImageCompress.compressWithFile(
+        path,
+        format: CompressFormat.jpeg,
+        quality: quality,
+        minWidth: 1080,
+        minHeight: 1080,
+        keepExif: false,
+      );
+
+      if (compressed != null &&
+          compressed.isNotEmpty &&
+          compressed.lengthInBytes <= _maxAvatarBytes) {
+        return compressed;
+      }
+
+      quality -= 10;
+    }
+
+    return compressed;
+  }
+
+  String _avatarUploadErrorMessage(Object error) {
+    if (error is ApiError) {
+      return error.getFriendlyMessage();
+    }
+
+    if (error is PlatformException) {
+      final code = error.code.toLowerCase();
+      if (code.contains('permission') || code.contains('denied') || code.contains('restricted')) {
+        return 'Permission refusee. Autorisez la camera et la galerie dans les reglages.';
+      }
+    }
+
+    return 'Impossible de mettre a jour la photo de profil. Veuillez reessayer.';
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_isUploadingAvatar) return;
+
+    final source = await _showAvatarSourceSheet(context);
+    if (source == null) return;
+
+    try {
+      final pickedImage = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 95,
+      );
+      if (pickedImage == null) return;
+
+      final croppedImage = await ImageCropper().cropImage(
+        sourcePath: pickedImage.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 95,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Recadrer',
+            toolbarColor: const Color(0xFF121212),
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: const Color(0xFF121212),
+            lockAspectRatio: true,
+            hideBottomControls: true,
+            initAspectRatio: CropAspectRatioPreset.square,
+          ),
+          IOSUiSettings(
+            title: 'Recadrer',
+            aspectRatioLockEnabled: true,
+            aspectRatioPickerButtonHidden: true,
+            resetAspectRatioEnabled: false,
+            rotateButtonsHidden: true,
+          ),
+        ],
+      );
+
+      if (croppedImage == null) return;
+
+      final compressedBytes = await _compressAvatar(croppedImage.path);
+      if (compressedBytes == null || compressedBytes.isEmpty) {
+        throw const FormatException('Empty image');
+      }
+      if (compressedBytes.lengthInBytes > _maxAvatarBytes) {
+        throw const FormatException('Image too large');
+      }
+
+      setState(() => _isUploadingAvatar = true);
+
+      await ref.read(authStateProvider.notifier).updateAvatar(
+            imageBytes: compressedBytes,
+            mimeType: 'image/jpeg',
+          );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo de profil mise a jour.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_avatarUploadErrorMessage(error)),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  Widget _buildAvatarWidget({required String initials, required String? avatarUrl}) {
+    final resolvedAvatarUrl = AppConfig.resolveImageUrl(avatarUrl);
+
+    return SizedBox(
+      width: 110,
+      height: 110,
+      child: Stack(
+        children: [
+          Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF1A1A1A),
+              border: Border.all(color: Colors.white24, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: resolvedAvatarUrl == null
+                  ? _buildAvatarFallback(initials)
+                  : CachedNetworkImage(
+                      imageUrl: resolvedAvatarUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => _buildAvatarFallback(initials),
+                      errorWidget: (_, __, ___) => _buildAvatarFallback(initials),
+                    ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _isUploadingAvatar ? null : _changeAvatar,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: _isUploadingAvatar
+                      ? const Padding(
+                          padding: EdgeInsets.all(7),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(String initials) {
+    return Center(
+      child: Text(
+        initials,
+        style: const TextStyle(
+          fontSize: 40,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
     final theme = Theme.of(context);
@@ -77,31 +315,17 @@ class CompteScreen extends ConsumerWidget {
                   children: [
                     const SizedBox(height: 10),
                     // 1. Avatar Section
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF1A1A1A),
-                        border: Border.all(
-                            color: Colors.white24, 
-                            width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
+                    _buildAvatarWidget(
+                      initials: initials,
+                      avatarUrl: user.avatarUrl,
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton.icon(
+                      onPressed: _isUploadingAvatar ? null : _changeAvatar,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: Text(_isUploadingAvatar ? 'Envoi en cours...' : 'Changer la photo'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white70,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -159,7 +383,7 @@ class CompteScreen extends ConsumerWidget {
                           _buildInfoTile(context,
                               icon: Icons.phone_outlined,
                               title: 'Téléphone',
-                              value: user.phoneNumber ?? '-'),
+                              value: user.phoneNumber),
                           const SizedBox(height: 16),
                         ],
                       ),

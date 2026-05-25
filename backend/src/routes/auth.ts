@@ -2,7 +2,10 @@
  * Authentication routes
  */
 
-import { Router, Request, Response, NextFunction } from 'express';
+import express, { Router, Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
+import path from 'path';
+import fs from 'fs';
 import { authService } from '../modules/auth/service';
 import { passwordResetService } from '../modules/auth/passwordResetService';
 import { 
@@ -21,6 +24,37 @@ import { AppError, ErrorCode } from '../utils/errors';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimit';
 
 const router = Router();
+const AVATAR_MAX_BYTES = 3 * 1024 * 1024;
+const SUPPORTED_AVATAR_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+
+function avatarExtensionFromMimeType(mimeType: string): string | null {
+  switch (mimeType) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    default:
+      return null;
+  }
+}
+
+function extractMimeType(contentTypeHeader: string | undefined): string | null {
+  if (!contentTypeHeader) return null;
+  return contentTypeHeader.split(';')[0]?.trim().toLowerCase() || null;
+}
+
+function relativePathFromAvatarUrl(avatarUrl: string): string | null {
+  if (!avatarUrl.startsWith('/images/')) return null;
+  return avatarUrl.replace(/^\/images\//, '');
+}
 
 /**
  * @swagger
@@ -437,6 +471,120 @@ router.post(
         req.body.newPassword
       );
       res.status(200).json({ message: 'Mot de passe mis à jour avec succès' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/auth/me/avatar:
+ *   put:
+ *     summary: Upload/update current user avatar
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         image/jpeg:
+ *           schema:
+ *             type: string
+ *             format: binary
+ *         image/png:
+ *           schema:
+ *             type: string
+ *             format: binary
+ *         image/webp:
+ *           schema:
+ *             type: string
+ *             format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *       400:
+ *         description: Invalid image content
+ *       401:
+ *         description: Unauthorized
+ */
+router.put(
+  '/me/avatar',
+  authenticate,
+  express.raw({ type: () => true, limit: '10mb' }),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) {
+        throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+      }
+
+      const mimeType = extractMimeType(req.headers['content-type']);
+      if (!mimeType || !SUPPORTED_AVATAR_MIME_TYPES.has(mimeType)) {
+        throw new AppError(
+          ErrorCode.INVALID_INPUT,
+          'Unsupported image format. Use JPEG, PNG, or WebP.',
+          400
+        );
+      }
+
+      const extension = avatarExtensionFromMimeType(mimeType);
+      if (!extension) {
+        throw new AppError(
+          ErrorCode.INVALID_INPUT,
+          'Unsupported image format. Use JPEG, PNG, or WebP.',
+          400
+        );
+      }
+
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        throw new AppError(
+          ErrorCode.INVALID_INPUT,
+          'Image body is required.',
+          400
+        );
+      }
+
+      if (req.body.length > AVATAR_MAX_BYTES) {
+        throw new AppError(
+          ErrorCode.INVALID_INPUT,
+          'Image is too large. Max size is 3MB.',
+          413
+        );
+      }
+
+      const currentUser = await authService.getCurrentUser(req.userId);
+      const imagesPath = req.app.get('imagesPath') as string;
+      const avatarDirPath = path.join(imagesPath, 'avatars');
+      await fs.promises.mkdir(avatarDirPath, { recursive: true });
+
+      const fileName = `${req.userId}-${randomUUID()}.${extension}`;
+      const absoluteFilePath = path.join(avatarDirPath, fileName);
+      await fs.promises.writeFile(absoluteFilePath, req.body);
+
+      const avatarUrl = `/images/avatars/${fileName}`;
+      const user = await authService.updateAvatarUrl(req.userId, avatarUrl);
+
+      const oldRelativePath = currentUser.avatarUrl
+        ? relativePathFromAvatarUrl(currentUser.avatarUrl)
+        : null;
+
+      if (oldRelativePath) {
+        const oldAbsolutePath = path.join(imagesPath, oldRelativePath);
+        if (oldAbsolutePath !== absoluteFilePath) {
+          fs.promises.unlink(oldAbsolutePath).catch(() => {
+            // No-op: old file may already be removed.
+          });
+        }
+      }
+
+      res.status(200).json({ user });
     } catch (error) {
       next(error);
     }

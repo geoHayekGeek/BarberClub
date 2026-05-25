@@ -52,6 +52,9 @@ dependencies:
   font_awesome_flutter: ^10.12.0
   google_fonts: ^6.3.2
   flutter_svg: ^2.0.10+1
+  image_picker: ^1.1.2
+  image_cropper: ^8.1.0
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:

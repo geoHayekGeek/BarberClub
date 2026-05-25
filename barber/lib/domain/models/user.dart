@@ -10,6 +10,7 @@ class User with _$User {
     required String email,
     required String phoneNumber,
     String? fullName,
+    String? avatarUrl,
     @Default('USER') String role,
   }) = _User;
 

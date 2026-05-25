@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/user.dart';
 import '../../domain/models/api_error.dart';
@@ -285,6 +287,22 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(user: updatedUser);
     } catch (e) {
       // We rethrow so the UI (CompteScreen) can catch it and show a SnackBar
+      rethrow;
+    }
+  }
+
+  /// Update user avatar.
+  Future<void> updateAvatar({
+    required Uint8List imageBytes,
+    required String mimeType,
+  }) async {
+    try {
+      final updatedUser = await _authRepository.updateAvatar(
+        imageBytes: imageBytes,
+        mimeType: mimeType,
+      );
+      state = state.copyWith(user: updatedUser);
+    } catch (e) {
       rethrow;
     }
   }

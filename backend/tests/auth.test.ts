@@ -3,6 +3,8 @@
  */
 
 import request from 'supertest';
+import fs from 'fs';
+import path from 'path';
 import { createApp } from '../src/app';
 import prisma from '../src/db/client';
 
@@ -605,6 +607,88 @@ describe('POST /api/v1/auth/reset-password', () => {
       .send({ refreshToken });
 
     expect(refreshResponse.status).toBe(401);
+  });
+});
+
+describe('PUT /api/v1/auth/me/avatar', () => {
+  let accessToken: string;
+  let userId: string;
+
+  beforeAll(async () => {
+    await prisma.passwordResetCode.deleteMany();
+    await prisma.passwordResetToken.deleteMany();
+    await prisma.booking.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'avatar@example.com',
+        phoneNumber: '+2555555555',
+        password: 'password123',
+        fullName: 'Avatar User',
+      });
+
+    accessToken = registerResponse.body.accessToken as string;
+    userId = registerResponse.body.user.id as string;
+  });
+
+  afterAll(async () => {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    if (user?.avatarUrl?.startsWith('/images/')) {
+      const imagesPath = app.get('imagesPath') as string;
+      const relativePath = user.avatarUrl.replace('/images/', '');
+      const absolutePath = path.join(imagesPath, relativePath);
+      if (fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+      }
+    }
+
+    await prisma.passwordResetCode.deleteMany();
+    await prisma.passwordResetToken.deleteMany();
+    await prisma.booking.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+  });
+
+  it('should upload and persist avatar URL', async () => {
+    const pngBytes = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9mO2kAAAAASUVORK5CYII=',
+      'base64'
+    );
+
+    const response = await request(app)
+      .put('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Content-Type', 'image/png')
+      .send(pngBytes);
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.avatarUrl).toContain('/images/avatars/');
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    expect(user?.avatarUrl).toBeTruthy();
+    expect(user?.avatarUrl).toContain('/images/avatars/');
+  });
+
+  it('should return 400 for unsupported content type', async () => {
+    const response = await request(app)
+      .put('/api/v1/auth/me/avatar')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Content-Type', 'text/plain')
+      .send('not-an-image');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_INPUT');
   });
 });
 
