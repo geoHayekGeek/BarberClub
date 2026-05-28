@@ -53,7 +53,7 @@ dependencies:
   google_fonts: ^6.3.2
   flutter_svg: ^2.0.10+1
   image_picker: ^1.1.2
-  image_cropper: ^8.1.0
+  image_cropper: ^12.2.1
   flutter_image_compress: ^2.4.0
 
 dev_dependencies:
