@@ -238,7 +238,7 @@ class _IntroCenterContent extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Barbier premium a Grenoble et Meylan',
+              'Nous ne suivons pas la tendance, nous la créons.',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: 18,
                 color: Colors.white.withOpacity(0.84),
