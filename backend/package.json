@@ -16,7 +16,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "add-offers": "tsx scripts/add-offers.ts",
     "reset-passwords": "tsx scripts/reset-all-passwords.ts",
-    "seed:prod": "node dist/prisma/seed.ts",
+    "seed:prod": "node dist/prisma/seed.js",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"
   },
@@ -69,6 +69,6 @@
     "node": ">=20.0.0"
   },
   "prisma": {
-    "seed": "node dist/prisma/seed.ts"
+    "seed": "node dist/prisma/seed.js"
   }
 }
