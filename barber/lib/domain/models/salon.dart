@@ -6,6 +6,7 @@ class Salon {
   final String city;
   final String descriptionShort;
   final String descriptionLong;
+  final String? location; 
   final String address;
   final List<String> images;
   final String openingHours;
@@ -21,6 +22,7 @@ class Salon {
     required this.city,
     required this.descriptionShort,
     required this.descriptionLong,
+    this.location,
     required this.address,
     required this.images,
     required this.openingHours,
@@ -76,6 +78,7 @@ class Salon {
       city: json['city'] as String? ?? '',
       descriptionShort: description,
       descriptionLong: longDesc,
+      location: json['location'] as String?, 
       address: json['address'] as String? ?? '',
       images: imagesList,
       openingHours: openingHoursStr,
@@ -98,6 +101,7 @@ class Salon {
       'city': city,
       'descriptionShort': descriptionShort,
       'descriptionLong': descriptionLong,
+      'location': location, 
       'address': address,
       'images': images,
       'openingHours': openingHours,
