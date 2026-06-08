@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +24,7 @@ class SalonDetailScreen extends ConsumerWidget {
     final salonAsync = ref.watch(salonDetailProvider(salonId));
 
     return salonAsync.when(
-      data: (salon) => _SalonDetailContent(salon: salon),
+      data: (salon) => _SalonDetailContent(salon: salon, ref: ref),
       loading: () => Scaffold(
         backgroundColor: const Color(0xFF0E0E10),
         appBar: AppBar(
@@ -84,8 +84,12 @@ class SalonDetailScreen extends ConsumerWidget {
 
 class _SalonDetailContent extends StatelessWidget {
   final Salon salon;
+  final WidgetRef ref;
 
-  const _SalonDetailContent({required this.salon});
+  const _SalonDetailContent({
+    required this.salon,
+    required this.ref,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +294,10 @@ class _SalonDetailContent extends StatelessWidget {
                     child: SizedBox(
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: () => _launchTimify(context),
+                        onPressed: () {
+                          this.ref.read(selectedSalonIdForRdvProvider.notifier).state = salon.id;
+                          context.go('/rdv');
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey.shade300,
                           foregroundColor: Colors.black87,
@@ -413,32 +420,6 @@ class _SalonDetailContent extends StatelessWidget {
     }
   }
 
-  Future<void> _launchTimify(BuildContext context) async {
-    final url = salon.timifyUrl;
-    if (url == null || url.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Réservation en ligne indisponible pour ce salon.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-      return;
-    }
-    try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Impossible d\'ouvrir le lien de réservation.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
 
   Widget _heroPlaceholder() {
     return Container(
@@ -765,3 +746,5 @@ class _HorairesCard extends StatelessWidget {
     );
   }
 }
+
+

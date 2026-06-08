@@ -1,10 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
-import 'package:url_launcher/url_launcher.dart'; 
 
 import '../../core/config/app_config.dart';
 import '../../domain/models/barber.dart';
@@ -553,81 +552,11 @@ class _CtaButton extends ConsumerStatefulWidget {
 }
 
 class _CtaButtonState extends ConsumerState<_CtaButton> {
-  bool _isLoading = false;
 
-  Future<void> _launchTimify(BuildContext context, String? url) async {
-    if (url == null || url.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Réservation en ligne indisponible pour ce coiffeur.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-      return;
-    }
-
-    final uri = Uri.parse(url);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Could not launch $url';
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Impossible d\'ouvrir le lien de réservation.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleOnTap() async {
-    if (_isLoading) return;
+  void _handleOnTap() {
     HapticFeedback.mediumImpact();
-    
-    String? timifyUrl;
-    String currentSalonId = widget.salonId;
-
-    // --- THE FIX ---
-    // If we came from the Coiffeurs list, currentSalonId will be empty.
-    // We must grab the barber's first salon ID to know what to query!
-    if (currentSalonId.isEmpty && widget.barber.salons.isNotEmpty) {
-      currentSalonId = widget.barber.salons.first.id;
-    }
-
-    // 1. First, try to get it directly from the barber's nested data
-    if (widget.barber.salons.isNotEmpty) {
-      try {
-        final targetSalon = widget.barber.salons.firstWhere((s) => s.id == currentSalonId);
-        timifyUrl = targetSalon.timifyUrl;
-      } catch (_) {
-        timifyUrl = widget.barber.salons.first.timifyUrl;
-      }
-    }
-
-    // 2. If it is STILL null, force a fetch of the full Salon data from Riverpod!
-    if ((timifyUrl == null || timifyUrl.isEmpty) && currentSalonId.isNotEmpty) {
-      setState(() => _isLoading = true);
-      try {
-        // Read directly from the provider used by SalonDetailScreen
-        final fullSalon = await ref.read(salonDetailProvider(currentSalonId).future);
-        timifyUrl = fullSalon.timifyUrl;
-      } catch (e) {
-        // Ignore error and let it fall through to the failure snackbar
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    }
-
-    if (mounted) {
-      _launchTimify(context, timifyUrl);
-    }
+    ref.read(selectedSalonIdForRdvProvider.notifier).state = widget.salonId;
+    context.go('/rdv');
   }
 
   @override
@@ -640,34 +569,26 @@ class _CtaButtonState extends ConsumerState<_CtaButton> {
         child: InkWell(
           onTap: _handleOnTap,
           borderRadius: BorderRadius.circular(16),
-          child: Center(
-            child: _isLoading 
-              ? const SizedBox(
-                  height: 24, 
-                  width: 24, 
-                  child: CircularProgressIndicator(color: Colors.black87, strokeWidth: 2)
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.calendar_today, color: Colors.black87, size: 22),
-                    const SizedBox(width: 12),
-                    Text(
-                      'RÉSERVER AVEC ${widget.barber.displayName.toUpperCase()}',
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.calendar_today, color: Colors.black87, size: 22),
+              const SizedBox(width: 12),
+              Text(
+                'RÉSERVER AVEC ${widget.barber.displayName.toUpperCase()}',
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
           ),
         ),
-      ),
     );
   }
 }
@@ -749,3 +670,5 @@ class _GalleryGrid extends StatelessWidget {
     );
   }
 }
+
+
