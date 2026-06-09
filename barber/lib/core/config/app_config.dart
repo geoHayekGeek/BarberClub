@@ -2,9 +2,8 @@
 /// Supports API_BASE_URL via --dart-define
 class AppConfig {
   AppConfig._();
-  
-  // static const String _defaultApiBaseUrl = 'http://10.0.2.2:3000';
-  static const String _defaultApiBaseUrl = 'https://barberclub-production-d46a.up.railway.app';
+
+  static const String _defaultApiBaseUrl = 'http://10.0.2.2:3000';
 
   /// API base URL from --dart-define or default
   static String get apiBaseUrl {
@@ -12,12 +11,13 @@ class AppConfig {
       'API_BASE_URL',
       defaultValue: _defaultApiBaseUrl,
     );
-    return fromDefine;
+    final normalized = fromDefine.trim();
+    return normalized.isEmpty ? _defaultApiBaseUrl : normalized;
   }
-  
+
   /// API timeout in milliseconds
-  static const int apiTimeoutMs = 30000;  
-  
+  static const int apiTimeoutMs = 30000;
+
   /// Refresh token endpoint path
   static const String refreshTokenPath = '/api/v1/auth/refresh';
 

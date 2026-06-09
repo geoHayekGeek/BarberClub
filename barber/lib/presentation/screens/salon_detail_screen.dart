@@ -1,4 +1,4 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,10 +14,7 @@ import '../widgets/prestation_item.dart';
 class SalonDetailScreen extends ConsumerWidget {
   final String salonId;
 
-  const SalonDetailScreen({
-    super.key,
-    required this.salonId,
-  });
+  const SalonDetailScreen({super.key, required this.salonId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -60,14 +57,15 @@ class SalonDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       message,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: () => ref.invalidate(salonDetailProvider(salonId)),
+                      onPressed: () =>
+                          ref.invalidate(salonDetailProvider(salonId)),
                       icon: const Icon(Icons.refresh),
                       label: const Text('Réessayer'),
                     ),
@@ -86,10 +84,7 @@ class _SalonDetailContent extends StatelessWidget {
   final Salon salon;
   final WidgetRef ref;
 
-  const _SalonDetailContent({
-    required this.salon,
-    required this.ref,
-  });
+  const _SalonDetailContent({required this.salon, required this.ref});
 
   @override
   Widget build(BuildContext context) {
@@ -107,25 +102,28 @@ class _SalonDetailContent extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: () {
-                      final resolved = AppConfig.resolveImageUrl(salon.imageUrl);
+                      final resolved = AppConfig.resolveImageUrl(
+                        salon.imageUrl,
+                      );
                       return resolved != null && resolved.startsWith('http')
-                        ? CachedNetworkImage(
-                            imageUrl: resolved,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              color: const Color(0xFF1A1A1A),
-                              child: const Center(
-                                  child: CircularProgressIndicator(color: Colors.white54)),
-                            ),
-                            errorWidget: (_, __, ___) => _heroPlaceholder(),
-                          )
-                        : _heroPlaceholder();
+                          ? CachedNetworkImage(
+                              imageUrl: resolved,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: const Color(0xFF1A1A1A),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => _heroPlaceholder(),
+                            )
+                          : _heroPlaceholder();
                     }(),
                   ),
                   Positioned.fill(
-                    child: Container(
-                      color: Colors.black.withOpacity(0.6),
-                    ),
+                    child: Container(color: Colors.black.withOpacity(0.6)),
                   ),
                   Positioned(
                     top: MediaQuery.of(context).padding.top,
@@ -175,7 +173,8 @@ class _SalonDetailContent extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (salon.descriptionLong.isNotEmpty) const SizedBox(height: 24),
+                  if (salon.descriptionLong.isNotEmpty)
+                    const SizedBox(height: 24),
                   _SalonInfoCard(
                     icon: Icons.location_on_outlined,
                     title: 'ADRESSE',
@@ -200,11 +199,17 @@ class _SalonDetailContent extends StatelessWidget {
                               onTap: () => _openMaps(context),
                               borderRadius: BorderRadius.circular(16),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.send_outlined, color: Colors.black87, size: 20),
+                                    Icon(
+                                      Icons.send_outlined,
+                                      color: Colors.black87,
+                                      size: 20,
+                                    ),
                                     const SizedBox(width: 10),
                                     Text(
                                       'OUVRIR DANS MAPS',
@@ -244,12 +249,15 @@ class _SalonDetailContent extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             child: InkWell(
-                              onTap: salon.phone != null && salon.phone!.isNotEmpty
+                              onTap:
+                                  salon.phone != null && salon.phone!.isNotEmpty
                                   ? () => _callSalon(context)
                                   : null,
                               borderRadius: BorderRadius.circular(16),
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -295,7 +303,10 @@ class _SalonDetailContent extends StatelessWidget {
                       height: 52,
                       child: ElevatedButton(
                         onPressed: () {
-                          this.ref.read(selectedSalonIdForRdvProvider.notifier).state = salon.id;
+                          ref
+                                  .read(selectedSalonIdForRdvProvider.notifier)
+                                  .state =
+                              salon.id;
                           context.go('/rdv');
                         },
                         style: ElevatedButton.styleFrom(
@@ -307,7 +318,10 @@ class _SalonDetailContent extends StatelessWidget {
                         ),
                         child: const Text(
                           'Réserver ici',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -366,21 +380,27 @@ class _SalonDetailContent extends StatelessWidget {
                         placeholder: (_, __) => Container(
                           color: const Color(0xFF1A1A1A),
                           child: const Center(
-                              child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2))),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
                         ),
                         errorWidget: (_, __, ___) => Container(
                           color: const Color(0xFF1A1A1A),
-                          child: const Icon(Icons.image_not_supported_outlined,
-                              color: Colors.white24),
+                          child: const Icon(
+                            Icons.image_not_supported_outlined,
+                            color: Colors.white24,
+                          ),
                         ),
                       )
                     : Container(
                         color: const Color(0xFF1A1A1A),
-                        child: const Icon(Icons.image_not_supported_outlined,
-                            color: Colors.white24),
+                        child: const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white24,
+                        ),
                       ),
               );
             },
@@ -419,7 +439,6 @@ class _SalonDetailContent extends StatelessWidget {
       }
     }
   }
-
 
   Widget _heroPlaceholder() {
     return Container(
@@ -460,7 +479,11 @@ class _SalonPrestationsSection extends ConsumerWidget {
                       color: Colors.white.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.receipt_long_outlined, color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.receipt_long_outlined,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -521,7 +544,10 @@ class _SalonPrestationsSection extends ConsumerWidget {
           child: SizedBox(
             width: 28,
             height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white54,
+            ),
           ),
         ),
       ),
@@ -611,7 +637,9 @@ const _dayKeys = [
   'sunday',
 ];
 
-List<({String day, String hours, bool isOpen})> _horairesFromStructured(Map<String, dynamic> structured) {
+List<({String day, String hours, bool isOpen})> _horairesFromStructured(
+  Map<String, dynamic> structured,
+) {
   final result = <({String day, String hours, bool isOpen})>[];
   for (int i = 0; i < 7; i++) {
     final dayKey = _dayKeys[i];
@@ -632,19 +660,28 @@ List<({String day, String hours, bool isOpen})> _horairesFromStructured(Map<Stri
       final h = s.replaceFirst(':00', 'h');
       return h.startsWith('0') && h.length > 1 ? h.substring(1) : h;
     }
+
     final openStr = formatH(open);
     final closeStr = formatH(close);
-    result.add((day: _weekDays[i], hours: '$openStr - $closeStr', isOpen: true));
+    result.add((
+      day: _weekDays[i],
+      hours: '$openStr - $closeStr',
+      isOpen: true,
+    ));
   }
   return result;
 }
 
-List<({String day, String hours, bool isOpen})> _parseHorairesFromText(String openingHours) {
+List<({String day, String hours, bool isOpen})> _parseHorairesFromText(
+  String openingHours,
+) {
   final result = <({String day, String hours, bool isOpen})>[];
   final lower = openingHours.toLowerCase();
   final hasFerm = lower.contains('ferm') || lower.contains('fermé');
-  final sundayClosed = (lower.contains('dim') && hasFerm) || lower.contains('dimanche');
-  final mondayClosed = (lower.contains('lun') && hasFerm) || lower.contains('lundi');
+  final sundayClosed =
+      (lower.contains('dim') && hasFerm) || lower.contains('dimanche');
+  final mondayClosed =
+      (lower.contains('lun') && hasFerm) || lower.contains('lundi');
   final openHours = lower.contains('9h') && lower.contains('19h')
       ? '9h - 19h'
       : (lower.contains('9') && lower.contains('19') ? '9h - 19h' : 'Ouvert');
@@ -672,7 +709,8 @@ class _HorairesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = openingHoursStructured != null && openingHoursStructured!.isNotEmpty
+    final rows =
+        openingHoursStructured != null && openingHoursStructured!.isNotEmpty
         ? _horairesFromStructured(openingHoursStructured!)
         : _parseHorairesFromText(openingHours);
 
@@ -695,7 +733,11 @@ class _HorairesCard extends StatelessWidget {
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.schedule_outlined, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.schedule_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -710,41 +752,44 @@ class _HorairesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...rows.map((row) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        row.day,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.95),
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        row.hours,
-                        style: TextStyle(
-                          color: row.isOpen ? Colors.green : Colors.red,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+          ...rows.map(
+            (row) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-              )),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      row.day,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.95),
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      row.hours,
+                      style: TextStyle(
+                        color: row.isOpen ? Colors.green : Colors.red,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
-
-

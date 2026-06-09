@@ -154,7 +154,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     if (_policyDialogShown || !mounted) return;
     _policyDialogShown = true;
 
-    final accepted = await showDialog<bool>(
+    final accepted =
+        await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           barrierColor: Colors.black.withValues(alpha: 0.86),
@@ -262,7 +263,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                     child: Icon(
                                       Icons.check_rounded,
                                       size: 14,
-                                      color: checked ? Colors.black : Colors.transparent,
+                                      color: checked
+                                          ? Colors.black
+                                          : Colors.transparent,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -270,7 +273,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                     child: Text(
                                       "J’ai lu et j’accepte ces conditions",
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.78),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.78,
+                                        ),
                                         fontSize: 13,
                                         height: 1.3,
                                       ),
@@ -299,7 +304,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                     borderRadius: BorderRadius.circular(14),
                                     onTap: checked
                                         ? () {
-                                            Navigator.of(dialogContext).pop(true);
+                                            Navigator.of(
+                                              dialogContext,
+                                            ).pop(true);
                                           }
                                         : null,
                                     child: Center(
@@ -312,7 +319,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                           letterSpacing: 1.0,
                                           color: checked
                                               ? Colors.black
-                                              : Colors.white.withValues(alpha: 0.2),
+                                              : Colors.white.withValues(
+                                                  alpha: 0.2,
+                                                ),
                                         ),
                                       ),
                                     ),
@@ -443,15 +452,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   void _selectDate(DateTime date) {
-    final slots = _availableSlotsForDate(date);
+    final sameDate = _selectedDate != null && _isSameDate(_selectedDate!, date);
     setState(() {
       _selectedDate = date;
-      _selectedSlot = slots.isNotEmpty
-          ? slots.firstWhere(
-              (slot) => slot.time == '09:30',
-              orElse: () => slots.first,
-            )
-          : null;
+      if (!sameDate) {
+        _selectedSlot = null;
+      }
       _calendarMonth = DateTime(date.year, date.month);
     });
   }
@@ -483,14 +489,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         _showMessage('Sélectionnez une prestation.');
         return;
       }
-      final defaultDate = _defaultBookingDate();
       setState(() {
-        _selectedDate = defaultDate;
-        _selectedSlot = _availableSlotsForDate(defaultDate).firstWhere(
-          (slot) => slot.time == '09:30',
-          orElse: () => _availableSlotsForDate(defaultDate).first,
-        );
-        _calendarMonth = DateTime(defaultDate.year, defaultDate.month);
+        _selectedDate = null;
+        _selectedSlot = null;
+        _calendarMonth = DateTime(_today.year, _today.month);
       });
       _setStep(_ReservationStep.date);
       return;
@@ -503,17 +505,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       }
       _setStep(_ReservationStep.booking);
     }
-  }
-
-  DateTime _defaultBookingDate() {
-    final preferred = DateTime(_today.year, _today.month, _today.day + 3);
-    if (_isSelectableDate(preferred)) return preferred;
-
-    for (var i = 1; i <= 21; i++) {
-      final candidate = DateTime(_today.year, _today.month, _today.day + i);
-      if (_isSelectableDate(candidate)) return candidate;
-    }
-    return preferred;
   }
 
   bool _isSelectableDate(DateTime date) {
@@ -572,10 +563,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     ];
 
     return List.generate(times.length, (index) {
-      return _SlotOption(
-        time: times[index],
-        barberName: barberRotation[index],
-      );
+      return _SlotOption(time: times[index], barberName: barberRotation[index]);
     });
   }
 
@@ -614,9 +602,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       days.add(
         _CalendarDay(
           date: date,
-          isPast: date.isBefore(DateTime(_today.year, _today.month, _today.day)),
+          isPast: date.isBefore(
+            DateTime(_today.year, _today.month, _today.day),
+          ),
           isAvailable: _isSelectableDate(date),
-          isSelected: _selectedDate != null && _isSameDate(date, _selectedDate!),
+          isSelected:
+              _selectedDate != null && _isSameDate(date, _selectedDate!),
         ),
       );
     }
@@ -684,7 +675,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   String get _summaryBarberName {
     if (_selectedBarber == null) return 'Peu importe';
     if (_selectedBarber!.isAny) {
-      return _selectedSlot?.barberName ?? 'Louay';
+      return _selectedSlot?.barberName ?? 'À sélectionner';
     }
     return _selectedBarber!.name;
   }
@@ -693,11 +684,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _selectedService?.name ?? 'Coupe Homme sans barbe';
 
   String get _summaryDateLabel {
-    final date = _selectedDate ?? _defaultBookingDate();
+    final date = _selectedDate;
+    if (date == null) return 'À sélectionner';
     return _formatLongDate(date);
   }
 
-  String get _summaryTimeLabel => _selectedSlot?.time ?? '09:30';
+  String get _summaryTimeLabel => _selectedSlot?.time ?? 'À sélectionner';
 
   bool get _showActionBar {
     final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
@@ -833,7 +825,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             bottom: false,
             child: salonsAsync.when(
               data: (salons) {
-                final selectedSalon = _selectedSalonFrom(salons, selectedSalonId);
+                final selectedSalon = _selectedSalonFrom(
+                  salons,
+                  selectedSalonId,
+                );
                 if (selectedSalon == null) {
                   return _buildSalonSelectionView(context, salons);
                 }
@@ -845,25 +840,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 );
               },
               loading: () => _buildLoadingState(context),
-              error: (error, stackTrace) => _buildSalonSelectionError(
-                context,
-                error,
-                stackTrace,
-              ),
+              error: (error, stackTrace) =>
+                  _buildSalonSelectionError(context, error, stackTrace),
             ),
           ),
-          if (_showActionBar)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: bottomInset + 96,
-              child: _ReservationActionBar(
-                enabled: _actionEnabled,
-                loading: _bookingBusy,
-                label: _actionLabel,
-                onPressed: _continuePrimaryFlow,
-              ),
-            ),
         ],
       ),
     );
@@ -875,63 +855,81 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     required DateTime currentMonth,
     required Salon selectedSalon,
   }) {
-    final contentBottomPadding = _showActionBar ? 132.0 : 56.0;
+    final dockReserve = bottomInset + 108.0;
+    final contentBottomPadding = _showActionBar ? 20.0 : 48.0;
     final headerTitle = 'RÉSERVER À ${selectedSalon.city.toUpperCase()}';
     final headerSubtitle = selectedSalon.name.toUpperCase();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-          child: _ReservationTopHeader(
-            title: headerTitle,
-            subtitle: headerSubtitle,
-            onBack: _handleBack,
-            onProfile: _openAccount,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
-          child: _ReservationStepper(step: _step),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              contentBottomPadding + bottomInset + 22,
+    return Padding(
+      padding: EdgeInsets.only(bottom: dockReserve),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+            child: _ReservationTopHeader(
+              title: headerTitle,
+              subtitle: headerSubtitle,
+              onBack: _handleBack,
+              onProfile: _openAccount,
             ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 240),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final offsetTween = Tween<Offset>(
-                    begin: const Offset(0.02, 0.02),
-                    end: Offset.zero,
-                  );
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: animation.drive(offsetTween),
-                      child: child,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+            child: _ReservationStepper(step: _step),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                contentBottomPadding + 12,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final offsetTween = Tween<Offset>(
+                      begin: const Offset(0.02, 0.02),
+                      end: Offset.zero,
+                    );
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: animation.drive(offsetTween),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(
+                      '${_step.name}-${_authMode.name}-$headerTitle',
                     ),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey('${_step.name}-${_authMode.name}-$headerTitle'),
-                  child: _buildCurrentStep(context, currentMonth),
+                    child: _buildCurrentStep(context, currentMonth),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+          if (_showActionBar) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: _ReservationActionBar(
+                enabled: _actionEnabled,
+                loading: _bookingBusy,
+                label: _actionLabel,
+                onPressed: _continuePrimaryFlow,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -959,9 +957,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                     child: Text(
                       'Aucun salon disponible pour le moment.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
                     ),
                   ),
                 )
@@ -973,7 +971,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                     children: [
                       Text(
                         'NOS SALONS',
-                        style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        style: Theme.of(context).textTheme.displaySmall
+                            ?.copyWith(
                               fontSize: 28,
                               letterSpacing: 2.6,
                               fontWeight: FontWeight.w800,
@@ -984,13 +983,16 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                       Text(
                         'Choisissez l’adresse qui vous convient pour démarrer votre réservation.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white70,
-                              height: 1.45,
-                            ),
+                          color: Colors.white70,
+                          height: 1.45,
+                        ),
                       ),
                       const SizedBox(height: 18),
                       SizedBox(
-                        height: math.max(430.0, MediaQuery.sizeOf(context).height * 0.72),
+                        height: math.max(
+                          430.0,
+                          MediaQuery.sizeOf(context).height * 0.72,
+                        ),
                         child: _SalonChoiceSplit(
                           salons: selectionSalons,
                           onTapSalon: _selectSalon,
@@ -1025,9 +1027,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white70,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
             ),
             const SizedBox(height: 14),
             FilledButton.icon(
@@ -1109,7 +1111,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Votre barber', 'Choisissez votre barber préféré'),
+            _buildSectionHeader(
+              'Votre barber',
+              'Choisissez votre barber préféré',
+            ),
             const SizedBox(height: 18),
             ..._barbers.map(
               (barber) => Padding(
@@ -1163,10 +1168,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                   ),
                 const SizedBox(height: 10),
               ],
-            _CategoryHeader(
-              title: 'AUTRES',
-              icon: Icons.add_rounded,
-            ),
+            _CategoryHeader(title: 'AUTRES', icon: Icons.add_rounded),
             const SizedBox(height: 10),
             const _DisabledServiceCard(
               title: 'Mèches',
@@ -1214,7 +1216,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                       child: _QuickSuggestionCard(
                         suggestion: suggestion,
                         selected:
-                            selectedDate != null && _isSameDate(selectedDate, suggestion.date),
+                            selectedDate != null &&
+                            _isSameDate(selectedDate, suggestion.date),
                         onTap: () => _selectDate(suggestion.date),
                       ),
                     ),
@@ -1222,9 +1225,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            _DividerLabel(
-              label: 'OU CHOISIR UNE DATE',
-            ),
+            _DividerLabel(label: 'OU CHOISIR UNE DATE'),
             const SizedBox(height: 12),
             _CalendarHeader(
               monthLabel: _formatMonthLabel(currentMonth),
@@ -1244,11 +1245,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               itemCount: calendarDays.length,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 2,
-                childAspectRatio: 0.78,
+                mainAxisSpacing: 3,
+                crossAxisSpacing: 1,
+                mainAxisExtent: 44,
               ),
               itemBuilder: (context, index) {
                 final day = calendarDays[index];
@@ -1262,28 +1264,37 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 );
               },
             ),
-            const SizedBox(height: 12),
-            Text(
-              '${availableSlots.length} CRÉNEAUX DISPONIBLES',
-              style: TextStyle(
-                fontFamily: _titleFont,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-                color: Colors.white.withValues(alpha: 0.82),
-              ),
-            ),
             const SizedBox(height: 10),
             if (selectedDate == null)
-              _EmptySlotsHint(
-                text: 'Sélectionnez une date pour voir les créneaux disponibles',
+              Padding(
+                padding: const EdgeInsets.only(top: 0),
+                child: Text(
+                  'Sélectionnez une date pour voir les créneaux disponibles',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.34),
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
               )
-            else
+            else ...[
+              Text(
+                '${availableSlots.length} CRÉNEAUX DISPONIBLES',
+                style: TextStyle(
+                  fontFamily: _titleFont,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  color: Colors.white.withValues(alpha: 0.82),
+                ),
+              ),
+              const SizedBox(height: 6),
               _SlotsGrid(
                 slots: availableSlots,
                 selectedTime: _selectedSlot?.time,
                 onTap: _selectSlot,
               ),
+            ],
           ],
         ),
       ),
@@ -1312,7 +1323,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               _AuthOptionCard(
                 icon: Icons.edit_outlined,
                 title: "RÉSERVER EN TANT QU'INVITÉ",
-                description: 'Sans compte — gestion du RDV par email uniquement',
+                description:
+                    'Sans compte — gestion du RDV par email uniquement',
                 onTap: () => _chooseAuthMode(_AuthMode.guest),
               ),
               const SizedBox(height: 10),
@@ -1323,13 +1335,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 onTap: () => _chooseAuthMode(_AuthMode.login),
               ),
               const SizedBox(height: 16),
-              _MemberDivider(
-                label: 'PAS ENCORE MEMBRE ?',
-              ),
+              _MemberDivider(label: 'PAS ENCORE MEMBRE ?'),
               const SizedBox(height: 14),
-              _SignupPromoCard(
-                onTap: () => _chooseAuthMode(_AuthMode.signup),
-              ),
+              _SignupPromoCard(onTap: () => _chooseAuthMode(_AuthMode.signup)),
             ] else if (_authMode == _AuthMode.guest) ...[
               _GuestReservationForm(
                 formKey: _guestFormKey,
@@ -1396,8 +1404,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   Widget _buildSuccessStep(BuildContext context) {
     final selectedService = _selectedService;
-    final selectedDate = _selectedDate ?? _defaultBookingDate();
-    final selectedSlot = _selectedSlot ?? const _SlotOption(time: '09:30', barberName: 'Louay');
+    final selectedDate = _selectedDate;
+    final selectedSlot = _selectedSlot;
     final price = _formatPrice(selectedService?.priceCents ?? 2000);
 
     return _buildPanelShell(
@@ -1423,8 +1431,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             _SummaryCard(
               barber: _summaryBarberName,
               service: selectedService?.name ?? 'Coupe Homme sans barbe',
-              date: _formatLongDate(selectedDate),
-              time: selectedSlot.time,
+              date: selectedDate == null
+                  ? 'À sélectionner'
+                  : _formatLongDate(selectedDate),
+              time: selectedSlot?.time ?? 'À sélectionner',
               duration: selectedService?.durationMinutes ?? 30,
               price: price,
             ),
@@ -1433,14 +1443,18 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               icon: Icons.calendar_month_outlined,
               label: 'Ajouter à Google Agenda',
               primary: true,
-              onTap: () => _showMessage('Démo uniquement : lien Google Agenda non activé.'),
+              onTap: () => _showMessage(
+                'Démo uniquement : lien Google Agenda non activé.',
+              ),
             ),
             const SizedBox(height: 10),
             _SuccessActionButton(
               icon: Icons.calendar_today_outlined,
               label: 'Ajouter au Calendrier',
               primary: false,
-              onTap: () => _showMessage('Démo uniquement : export calendrier non activé.'),
+              onTap: () => _showMessage(
+                'Démo uniquement : export calendrier non activé.',
+              ),
             ),
             const SizedBox(height: 10),
             _SuccessActionButton(
@@ -1451,7 +1465,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             ),
             const SizedBox(height: 18),
             _PracticalInfoSection(
-              onMapTap: () => _showMessage('Démo uniquement : Google Maps non activé.'),
+              onMapTap: () =>
+                  _showMessage('Démo uniquement : Google Maps non activé.'),
             ),
             const SizedBox(height: 14),
             Text(
@@ -1491,7 +1506,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         id: 'louay',
         name: 'LOUAY',
         subtitle: 'Barbier',
-        photoUrl: 'https://barberclub-grenoble.fr/assets/images/barbers/louay.jpg',
+        photoUrl:
+            'https://barberclub-grenoble.fr/assets/images/barbers/louay.jpg',
       ),
       _BarberOption(
         id: 'nathan',
@@ -1521,55 +1537,57 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   List<_ServiceOption> get _services => const <_ServiceOption>[
-        _ServiceOption(
-          id: 'cut_homme_sans_barbe',
-          name: 'Coupe Homme sans barbe',
-          description: 'Shampooing, coupe, coiffage',
-          priceCents: 2000,
-          durationMinutes: 30,
-          category: _ServiceCategory.cuts,
-        ),
-        _ServiceOption(
-          id: 'cut_homme',
-          name: 'Coupe Homme',
-          description: 'Shampooing, coupe, coiffage',
-          priceCents: 2000,
-          durationMinutes: 30,
-          category: _ServiceCategory.cuts,
-        ),
-        _ServiceOption(
-          id: 'cut_contours_barbe',
-          name: 'Coupe + Contours Barbe',
-          description: 'Coupe cheveux, shampooing, coiffage + traçage et soin barbe',
-          priceCents: 2500,
-          durationMinutes: 40,
-          category: _ServiceCategory.cuts,
-        ),
-        _ServiceOption(
-          id: 'cut_barbe',
-          name: 'Coupe + Barbe',
-          description: 'Coupe cheveux, shampooing, coiffage + traçage et taille soin barbe',
-          priceCents: 3000,
-          durationMinutes: 45,
-          category: _ServiceCategory.cuts,
-        ),
-        _ServiceOption(
-          id: 'barbe_uniquement',
-          name: 'Barbe uniquement',
-          description: 'Barbe : traçage, taillage et huile nourrissante',
-          priceCents: 1500,
-          durationMinutes: 25,
-          category: _ServiceCategory.beard,
-        ),
-        _ServiceOption(
-          id: 'cut_enfant',
-          name: 'Coupe Enfant (-12 ans)',
-          description: 'Coupes cheveux, shampooing, coiffage',
-          priceCents: 1500,
-          durationMinutes: 25,
-          category: _ServiceCategory.reduced,
-        ),
-      ];
+    _ServiceOption(
+      id: 'cut_homme_sans_barbe',
+      name: 'Coupe Homme sans barbe',
+      description: 'Shampooing, coupe, coiffage',
+      priceCents: 2000,
+      durationMinutes: 30,
+      category: _ServiceCategory.cuts,
+    ),
+    _ServiceOption(
+      id: 'cut_homme',
+      name: 'Coupe Homme',
+      description: 'Shampooing, coupe, coiffage',
+      priceCents: 2000,
+      durationMinutes: 30,
+      category: _ServiceCategory.cuts,
+    ),
+    _ServiceOption(
+      id: 'cut_contours_barbe',
+      name: 'Coupe + Contours Barbe',
+      description:
+          'Coupe cheveux, shampooing, coiffage + traçage et soin barbe',
+      priceCents: 2500,
+      durationMinutes: 40,
+      category: _ServiceCategory.cuts,
+    ),
+    _ServiceOption(
+      id: 'cut_barbe',
+      name: 'Coupe + Barbe',
+      description:
+          'Coupe cheveux, shampooing, coiffage + traçage et taille soin barbe',
+      priceCents: 3000,
+      durationMinutes: 45,
+      category: _ServiceCategory.cuts,
+    ),
+    _ServiceOption(
+      id: 'barbe_uniquement',
+      name: 'Barbe uniquement',
+      description: 'Barbe : traçage, taillage et huile nourrissante',
+      priceCents: 1500,
+      durationMinutes: 25,
+      category: _ServiceCategory.beard,
+    ),
+    _ServiceOption(
+      id: 'cut_enfant',
+      name: 'Coupe Enfant (-12 ans)',
+      description: 'Coupes cheveux, shampooing, coiffage',
+      priceCents: 1500,
+      durationMinutes: 25,
+      category: _ServiceCategory.reduced,
+    ),
+  ];
 
   static const List<_ServiceCategory> _serviceCategories = <_ServiceCategory>[
     _ServiceCategory.cuts,
@@ -1641,10 +1659,7 @@ class _ServiceOption {
 }
 
 class _SlotOption {
-  const _SlotOption({
-    required this.time,
-    required this.barberName,
-  });
+  const _SlotOption({required this.time, required this.barberName});
 
   final String time;
   final String barberName;
@@ -1671,10 +1686,10 @@ class _CalendarDay {
   });
 
   const _CalendarDay.empty()
-      : date = null,
-        isPast = false,
-        isAvailable = false,
-        isSelected = false;
+    : date = null,
+      isPast = false,
+      isAvailable = false,
+      isSelected = false;
 
   final DateTime? date;
   final bool isPast;
@@ -1714,7 +1729,11 @@ class _PolicyRuleCard extends StatelessWidget {
               color: const Color(0xFF202020),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.72)),
+            child: Icon(
+              icon,
+              size: 18,
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1749,72 +1768,8 @@ class _PolicyRuleCard extends StatelessWidget {
   }
 }
 
-class _ReservationHeader extends StatelessWidget {
-  const _ReservationHeader({
-    required this.onBack,
-    required this.onProfile,
-  });
-
-  final VoidCallback onBack;
-  final VoidCallback onProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          _HeaderIconButton(icon: Icons.arrow_back, onTap: onBack),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'RÉSERVER À GRENOBLE',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: _RdvScreenState._titleFont,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                    height: 1.0,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'BARBERCLUB GRENOBLE',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 1.6,
-                    color: Color(0xFF8F8F8F),
-                    height: 1.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          _HeaderIconButton(icon: Icons.person_outline_rounded, onTap: onProfile),
-        ],
-      ),
-    );
-  }
-}
-
 class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _HeaderIconButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -1834,7 +1789,11 @@ class _HeaderIconButton extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
-          child: Icon(icon, color: Colors.white.withValues(alpha: 0.88), size: 20),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: 0.88),
+            size: 20,
+          ),
         ),
       ),
     );
@@ -1899,7 +1858,10 @@ class _ReservationTopHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          _HeaderIconButton(icon: Icons.person_outline_rounded, onTap: onProfile),
+          _HeaderIconButton(
+            icon: Icons.person_outline_rounded,
+            onTap: onProfile,
+          ),
         ],
       ),
     );
@@ -1907,10 +1869,7 @@ class _ReservationTopHeader extends StatelessWidget {
 }
 
 class _SalonChoiceSplit extends StatelessWidget {
-  const _SalonChoiceSplit({
-    required this.salons,
-    required this.onTapSalon,
-  });
+  const _SalonChoiceSplit({required this.salons, required this.onTapSalon});
 
   final List<Salon> salons;
   final ValueChanged<Salon> onTapSalon;
@@ -2003,11 +1962,11 @@ class _SalonChoicePanel extends StatelessWidget {
                   Text(
                     salon.name.toUpperCase(),
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                          color: Colors.white,
-                        ),
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: Colors.white,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -2015,9 +1974,9 @@ class _SalonChoicePanel extends StatelessWidget {
                   Text(
                     salon.city.toUpperCase(),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white70,
-                          letterSpacing: 1.8,
-                        ),
+                      color: Colors.white70,
+                      letterSpacing: 1.8,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const _SalonChoiceCta(label: 'Choisir'),
@@ -2081,7 +2040,10 @@ class _SalonChoiceCta extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.28),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2111,7 +2073,13 @@ class _ReservationStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = step.index;
-    final labels = <String>['BARBER', 'PRESTATION', 'DATE', 'INFOS', 'CONFIRMÉ'];
+    final labels = <String>[
+      'BARBER',
+      'PRESTATION',
+      'DATE',
+      'INFOS',
+      'CONFIRMÉ',
+    ];
 
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
@@ -2140,9 +2108,13 @@ class _ReservationStepper extends StatelessWidget {
                       fontSize: 9.3,
                       height: 1.0,
                       letterSpacing: 0.25,
-                      fontWeight: i == index ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: i == index
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                       color: i <= index
-                          ? Colors.white.withValues(alpha: i == index ? 0.98 : 0.72)
+                          ? Colors.white.withValues(
+                              alpha: i == index ? 0.98 : 0.72,
+                            )
                           : Colors.white.withValues(alpha: 0.22),
                     ),
                   ),
@@ -2175,9 +2147,13 @@ class _StepperCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = completed || active ? Colors.white : Colors.white.withValues(alpha: 0.12);
+    final borderColor = completed || active
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.12);
     final fillColor = completed || active ? Colors.white : Colors.transparent;
-    final textColor = completed || active ? Colors.black : Colors.white.withValues(alpha: 0.8);
+    final textColor = completed || active
+        ? Colors.black
+        : Colors.white.withValues(alpha: 0.8);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -2266,10 +2242,7 @@ class _ReservationActionBar extends StatelessWidget {
 }
 
 class _CategoryHeader extends StatelessWidget {
-  const _CategoryHeader({
-    required this.title,
-    required this.icon,
-  });
+  const _CategoryHeader({required this.title, required this.icon});
 
   final String title;
   final IconData icon;
@@ -2286,7 +2259,11 @@ class _CategoryHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
-          child: Icon(icon, color: Colors.white.withValues(alpha: 0.84), size: 18),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: 0.84),
+            size: 18,
+          ),
         ),
         const SizedBox(width: 10),
         Text(
@@ -2403,7 +2380,11 @@ class _BarberCard extends StatelessWidget {
                     ),
                   ),
                   child: selected
-                      ? const Icon(Icons.check_rounded, size: 15, color: Colors.black)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: Colors.black,
+                        )
                       : null,
                 ),
               ],
@@ -2429,9 +2410,7 @@ class _BarberAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: const Color(0xFF171717),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.12),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         ),
         child: Icon(
           Icons.groups_outlined,
@@ -2490,9 +2469,7 @@ class _ServiceCard extends StatelessWidget {
         color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: selected
-              ? Colors.white
-              : Colors.white.withValues(alpha: 0.05),
+          color: selected ? Colors.white : Colors.white.withValues(alpha: 0.05),
         ),
       ),
       child: Material(
@@ -2538,7 +2515,9 @@ class _ServiceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      (service.priceCents / 100).toStringAsFixed(2).replaceAll('.', ',') +
+                      (service.priceCents / 100)
+                              .toStringAsFixed(2)
+                              .replaceAll('.', ',') +
                           ' €',
                       style: const TextStyle(
                         fontFamily: _RdvScreenState._titleFont,
@@ -2563,7 +2542,11 @@ class _ServiceCard extends StatelessWidget {
                         ),
                       ),
                       child: selected
-                          ? const Icon(Icons.check_rounded, size: 15, color: Colors.black)
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 15,
+                              color: Colors.black,
+                            )
                           : null,
                     ),
                   ],
@@ -2837,7 +2820,9 @@ class _NavArrowButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 22,
-            color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.18),
+            color: enabled
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.18),
           ),
         ),
       ),
@@ -2872,10 +2857,7 @@ class _WeekdaysRow extends StatelessWidget {
 }
 
 class _CalendarDayCell extends StatelessWidget {
-  const _CalendarDayCell({
-    required this.day,
-    required this.onTap,
-  });
+  const _CalendarDayCell({required this.day, required this.onTap});
 
   final _CalendarDay day;
   final VoidCallback? onTap;
@@ -2891,8 +2873,8 @@ class _CalendarDayCell extends StatelessWidget {
     final dayTextColor = selected
         ? Colors.black
         : day.isPast
-            ? Colors.white.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.82);
+        ? Colors.white.withValues(alpha: 0.18)
+        : Colors.white.withValues(alpha: 0.82);
 
     return Material(
       color: Colors.transparent,
@@ -2900,29 +2882,30 @@ class _CalendarDayCell extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 44,
-              height: 44,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: selected ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
                   '${day.date!.day}',
                   style: TextStyle(
                     fontFamily: _RdvScreenState._titleFont,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: dayTextColor,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             if (available && !selected)
               Container(
                 width: 4,
@@ -2933,7 +2916,7 @@ class _CalendarDayCell extends StatelessWidget {
                 ),
               )
             else
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
           ],
         ),
       ),
@@ -2954,29 +2937,23 @@ class _SlotsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const columns = 3;
-        const spacing = 8.0;
-        final chipWidth = ((constraints.maxWidth - spacing * (columns - 1)) / columns)
-            .clamp(78.0, 96.0)
-            .toDouble();
-
-        return Wrap(
-          alignment: WrapAlignment.center,
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final slot in slots)
-              SizedBox(
-                width: chipWidth,
-                child: _SlotChip(
-                  slot: slot,
-                  selected: slot.time == selectedTime,
-                  onTap: () => onTap(slot),
-                ),
-              ),
-          ],
+    return GridView.builder(
+      itemCount: slots.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        mainAxisExtent: 42,
+      ),
+      itemBuilder: (context, index) {
+        final slot = slots[index];
+        return _SlotChip(
+          slot: slot,
+          selected: slot.time == selectedTime,
+          onTap: () => onTap(slot),
         );
       },
     );
@@ -3023,35 +3000,6 @@ class _SlotChip extends StatelessWidget {
                 color: selected ? Colors.black : Colors.white,
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptySlotsHint extends StatelessWidget {
-  const _EmptySlotsHint({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 26),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
-            fontSize: 13,
-            height: 1.4,
           ),
         ),
       ),
@@ -3121,10 +3069,7 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(
-        top: 11,
-        bottom: isLast ? 0 : 11,
-      ),
+      padding: EdgeInsets.only(top: 11, bottom: isLast ? 0 : 11),
       decoration: BoxDecoration(
         border: Border(
           bottom: isLast
@@ -3200,7 +3145,11 @@ class _AuthOptionCard extends StatelessWidget {
                     color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: Icon(icon, size: 20, color: Colors.white.withValues(alpha: 0.7)),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -3357,7 +3306,11 @@ class _PerkLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.check_rounded, size: 14, color: Colors.white.withValues(alpha: 0.55)),
+        Icon(
+          Icons.check_rounded,
+          size: 14,
+          color: Colors.white.withValues(alpha: 0.55),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
@@ -3424,7 +3377,8 @@ class _GuestReservationForm extends StatelessWidget {
                         light: true,
                         textInputAction: TextInputAction.next,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Prénom requis';
+                          if (value == null || value.trim().isEmpty)
+                            return 'Prénom requis';
                           return null;
                         },
                       ),
@@ -3438,7 +3392,8 @@ class _GuestReservationForm extends StatelessWidget {
                         light: true,
                         textInputAction: TextInputAction.next,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Nom requis';
+                          if (value == null || value.trim().isEmpty)
+                            return 'Nom requis';
                           return null;
                         },
                       ),
@@ -3451,7 +3406,8 @@ class _GuestReservationForm extends StatelessWidget {
                   phoneController: phoneController,
                   light: true,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Numéro requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Numéro requis';
                     return null;
                   },
                 ),
@@ -3464,7 +3420,8 @@ class _GuestReservationForm extends StatelessWidget {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.done,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Email requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Email requis';
                     if (!value.contains('@')) return 'Email invalide';
                     return null;
                   },
@@ -3477,10 +3434,7 @@ class _GuestReservationForm extends StatelessWidget {
                       'J’accepte que mes données personnelles soient utilisées pour la gestion de mon rendez-vous.',
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(
-                  label: 'CRÉER MON COMPTE',
-                  onTap: onSubmit,
-                ),
+                _FormActionButton(label: 'CRÉER MON COMPTE', onTap: onSubmit),
               ],
             ),
           ),
@@ -3532,7 +3486,8 @@ class _LoginForm extends StatelessWidget {
                   keyboardType: TextInputType.text,
                   textInputAction: TextInputAction.next,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Champ requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Champ requis';
                     return null;
                   },
                 ),
@@ -3558,15 +3513,13 @@ class _LoginForm extends StatelessWidget {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Mot de passe requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Mot de passe requis';
                     return null;
                   },
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(
-                  label: 'SE CONNECTER',
-                  onTap: onSubmit,
-                ),
+                _FormActionButton(label: 'SE CONNECTER', onTap: onSubmit),
               ],
             ),
           ),
@@ -3627,7 +3580,8 @@ class _SignupForm extends StatelessWidget {
                         controller: firstNameController,
                         light: true,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Prénom requis';
+                          if (value == null || value.trim().isEmpty)
+                            return 'Prénom requis';
                           return null;
                         },
                       ),
@@ -3640,7 +3594,8 @@ class _SignupForm extends StatelessWidget {
                         controller: lastNameController,
                         light: true,
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Nom requis';
+                          if (value == null || value.trim().isEmpty)
+                            return 'Nom requis';
                           return null;
                         },
                       ),
@@ -3653,7 +3608,8 @@ class _SignupForm extends StatelessWidget {
                   phoneController: phoneController,
                   light: true,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Numéro requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Numéro requis';
                     return null;
                   },
                 ),
@@ -3665,7 +3621,8 @@ class _SignupForm extends StatelessWidget {
                   light: true,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Email requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Email requis';
                     if (!value.contains('@')) return 'Email invalide';
                     return null;
                   },
@@ -3678,7 +3635,8 @@ class _SignupForm extends StatelessWidget {
                   light: true,
                   obscureText: true,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Mot de passe requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Mot de passe requis';
                     if (value.trim().length < 8) return '8 caractères minimum';
                     return null;
                   },
@@ -3691,10 +3649,7 @@ class _SignupForm extends StatelessWidget {
                       'J’accepte que mes données personnelles soient utilisées pour la gestion de mon rendez-vous.',
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(
-                  label: 'CRÉER MON COMPTE',
-                  onTap: onSubmit,
-                ),
+                _FormActionButton(label: 'CRÉER MON COMPTE', onTap: onSubmit),
               ],
             ),
           ),
@@ -3726,7 +3681,8 @@ class _ForgotPasswordForm extends StatelessWidget {
         const _FormHeader(
           icon: Icons.lock_reset_rounded,
           title: 'MOT DE PASSE OUBLIÉ',
-          subtitle: 'Entrez votre email pour recevoir un lien de réinitialisation',
+          subtitle:
+              'Entrez votre email pour recevoir un lien de réinitialisation',
         ),
         const SizedBox(height: 12),
         _FormPanel(
@@ -3741,16 +3697,14 @@ class _ForgotPasswordForm extends StatelessWidget {
                   light: false,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Email requis';
+                    if (value == null || value.trim().isEmpty)
+                      return 'Email requis';
                     if (!value.contains('@')) return 'Email invalide';
                     return null;
                   },
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(
-                  label: 'ENVOYER LE LIEN',
-                  onTap: onSubmit,
-                ),
+                _FormActionButton(label: 'ENVOYER LE LIEN', onTap: onSubmit),
               ],
             ),
           ),
@@ -3886,7 +3840,11 @@ class _FormHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(15),
             border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
           ),
-          child: Icon(icon, color: Colors.white.withValues(alpha: 0.75), size: 24),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: 0.75),
+            size: 24,
+          ),
         ),
         const SizedBox(height: 12),
         Text(
@@ -3936,10 +3894,7 @@ class _FormPanel extends StatelessWidget {
 }
 
 class _FormActionButton extends StatelessWidget {
-  const _FormActionButton({
-    required this.label,
-    required this.onTap,
-  });
+  const _FormActionButton({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -4007,7 +3962,9 @@ class _ConsentRow extends StatelessWidget {
                 color: value ? Colors.white : const Color(0xFF1A1A1A),
                 borderRadius: BorderRadius.circular(5),
                 border: Border.all(
-                  color: value ? Colors.white : Colors.white.withValues(alpha: 0.10),
+                  color: value
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.10),
                 ),
               ),
               child: Icon(
@@ -4144,7 +4101,9 @@ class _FormTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final fillColor = light ? const Color(0xFFEAEFF7) : const Color(0xFF161616);
     final textColor = light ? Colors.black : Colors.white;
-    final hintColor = light ? Colors.black54 : Colors.white.withValues(alpha: 0.28);
+    final hintColor = light
+        ? Colors.black54
+        : Colors.white.withValues(alpha: 0.28);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4179,18 +4138,15 @@ class _FormTextField extends StatelessWidget {
             keyboardType: keyboardType,
             textInputAction: textInputAction,
             validator: validator,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 14.5,
-            ),
+            style: TextStyle(color: textColor, fontSize: 14.5),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(
-                color: hintColor,
-                fontSize: 14.2,
-              ),
+              hintStyle: TextStyle(color: hintColor, fontSize: 14.2),
               suffixIcon: suffix,
-              suffixIconConstraints: const BoxConstraints(minHeight: 0, minWidth: 0),
+              suffixIconConstraints: const BoxConstraints(
+                minHeight: 0,
+                minWidth: 0,
+              ),
             ),
           ),
         ),
@@ -4256,10 +4212,7 @@ class _ReservationBackdrop extends StatelessWidget {
 }
 
 class _GlowBlob extends StatelessWidget {
-  const _GlowBlob({
-    required this.size,
-    required this.color,
-  });
+  const _GlowBlob({required this.size, required this.color});
 
   final double size;
   final Color color;
@@ -4272,10 +4225,7 @@ class _GlowBlob extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(
-          colors: [
-            color,
-            color.withValues(alpha: 0.01),
-          ],
+          colors: [color, color.withValues(alpha: 0.01)],
         ),
       ),
     );
@@ -4330,7 +4280,9 @@ class _SuccessActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(14),
-          border: primary ? null : Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: primary
+              ? null
+              : Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Material(
           color: Colors.transparent,
@@ -4434,7 +4386,11 @@ class _PracticalInfoCard extends StatelessWidget {
                     color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.72)),
+                  child: Icon(
+                    icon,
+                    size: 18,
+                    color: Colors.white.withValues(alpha: 0.72),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

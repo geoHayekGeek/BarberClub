@@ -10,28 +10,32 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 /// Dio client with authentication interceptors
 class DioClient {
-  DioClient({
-    required TokenRepository tokenRepository,
-    Dio? dio,
-  })  : _tokenRepository = tokenRepository,
-        _dio = dio ?? Dio(
-          BaseOptions(
-            baseUrl: AppConfig.apiBaseUrl,
-            connectTimeout: const Duration(milliseconds: AppConfig.apiTimeoutMs),
-            receiveTimeout: const Duration(milliseconds: AppConfig.apiTimeoutMs),
-            sendTimeout: const Duration(milliseconds: AppConfig.apiTimeoutMs),
-            headers: const {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          ),
-        ) {
+  DioClient({required TokenRepository tokenRepository, Dio? dio})
+    : _tokenRepository = tokenRepository,
+      _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: AppConfig.apiBaseUrl,
+              connectTimeout: const Duration(
+                milliseconds: AppConfig.apiTimeoutMs,
+              ),
+              receiveTimeout: const Duration(
+                milliseconds: AppConfig.apiTimeoutMs,
+              ),
+              sendTimeout: const Duration(milliseconds: AppConfig.apiTimeoutMs),
+              headers: const {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+            ),
+          ) {
     _setupInterceptors();
   }
 
   final TokenRepository _tokenRepository;
   final Dio _dio;
-  
+
   // Refresh token lock to prevent parallel refresh calls
   bool _isRefreshing = false;
   final List<Completer<bool>> _refreshQueue = [];
@@ -41,9 +45,13 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final accessToken = await _tokenRepository.getAccessToken();
-          if (accessToken != null) {
-            options.headers['Authorization'] = 'Bearer $accessToken';
+          try {
+            final accessToken = await _tokenRepository.getAccessToken();
+            if (accessToken != null && accessToken.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $accessToken';
+            }
+          } catch (error) {
+            debugPrint('[DioClient] Skipping auth header: $error');
           }
           handler.next(options);
         },
@@ -51,14 +59,14 @@ class DioClient {
           // Handle 401 errors with refresh token flow
           if (error.response?.statusCode == 401) {
             final requestOptions = error.requestOptions;
-            
+
             // Skip refresh for refresh endpoint itself
             if (requestOptions.path == AppConfig.refreshTokenPath) {
               await _tokenRepository.clearTokens();
               _navigateToLogin();
               return handler.next(error);
             }
-            
+
             // Try to refresh token
             try {
               final refreshed = await _refreshToken();
@@ -66,7 +74,8 @@ class DioClient {
                 // Retry original request with new token
                 final accessToken = await _tokenRepository.getAccessToken();
                 if (accessToken != null) {
-                  requestOptions.headers['Authorization'] = 'Bearer $accessToken';
+                  requestOptions.headers['Authorization'] =
+                      'Bearer $accessToken';
                   final response = await _dio.fetch(requestOptions);
                   return handler.resolve(response);
                 }
@@ -78,7 +87,7 @@ class DioClient {
               return handler.next(error);
             }
           }
-          
+
           handler.next(error);
         },
       ),
@@ -117,7 +126,7 @@ class DioClient {
         if (newAccessToken != null && newRefreshToken != null) {
           await _tokenRepository.saveAccessToken(newAccessToken);
           await _tokenRepository.saveRefreshToken(newRefreshToken);
-          
+
           _isRefreshing = false;
           _resolveQueue(true);
           return true;
@@ -150,7 +159,9 @@ class DioClient {
         context.go('/login');
       } catch (e) {
         // Fallback if GoRouter not available
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     }
   }
