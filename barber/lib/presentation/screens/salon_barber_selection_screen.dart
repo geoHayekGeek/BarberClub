@@ -64,7 +64,7 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Meylan et Grenoble',
+                          '',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: Colors.white70,
