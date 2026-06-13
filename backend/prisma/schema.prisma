@@ -333,8 +333,11 @@ model Offer {
 model Salon {
   id                      String    @id @default(uuid())
   name                    String
+  /// Public website slug used by the reservation backend (e.g. "meylan").
+  websiteId               String?   @unique @map("website_id")
   city                    String
   address                 String
+  location                String?
   description             String?   @db.Text
   openingHours            String    @map("opening_hours")
   openingHoursStructured  Json?     @map("opening_hours_structured")

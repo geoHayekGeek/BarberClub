@@ -187,11 +187,17 @@ async function main() {
 
   // --- 1. SALON GRENOBLE ---
   let salonGrenoble = await prisma.salon.findFirst({
-    where: { name: 'Barber Club Grenoble' },
+    where: {
+      OR: [
+        { websiteId: 'grenoble' },
+        { name: 'Barber Club Grenoble' },
+      ],
+    },
   });
 
   const grenobleData = {
     name: 'Barber Club Grenoble',
+    websiteId: 'grenoble',
     city: 'Grenoble',
     address: '5 Rue Clôt Bey, 38000 Grenoble',
     location: 'Centre Ville',
@@ -219,11 +225,17 @@ async function main() {
 
   // --- 2. SALON MEYLAN ---
   let salonMeylan = await prisma.salon.findFirst({
-    where: { name: 'Barber Club Meylan' },
+    where: {
+      OR: [
+        { websiteId: 'meylan' },
+        { name: 'Barber Club Meylan' },
+      ],
+    },
   });
 
   const meylanData = {
     name: 'Barber Club Meylan',
+    websiteId: 'meylan',
     city: 'Meylan',
     address: '26 Av. du Grésivaudan, 38700 Corenc',
     location: 'Près de corenc',
