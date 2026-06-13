@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -6,7 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
+import '../../domain/models/api_error.dart';
+import '../../domain/models/reservation_models.dart';
+import '../../domain/models/user.dart';
 import '../../domain/models/salon.dart';
+import '../providers/auth_providers.dart';
+import '../providers/reservation_providers.dart';
 import '../providers/salon_providers.dart';
 import '../widgets/glowing_separator.dart';
 
@@ -54,12 +60,26 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   final TextEditingController _forgotEmailController = TextEditingController();
 
   late final DateTime _today;
-  late final List<_BarberOption> _barbers;
+  List<_BarberOption> _barbers = const [];
+  List<_ServiceOption> _services = const [];
+  List<_SlotOption> _availableSlots = const [];
+  List<_QuickSuggestion> _quickSuggestions = const [];
+  Map<String, ReservationMonthAvailability> _monthAvailability = const {};
 
   bool _policyDialogShown = false;
   bool _guestConsent = false;
   bool _bookingBusy = false;
   bool _signupConsent = true;
+  bool _barbersLoading = false;
+  bool _servicesLoading = false;
+  bool _slotsLoading = false;
+  bool _quickSuggestionsLoading = false;
+  bool _monthAvailabilityLoading = false;
+
+  String? _barbersError;
+  String? _servicesError;
+  String? _slotsError;
+  String? _quickSuggestionsError;
 
   _ReservationStep _step = _ReservationStep.barber;
   _AuthMode _authMode = _AuthMode.choice;
@@ -69,14 +89,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   _SlotOption? _selectedSlot;
   DateTime? _calendarMonth;
   String? _connectedClientName;
+  ReservationBooking? _booking;
 
   @override
   void initState() {
     super.initState();
     _today = DateTime.now();
     _calendarMonth = DateTime(_today.year, _today.month);
-    _barbers = _buildBarbers();
-    _seedDemoFormData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showPolicyDialogIfNeeded();
     });
@@ -101,16 +120,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     super.dispose();
   }
 
-  void _seedDemoFormData() {
-    _loginIdentifierController.text = '0612345678';
-    _loginPasswordController.text = 'password123';
-
-    _signupFirstNameController.text = 'geo';
-    _signupLastNameController.text = 'hayek';
-    _signupPhoneController.text = '71852635';
-    _signupEmailController.text = 'georgiohayek2002@gmail.com';
-  }
-
   Salon? _selectedSalonFrom(List<Salon> salons, String? selectedSalonId) {
     if (selectedSalonId == null) return null;
     for (final salon in salons) {
@@ -130,6 +139,21 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _guestConsent = false;
     _signupConsent = true;
     _connectedClientName = null;
+    _booking = null;
+    _barbers = const [];
+    _services = const [];
+    _availableSlots = const [];
+    _quickSuggestions = const [];
+    _monthAvailability = const {};
+    _barbersError = null;
+    _servicesError = null;
+    _slotsError = null;
+    _quickSuggestionsError = null;
+    _barbersLoading = false;
+    _servicesLoading = false;
+    _slotsLoading = false;
+    _quickSuggestionsLoading = false;
+    _monthAvailabilityLoading = false;
     _step = _ReservationStep.barber;
     FocusScope.of(context).unfocus();
   }
@@ -140,6 +164,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToTop();
     });
+    unawaited(_loadBarbersForSalon(salon.id));
   }
 
   void _clearSalonSelection() {
@@ -428,6 +453,558 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     );
   }
 
+  String _dateKey(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatShortDate(DateTime date) {
+    const months = <String>[
+      'JAN',
+      'FEV',
+      'MAR',
+      'AVR',
+      'MAI',
+      'JUN',
+      'JUL',
+      'AOU',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]}';
+  }
+
+  String _formatWeekdayShort(DateTime date) {
+    const weekdays = <String>[
+      'LUN',
+      'MAR',
+      'MER',
+      'JEU',
+      'VEN',
+      'SAM',
+      'DIM',
+    ];
+    return weekdays[date.weekday - 1];
+  }
+
+  MapEntry<String, String> _splitFullName(String fullName) {
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) {
+      return const MapEntry('', '');
+    }
+    if (parts.length == 1) {
+      return MapEntry(parts.first, '');
+    }
+    return MapEntry(parts.first, parts.skip(1).join(' '));
+  }
+
+  String _friendlyErrorMessage(Object error) {
+    if (error is ApiError) {
+      return error.getFriendlyMessage();
+    }
+    return 'Une erreur est survenue. Veuillez reessayer.';
+  }
+
+  bool _isOutsideContract(_BarberOption barber, DateTime date) {
+    final dateKey = _dateKey(date);
+    if (barber.contractStart != null &&
+        dateKey.compareTo(barber.contractStart!) < 0) {
+      return true;
+    }
+    if (barber.contractEnd != null &&
+        dateKey.compareTo(barber.contractEnd!) > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isOffDay(_BarberOption barber, DateTime date) {
+    final dateKey = _dateKey(date);
+    if (_isOutsideContract(barber, date)) {
+      return true;
+    }
+    if (barber.offDates.contains(dateKey)) {
+      return true;
+    }
+    if (barber.workDates.contains(dateKey)) {
+      return false;
+    }
+    if (barber.isGuest && barber.guestDates.isNotEmpty) {
+      return !barber.guestDates.contains(dateKey);
+    }
+    final dayIndex = date.weekday == DateTime.sunday ? 6 : date.weekday - 1;
+    return barber.offDays.contains(dayIndex);
+  }
+
+  bool _canUseDateForSelection(DateTime date) {
+    final today = DateTime(_today.year, _today.month, _today.day);
+    final candidate = DateTime(date.year, date.month, date.day);
+    if (candidate.isBefore(today)) return false;
+    final maxDate = DateTime(_today.year, _today.month + 6, _today.day);
+    if (candidate.isAfter(maxDate)) return false;
+    if (_selectedBarber != null && !_selectedBarber!.isAny) {
+      return !_isOffDay(_selectedBarber!, candidate);
+    }
+    return true;
+  }
+
+  ReservationMonthAvailability? _monthAvailabilityFor(DateTime date) {
+    return _monthAvailability[_dateKey(date)];
+  }
+
+  int _selectedServiceDurationMinutes([DateTime? date]) {
+    final service = _selectedService;
+    if (service == null) return 30;
+    return service.durationForDate(date ?? _selectedDate ?? _today);
+  }
+
+  String _bookingBarberId() {
+    final barber = _selectedBarber;
+    if (barber == null) return '';
+    if (barber.isAny) {
+      return _selectedSlot?.barberId ?? '';
+    }
+    return barber.id;
+  }
+
+  String _bookingBarberName() {
+    final booking = _booking;
+    if (booking != null && booking.barberName.isNotEmpty) {
+      return booking.barberName;
+    }
+    final barber = _selectedBarber;
+    if (barber == null) return 'Peu importe';
+    if (barber.isAny) {
+      return _selectedSlot?.barberName ?? 'A selectionner';
+    }
+    return barber.name;
+  }
+
+  String _bookingServiceName() {
+    final booking = _booking;
+    if (booking != null && booking.serviceName.isNotEmpty) {
+      return booking.serviceName;
+    }
+    return _selectedService?.name ?? 'A selectionner';
+  }
+
+  String _bookingDateLabel() {
+    final booking = _booking;
+    if (booking != null && booking.date.isNotEmpty) {
+      final parsed = DateTime.tryParse(booking.date);
+      if (parsed != null) {
+        return _formatLongDate(parsed);
+      }
+    }
+    final date = _selectedDate;
+    if (date == null) return 'A selectionner';
+    return _formatLongDate(date);
+  }
+
+  String _bookingTimeLabel() {
+    final booking = _booking;
+    if (booking != null && booking.startTime.isNotEmpty) {
+      return booking.startTime.length >= 5
+          ? booking.startTime.substring(0, 5)
+          : booking.startTime;
+    }
+    return _selectedSlot?.time ?? 'A selectionner';
+  }
+
+  void _prefillFormsFromUser(User user) {
+    final fullName = user.fullName?.trim() ?? '';
+    final email = user.email.trim();
+    final phone = user.phoneNumber.trim();
+
+    if (fullName.isNotEmpty) {
+      final nameParts = _splitFullName(fullName);
+      if (_guestFirstNameController.text.trim().isEmpty) {
+        _guestFirstNameController.text = nameParts.key;
+      }
+      if (_guestLastNameController.text.trim().isEmpty &&
+          nameParts.value.isNotEmpty) {
+        _guestLastNameController.text = nameParts.value;
+      }
+      if (_signupFirstNameController.text.trim().isEmpty) {
+        _signupFirstNameController.text = nameParts.key;
+      }
+      if (_signupLastNameController.text.trim().isEmpty &&
+          nameParts.value.isNotEmpty) {
+        _signupLastNameController.text = nameParts.value;
+      }
+    }
+
+    if (_guestEmailController.text.trim().isEmpty) {
+      _guestEmailController.text = email;
+    }
+    if (_signupEmailController.text.trim().isEmpty) {
+      _signupEmailController.text = email;
+    }
+    if (_loginIdentifierController.text.trim().isEmpty) {
+      _loginIdentifierController.text = email.isNotEmpty ? email : phone;
+    }
+    if (_guestPhoneController.text.trim().isEmpty && phone.isNotEmpty) {
+      _guestPhoneController.text = phone;
+    }
+    if (_signupPhoneController.text.trim().isEmpty && phone.isNotEmpty) {
+      _signupPhoneController.text = phone;
+    }
+
+    _connectedClientName = fullName.isNotEmpty ? fullName : email;
+    _authMode = _AuthMode.connected;
+  }
+
+  void _refreshQuickSuggestions() {
+    if (!mounted) return;
+
+    final month = _calendarMonth ?? DateTime(_today.year, _today.month);
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    final today = DateTime(_today.year, _today.month, _today.day);
+    final suggestions = <_QuickSuggestion>[];
+
+    for (var day = 1; day <= lastDay && suggestions.length < 3; day++) {
+      final date = DateTime(month.year, month.month, day);
+      if (date.isBefore(today)) {
+        continue;
+      }
+      if (!_canUseDateForSelection(date)) {
+        continue;
+      }
+
+      final availability = _monthAvailabilityFor(date);
+      if (_monthAvailability.isNotEmpty && availability != null && availability.total <= 0) {
+        continue;
+      }
+
+      suggestions.add(
+        _QuickSuggestion(
+          date: date,
+          dayLabel: _formatWeekdayShort(date),
+          label: date.day == today.day + 1 && date.month == today.month && date.year == today.year
+              ? 'Demain'
+              : _formatShortDate(date),
+          slotCount: availability?.total,
+          status: availability?.status,
+          alternativeCount: availability?.alternatives.length ?? 0,
+        ),
+      );
+    }
+
+    setState(() {
+      _quickSuggestions = suggestions;
+      _quickSuggestionsLoading = false;
+    });
+  }
+
+  _BarberOption _mapBarber(ReservationBarber barber) {
+    return _BarberOption(
+      id: barber.id,
+      name: barber.name.trim().isEmpty ? 'Barber' : barber.name.trim(),
+      subtitle: _barberSubtitle(barber),
+      photoUrl: AppConfig.resolvePublicAssetUrl(barber.photoUrl),
+      role: barber.role,
+      isAny: false,
+      isGuest: barber.isGuest,
+      offDays: barber.offDays,
+      workDates: barber.workDates,
+      offDates: barber.offDates,
+      guestDates: barber.guestDates,
+      contractStart: barber.contractStart,
+      contractEnd: barber.contractEnd,
+    );
+  }
+
+  String _barberSubtitle(ReservationBarber barber) {
+    if (barber.isGuest) {
+      return 'Barber invite';
+    }
+    final role = barber.role.trim();
+    if (role.isEmpty) {
+      return 'Barbier';
+    }
+    final normalized = role.toLowerCase();
+    if (normalized.contains('barber') || normalized.contains('barbier')) {
+      return 'Barbier';
+    }
+    return role;
+  }
+
+  _ServiceCategory _inferServiceCategory(ReservationService service) {
+    final haystack = '${service.name} ${service.description}'.toLowerCase();
+    if (haystack.contains('barbe') ||
+        haystack.contains('soin') ||
+        haystack.contains('rasage')) {
+      return _ServiceCategory.beard;
+    }
+    if (haystack.contains('enfant') ||
+        haystack.contains('college') ||
+        haystack.contains('collège') ||
+        haystack.contains('lycee') ||
+        haystack.contains('lycée') ||
+        haystack.contains('étude') ||
+        haystack.contains('etude') ||
+        haystack.contains('réduit') ||
+        haystack.contains('reduit')) {
+      return _ServiceCategory.reduced;
+    }
+    return _ServiceCategory.cuts;
+  }
+
+  List<_ServiceOption> _mapServices(List<ReservationService> services) {
+    return services
+        .map(
+          (service) => _ServiceOption(
+            id: service.id,
+            name: service.name,
+            description: service.description,
+            priceCents: service.priceCents,
+            durationMinutes: service.durationMinutes,
+            durationSaturdayMinutes: service.durationSaturdayMinutes,
+            customDurationMinutes: service.customDurationMinutes,
+            color: service.color,
+            category: _inferServiceCategory(service),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _loadBarbersForSalon(String salonId) async {
+    if (!mounted) return;
+    setState(() {
+      _barbersLoading = true;
+      _barbersError = null;
+      _barbers = const [];
+      _selectedBarber = null;
+      _selectedService = null;
+      _selectedDate = null;
+      _selectedSlot = null;
+      _services = const [];
+      _availableSlots = const [];
+      _quickSuggestions = const [];
+      _monthAvailability = const {};
+      _servicesLoading = false;
+      _slotsLoading = false;
+      _quickSuggestionsLoading = false;
+      _monthAvailabilityLoading = false;
+      _servicesError = null;
+      _slotsError = null;
+      _quickSuggestionsError = null;
+    });
+
+    try {
+      final repository = ref.read(reservationRepositoryProvider);
+      final barbers = await repository.getBarbers(salonId: salonId);
+      if (!mounted || ref.read(selectedSalonIdForRdvProvider) != salonId) {
+        return;
+      }
+
+      if (barbers.isEmpty) {
+        setState(() {
+          _barbersLoading = false;
+          _barbersError = 'Aucun barber disponible pour le moment.';
+        });
+        return;
+      }
+
+      setState(() {
+        _barbers = <_BarberOption>[
+          const _BarberOption(
+            id: 'any',
+            name: 'PEU IMPORTE',
+            subtitle: 'Premier barber disponible',
+            isAny: true,
+          ),
+          ...barbers.map(_mapBarber),
+        ];
+        _barbersLoading = false;
+        _barbersError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _barbersLoading = false;
+        _barbersError = _friendlyErrorMessage(error);
+      });
+    }
+  }
+
+  Future<void> _loadServicesForCurrentSelection() async {
+    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final barber = _selectedBarber;
+    if (selectedSalonId == null || barber == null) {
+      return;
+    }
+
+    final barberId = barber.isAny ? 'any' : barber.id;
+    if (!mounted) return;
+    setState(() {
+      _servicesLoading = true;
+      _servicesError = null;
+      _services = const [];
+      _selectedService = null;
+      _selectedDate = null;
+      _selectedSlot = null;
+      _availableSlots = const [];
+      _quickSuggestions = const [];
+      _monthAvailability = const {};
+      _slotsLoading = false;
+      _quickSuggestionsLoading = false;
+      _monthAvailabilityLoading = false;
+      _slotsError = null;
+      _quickSuggestionsError = null;
+    });
+
+    try {
+      final repository = ref.read(reservationRepositoryProvider);
+      final services = await repository.getServices(
+        salonId: selectedSalonId,
+        barberId: barberId,
+      );
+      if (!mounted ||
+          ref.read(selectedSalonIdForRdvProvider) != selectedSalonId ||
+          _selectedBarber?.id != barber.id) {
+        return;
+      }
+
+      final mapped = _mapServices(services);
+      if (mapped.isEmpty) {
+        setState(() {
+          _servicesLoading = false;
+          _servicesError = 'Aucune prestation disponible pour ce barber.';
+        });
+        return;
+      }
+
+      setState(() {
+        _services = mapped;
+        _servicesLoading = false;
+        _servicesError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _servicesLoading = false;
+        _servicesError = _friendlyErrorMessage(error);
+      });
+    }
+  }
+
+  Future<void> _loadMonthAvailability() async {
+    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final barber = _selectedBarber;
+    final service = _selectedService;
+    if (selectedSalonId == null || barber == null || service == null) {
+      return;
+    }
+
+    final month = _calendarMonth ?? DateTime(_today.year, _today.month);
+    final barberId = barber.isAny ? 'any' : barber.id;
+    if (!mounted) return;
+    setState(() {
+      _monthAvailabilityLoading = true;
+      _quickSuggestionsLoading = true;
+      _quickSuggestionsError = null;
+    });
+
+    try {
+      final repository = ref.read(reservationRepositoryProvider);
+      final availability = await repository.getMonthAvailability(
+        salonId: selectedSalonId,
+        serviceId: service.id,
+        year: month.year,
+        month: month.month,
+        barberId: barberId,
+        includeAlternatives: true,
+      );
+
+      if (!mounted ||
+          ref.read(selectedSalonIdForRdvProvider) != selectedSalonId ||
+          _selectedBarber?.id != barber.id ||
+          _selectedService?.id != service.id ||
+          _calendarMonth?.year != month.year ||
+          _calendarMonth?.month != month.month) {
+        return;
+      }
+
+      setState(() {
+        _monthAvailability = availability;
+        _monthAvailabilityLoading = false;
+      });
+      _refreshQuickSuggestions();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _monthAvailabilityLoading = false;
+        _quickSuggestionsError = _friendlyErrorMessage(error);
+      });
+      _refreshQuickSuggestions();
+    }
+  }
+
+  Future<void> _loadSlotsForSelectedDate() async {
+    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final barber = _selectedBarber;
+    final service = _selectedService;
+    final date = _selectedDate;
+    if (selectedSalonId == null ||
+        barber == null ||
+        service == null ||
+        date == null) {
+      return;
+    }
+
+    final barberId = barber.isAny ? 'any' : barber.id;
+    final dateKey = _dateKey(date);
+    if (!mounted) return;
+
+    try {
+      final repository = ref.read(reservationRepositoryProvider);
+      final slots = await repository.getAvailability(
+        salonId: selectedSalonId,
+        serviceId: service.id,
+        date: dateKey,
+        barberId: barberId,
+      );
+
+      if (!mounted ||
+          ref.read(selectedSalonIdForRdvProvider) != selectedSalonId ||
+          _selectedBarber?.id != barber.id ||
+          _selectedService?.id != service.id ||
+          _selectedDate == null ||
+          !_isSameDate(_selectedDate!, date)) {
+        return;
+      }
+
+      setState(() {
+        _availableSlots = slots
+            .map(
+              (slot) => _SlotOption(
+                time: slot.time,
+                barberId: slot.barberId,
+                barberName: slot.barberName,
+              ),
+            )
+            .toList(growable: false);
+        _slotsLoading = false;
+        _slotsError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _slotsLoading = false;
+        _slotsError = _friendlyErrorMessage(error);
+        _availableSlots = const [];
+      });
+    }
+  }
+
   void _selectBarber(_BarberOption option) {
     setState(() {
       _selectedBarber = option;
@@ -437,7 +1014,20 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _calendarMonth = DateTime(_today.year, _today.month);
       _authMode = _AuthMode.choice;
       _connectedClientName = null;
+      _services = const [];
+      _availableSlots = const [];
+      _quickSuggestions = const [];
+      _monthAvailability = const {};
+      _servicesError = null;
+      _slotsError = null;
+      _quickSuggestionsError = null;
+      _servicesLoading = true;
+      _slotsLoading = false;
+      _quickSuggestionsLoading = false;
+      _monthAvailabilityLoading = false;
     });
+
+    unawaited(_loadServicesForCurrentSelection());
   }
 
   void _selectService(_ServiceOption option) {
@@ -448,7 +1038,17 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _calendarMonth = DateTime(_today.year, _today.month);
       _authMode = _AuthMode.choice;
       _connectedClientName = null;
+      _availableSlots = const [];
+      _quickSuggestions = const [];
+      _monthAvailability = const {};
+      _slotsError = null;
+      _quickSuggestionsError = null;
+      _slotsLoading = false;
+      _quickSuggestionsLoading = true;
+      _monthAvailabilityLoading = true;
     });
+
+    unawaited(_loadMonthAvailability());
   }
 
   void _selectDate(DateTime date) {
@@ -459,7 +1059,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         _selectedSlot = null;
       }
       _calendarMonth = DateTime(date.year, date.month);
+      _availableSlots = const [];
+      _slotsError = null;
+      _slotsLoading = true;
     });
+
+    unawaited(_loadSlotsForSelectedDate());
   }
 
   void _selectSlot(_SlotOption slot) {
@@ -474,12 +1079,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         _showMessage('Choisissez un barber pour continuer.');
         return;
       }
-      setState(() {
-        _selectedService ??= _services.firstWhere(
-          (service) => service.id == 'cut_homme_sans_barbe',
-          orElse: () => _services.first,
-        );
-      });
       _setStep(_ReservationStep.service);
       return;
     }
@@ -493,7 +1092,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         _selectedDate = null;
         _selectedSlot = null;
         _calendarMonth = DateTime(_today.year, _today.month);
+        _availableSlots = const [];
+        _quickSuggestions = const [];
+        _monthAvailability = const {};
+        _quickSuggestionsLoading = true;
+        _monthAvailabilityLoading = true;
       });
+      unawaited(_loadMonthAvailability());
       _setStep(_ReservationStep.date);
       return;
     }
@@ -508,17 +1113,14 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   bool _isSelectableDate(DateTime date) {
-    final today = DateTime(_today.year, _today.month, _today.day);
-    final candidate = DateTime(date.year, date.month, date.day);
-    if (candidate.isBefore(today)) return false;
-
-    // Dummy availability: Tuesday to Friday, like the screenshots.
-    return candidate.weekday >= DateTime.tuesday &&
-        candidate.weekday <= DateTime.friday;
+    return _canUseDateForSelection(date);
   }
 
   List<_SlotOption> _availableSlotsForDate(DateTime date) {
-    if (!_isSelectableDate(date)) return const [];
+    if (_selectedDate == null || !_isSameDate(date, _selectedDate!)) {
+      return const [];
+    }
+    return _availableSlots;
 
     const times = <String>[
       '09:00',
@@ -567,7 +1169,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     });
   }
 
-  List<_QuickSuggestion> _quickSuggestions() {
+  List<_QuickSuggestion> _visibleQuickSuggestions() {
+    return _quickSuggestions;
+
     final result = <_QuickSuggestion>[];
     final daysShort = <String>['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
     for (var offset = 1; offset <= 3; offset++) {
@@ -599,15 +1203,21 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
     for (var day = 1; day <= lastDay.day; day++) {
       final date = DateTime(month.year, month.month, day);
+      final availability = _monthAvailabilityFor(date);
       days.add(
         _CalendarDay(
           date: date,
           isPast: date.isBefore(
             DateTime(_today.year, _today.month, _today.day),
           ),
-          isAvailable: _isSelectableDate(date),
+          isAvailable: availability != null
+              ? availability.total > 0
+              : _isSelectableDate(date),
           isSelected:
               _selectedDate != null && _isSameDate(date, _selectedDate!),
+          status: availability?.status,
+          slotCount: availability?.total,
+          alternativeCount: availability?.alternatives.length ?? 0,
         ),
       );
     }
@@ -673,6 +1283,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   String get _summaryBarberName {
+    return _bookingBarberName();
     if (_selectedBarber == null) return 'Peu importe';
     if (_selectedBarber!.isAny) {
       return _selectedSlot?.barberName ?? 'À sélectionner';
@@ -680,16 +1291,19 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     return _selectedBarber!.name;
   }
 
-  String get _summaryServiceName =>
-      _selectedService?.name ?? 'Coupe Homme sans barbe';
+  String get _summaryServiceName {
+    return _bookingServiceName();
+    return _selectedService?.name ?? 'Coupe Homme sans barbe';
+  }
 
   String get _summaryDateLabel {
+    return _bookingDateLabel();
     final date = _selectedDate;
     if (date == null) return 'À sélectionner';
     return _formatLongDate(date);
   }
 
-  String get _summaryTimeLabel => _selectedSlot?.time ?? 'À sélectionner';
+  String get _summaryTimeLabel => _bookingTimeLabel();
 
   bool get _showActionBar {
     final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
@@ -731,11 +1345,38 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _showMessage('Vous devez accepter pour continuer.');
       return;
     }
-    await _completeReservation(mode: 'guest');
+    await _completeReservation();
   }
 
   Future<void> _handleLoginSubmit() async {
     if (!_loginFormKey.currentState!.validate()) return;
+    final identifier = _loginIdentifierController.text.trim();
+    final password = _loginPasswordController.text;
+    final authController = ref.read(authStateProvider.notifier);
+
+    if (identifier.contains('@')) {
+      await authController.login(email: identifier, password: password);
+    } else {
+      await authController.login(
+        phoneNumber: identifier,
+        password: password,
+      );
+    }
+
+    final authState = ref.read(authStateProvider);
+    if (authState.status == AuthStatus.authenticated && authState.user != null) {
+      setState(() {
+        _prefillFormsFromUser(authState.user!);
+      });
+      _showMessage('Connexion reussie.');
+      return;
+    }
+
+    if (authState.errorMessage != null) {
+      _showMessage(authState.errorMessage!);
+      ref.read(authStateProvider.notifier).clearError();
+      return;
+    }
     setState(() {
       _authMode = _AuthMode.connected;
       _connectedClientName = 'Geo Hayek';
@@ -745,6 +1386,36 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   Future<void> _handleSignupSubmit() async {
     if (!_signupFormKey.currentState!.validate()) return;
+    final firstName = _signupFirstNameController.text.trim();
+    final lastName = _signupLastNameController.text.trim();
+    final phone = _signupPhoneController.text.trim();
+    final email = _signupEmailController.text.trim();
+    final password = _signupPasswordController.text;
+    final fullName = [firstName, lastName].where((value) => value.isNotEmpty).join(' ');
+
+    final authController = ref.read(authStateProvider.notifier);
+    await authController.register(
+      email: email,
+      phoneNumber: phone,
+      password: password,
+      fullName: fullName.isEmpty ? null : fullName,
+    );
+
+    final authState = ref.read(authStateProvider);
+    if (authState.status == AuthStatus.authenticated && authState.user != null) {
+      setState(() {
+        _prefillFormsFromUser(authState.user!);
+      });
+      _showMessage('Compte cree.');
+      return;
+    }
+
+    if (authState.errorMessage != null) {
+      _showMessage(authState.errorMessage!);
+      ref.read(authStateProvider.notifier).clearError();
+      return;
+    }
+
     setState(() {
       _authMode = _AuthMode.connected;
       _connectedClientName =
@@ -756,28 +1427,101 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   Future<void> _handleForgotSubmit() async {
     if (!_forgotFormKey.currentState!.validate()) return;
+    final email = _forgotEmailController.text.trim();
+    final authController = ref.read(authStateProvider.notifier);
+    await authController.forgotPassword(email);
+
+    final authState = ref.read(authStateProvider);
+    if (authState.errorMessage != null) {
+      _showMessage(authState.errorMessage!);
+      ref.read(authStateProvider.notifier).clearError();
+      return;
+    }
+
+    _showMessage('Si un compte existe, un lien a ete envoye.');
+    return;
     _showMessage(
       'Si un compte existe avec cet email, un lien de réinitialisation fictif a été envoyé.',
     );
   }
 
-  Future<void> _completeReservation({required String mode}) async {
+  Future<void> _completeReservation() async {
+    if (_bookingBusy) return;
+
+    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final barber = _selectedBarber;
+    final service = _selectedService;
+    final date = _selectedDate;
+    final slot = _selectedSlot;
+
+    if (selectedSalonId == null || barber == null || service == null || date == null || slot == null) {
+      _showMessage('Choisissez le barber, la prestation, la date et le creneau.');
+      return;
+    }
+
+    final bookingBarberId = _bookingBarberId();
+    if (bookingBarberId.isEmpty) {
+      _showMessage('Impossible de determiner le barber du rendez-vous.');
+      return;
+    }
+
+    final firstName = _guestFirstNameController.text.trim();
+    final lastName = _guestLastNameController.text.trim();
+    final phone = _guestPhoneController.text.trim();
+    final email = _guestEmailController.text.trim();
+
+    if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty || email.isEmpty) {
+      _showMessage('Veuillez completer vos coordonnees.');
+      return;
+    }
+
     setState(() {
       _bookingBusy = true;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-    if (!mounted) return;
-    setState(() {
-      _bookingBusy = false;
-      _step = _ReservationStep.success;
-    });
-    FocusScope.of(context).unfocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToTop();
-    });
+
+    try {
+      final repository = ref.read(reservationRepositoryProvider);
+      final booking = await repository.createBooking(
+        salonId: selectedSalonId,
+        barberId: bookingBarberId,
+        serviceId: service.id,
+        date: _dateKey(date),
+        startTime: slot.time,
+        firstName: firstName,
+        lastName: lastName,
+        phone: phone,
+        email: email,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _booking = booking;
+        _bookingBusy = false;
+        _step = _ReservationStep.success;
+      });
+      FocusScope.of(context).unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToTop();
+      });
+      _showMessage(
+        booking.hasAccount
+            ? 'Rendez-vous confirme pour votre compte.'
+            : 'Rendez-vous confirme. Verifiez votre email.',
+      );
+      return;
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _bookingBusy = false;
+      });
+      _showMessage(_friendlyErrorMessage(error));
+      return;
+    }
+
   }
 
   void _chooseAuthMode(_AuthMode mode) {
+    ref.read(authStateProvider.notifier).clearError();
     setState(() {
       _authMode = mode;
       if (mode == _AuthMode.choice) {
@@ -801,12 +1545,16 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     setState(() {
       _calendarMonth = clamped;
     });
+    if (_selectedBarber != null && _selectedService != null) {
+      unawaited(_loadMonthAvailability());
+    }
   }
 
   void _resetToAuthChoice() {
     setState(() {
       _authMode = _AuthMode.choice;
     });
+    ref.read(authStateProvider.notifier).clearError();
   }
 
   @override
@@ -815,6 +1563,29 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     final currentMonth = _calendarMonth ?? DateTime(_today.year, _today.month);
     final salonsAsync = ref.watch(salonsListProvider);
     final selectedSalonId = ref.watch(selectedSalonIdForRdvProvider);
+
+    ref.listen<AuthState>(authStateProvider, (previous, next) {
+      if (next.status == AuthStatus.authenticated && next.user != null) {
+        final nextUserId = next.user!.id;
+        final previousUserId = previous?.user?.id;
+        if (_connectedClientName == null || previousUserId != nextUserId) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              _prefillFormsFromUser(next.user!);
+            });
+          });
+        }
+      }
+
+      if (next.status == AuthStatus.error && next.errorMessage != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _showMessage(next.errorMessage!);
+          ref.read(authStateProvider.notifier).clearError();
+        });
+      }
+    });
 
     return Scaffold(
       backgroundColor: _pageBackground,
@@ -1105,6 +1876,52 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Widget _buildBarberStep(BuildContext context) {
+    if (_barbersLoading) {
+      return _buildPanelShell(
+        child: const SizedBox(
+          height: 360,
+          child: Center(
+            child: CircularProgressIndicator(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
+    if (_barbersError != null) {
+      return _buildPanelShell(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSectionHeader('Votre barber', 'Impossible de charger les barbers'),
+              const SizedBox(height: 18),
+              Text(
+                _barbersError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: () {
+                  final salonId = ref.read(selectedSalonIdForRdvProvider);
+                  if (salonId != null) {
+                    unawaited(_loadBarbersForSalon(salonId));
+                  }
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reessayer'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return _buildPanelShell(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
@@ -1133,6 +1950,49 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Widget _buildServiceStep(BuildContext context) {
+    if (_servicesLoading) {
+      return _buildPanelShell(
+        child: const SizedBox(
+          height: 360,
+          child: Center(
+            child: CircularProgressIndicator(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
+    if (_servicesError != null) {
+      return _buildPanelShell(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSectionHeader('Prestation', 'Impossible de charger les prestations'),
+              const SizedBox(height: 18),
+              Text(
+                _servicesError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: _selectedBarber == null
+                    ? null
+                    : () => unawaited(_loadServicesForCurrentSelection()),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reessayer'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final grouped = <_ServiceCategory, List<_ServiceOption>>{
       _ServiceCategory.cuts: [],
       _ServiceCategory.beard: [],
@@ -1182,7 +2042,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Widget _buildDateStep(BuildContext context, DateTime currentMonth) {
-    final quickSuggestions = _quickSuggestions();
+    final quickSuggestions = _visibleQuickSuggestions();
     final calendarDays = _calendarDays();
     final selectedDate = _selectedDate;
     final availableSlots = selectedDate == null
@@ -1207,23 +2067,62 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                for (final suggestion in quickSuggestions)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _QuickSuggestionCard(
-                        suggestion: suggestion,
-                        selected:
-                            selectedDate != null &&
-                            _isSameDate(selectedDate, suggestion.date),
-                        onTap: () => _selectDate(suggestion.date),
-                      ),
+            if (_quickSuggestionsLoading && quickSuggestions.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.1,
+                      color: Colors.white70,
                     ),
                   ),
-              ],
-            ),
+                ),
+              )
+            else if (quickSuggestions.isNotEmpty)
+              Row(
+                children: [
+                  for (final suggestion in quickSuggestions)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _QuickSuggestionCard(
+                          suggestion: suggestion,
+                          selected:
+                              selectedDate != null &&
+                              _isSameDate(selectedDate, suggestion.date),
+                          onTap: () => _selectDate(suggestion.date),
+                        ),
+                      ),
+                    ),
+                ],
+              )
+            else if (_quickSuggestionsError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  _quickSuggestionsError!,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'Les disponibilites rapides apparaitront ici.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.32),
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
             _DividerLabel(label: 'OU CHOISIR UNE DATE'),
             const SizedBox(height: 12),
@@ -1302,6 +2201,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Widget _buildBookingStep(BuildContext context) {
+    final authBusy =
+        ref.watch(authStateProvider).status == AuthStatus.authenticating;
+
     return _buildPanelShell(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
@@ -1346,6 +2248,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 phoneController: _guestPhoneController,
                 emailController: _guestEmailController,
                 consent: _guestConsent,
+                loading: authBusy,
                 onConsentChanged: (value) {
                   setState(() {
                     _guestConsent = value;
@@ -1359,6 +2262,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 formKey: _loginFormKey,
                 identifierController: _loginIdentifierController,
                 passwordController: _loginPasswordController,
+                loading: authBusy,
                 onSubmit: _handleLoginSubmit,
                 onForgot: () => _chooseAuthMode(_AuthMode.forgot),
                 onBack: _resetToAuthChoice,
@@ -1372,6 +2276,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 emailController: _signupEmailController,
                 passwordController: _signupPasswordController,
                 consent: _signupConsent,
+                loading: authBusy,
                 onConsentChanged: (value) {
                   setState(() {
                     _signupConsent = value;
@@ -1384,15 +2289,17 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               _ForgotPasswordForm(
                 formKey: _forgotFormKey,
                 emailController: _forgotEmailController,
+                loading: authBusy,
                 onSubmit: _handleForgotSubmit,
                 onBack: () => _chooseAuthMode(_AuthMode.login),
               ),
             ] else if (_authMode == _AuthMode.connected) ...[
               _ConnectedPanel(
                 name: _connectedClientName ?? 'Client BarberClub',
+                loading: authBusy,
                 onLogout: _resetToAuthChoice,
                 onConfirm: () async {
-                  await _completeReservation(mode: 'connected');
+                  await _completeReservation();
                 },
               ),
             ],
@@ -1405,8 +2312,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   Widget _buildSuccessStep(BuildContext context) {
     final selectedService = _selectedService;
     final selectedDate = _selectedDate;
-    final selectedSlot = _selectedSlot;
-    final price = _formatPrice(selectedService?.priceCents ?? 2000);
+    final durationMinutes = _selectedServiceDurationMinutes(selectedDate);
+    final price = _formatPrice(
+      _booking?.priceCents ?? selectedService?.priceCents ?? 2000,
+    );
 
     return _buildPanelShell(
       child: Padding(
@@ -1430,12 +2339,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             const SizedBox(height: 18),
             _SummaryCard(
               barber: _summaryBarberName,
-              service: selectedService?.name ?? 'Coupe Homme sans barbe',
-              date: selectedDate == null
-                  ? 'À sélectionner'
-                  : _formatLongDate(selectedDate),
-              time: selectedSlot?.time ?? 'À sélectionner',
-              duration: selectedService?.durationMinutes ?? 30,
+              service: _summaryServiceName,
+              date: _summaryDateLabel,
+              time: _summaryTimeLabel,
+              duration: durationMinutes,
               price: price,
             ),
             const SizedBox(height: 18),
@@ -1536,7 +2443,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     ];
   }
 
-  List<_ServiceOption> get _services => const <_ServiceOption>[
+  List<_ServiceOption> _legacyServices() => const <_ServiceOption>[
     _ServiceOption(
       id: 'cut_homme_sans_barbe',
       name: 'Coupe Homme sans barbe',
@@ -1630,14 +2537,30 @@ class _BarberOption {
     required this.name,
     required this.subtitle,
     this.photoUrl,
+    this.role = '',
     this.isAny = false,
+    this.isGuest = false,
+    this.offDays = const [],
+    this.workDates = const [],
+    this.offDates = const [],
+    this.guestDates = const [],
+    this.contractStart,
+    this.contractEnd,
   });
 
   final String id;
   final String name;
   final String subtitle;
   final String? photoUrl;
+  final String role;
   final bool isAny;
+  final bool isGuest;
+  final List<int> offDays;
+  final List<String> workDates;
+  final List<String> offDates;
+  final List<String> guestDates;
+  final String? contractStart;
+  final String? contractEnd;
 }
 
 class _ServiceOption {
@@ -1648,6 +2571,9 @@ class _ServiceOption {
     required this.priceCents,
     required this.durationMinutes,
     required this.category,
+    this.durationSaturdayMinutes,
+    this.customDurationMinutes,
+    this.color,
   });
 
   final String id;
@@ -1656,12 +2582,33 @@ class _ServiceOption {
   final int priceCents;
   final int durationMinutes;
   final _ServiceCategory category;
+  final int? durationSaturdayMinutes;
+  final int? customDurationMinutes;
+  final String? color;
+
+  int get effectiveDurationMinutes => customDurationMinutes ?? durationMinutes;
+
+  int durationForDate(DateTime date) {
+    if (customDurationMinutes != null) {
+      return customDurationMinutes!;
+    }
+    if (date.weekday == DateTime.saturday &&
+        durationSaturdayMinutes != null) {
+      return durationSaturdayMinutes!;
+    }
+    return durationMinutes;
+  }
 }
 
 class _SlotOption {
-  const _SlotOption({required this.time, required this.barberName});
+  const _SlotOption({
+    required this.time,
+    this.barberId = '',
+    required this.barberName,
+  });
 
   final String time;
+  final String barberId;
   final String barberName;
 }
 
@@ -1670,11 +2617,17 @@ class _QuickSuggestion {
     required this.date,
     required this.dayLabel,
     required this.label,
+    this.slotCount,
+    this.status,
+    this.alternativeCount = 0,
   });
 
   final DateTime date;
   final String dayLabel;
   final String label;
+  final int? slotCount;
+  final String? status;
+  final int alternativeCount;
 }
 
 class _CalendarDay {
@@ -1683,20 +2636,31 @@ class _CalendarDay {
     required this.isPast,
     required this.isAvailable,
     required this.isSelected,
+    this.status,
+    this.slotCount,
+    this.alternativeCount = 0,
   });
 
   const _CalendarDay.empty()
     : date = null,
       isPast = false,
       isAvailable = false,
-      isSelected = false;
+      isSelected = false,
+      status = null,
+      slotCount = null,
+      alternativeCount = 0;
 
   final DateTime? date;
   final bool isPast;
   final bool isAvailable;
   final bool isSelected;
+  final String? status;
+  final int? slotCount;
+  final int alternativeCount;
 
   bool get isSelectable => date != null && !isPast && isAvailable;
+
+  bool get hasAlternatives => alternativeCount > 0;
 }
 
 class _PolicyRuleCard extends StatelessWidget {
@@ -3335,6 +4299,7 @@ class _GuestReservationForm extends StatelessWidget {
     required this.phoneController,
     required this.emailController,
     required this.consent,
+    required this.loading,
     required this.onConsentChanged,
     required this.onSubmit,
     required this.onBack,
@@ -3346,6 +4311,7 @@ class _GuestReservationForm extends StatelessWidget {
   final TextEditingController phoneController;
   final TextEditingController emailController;
   final bool consent;
+  final bool loading;
   final ValueChanged<bool> onConsentChanged;
   final VoidCallback onSubmit;
   final VoidCallback onBack;
@@ -3434,7 +4400,11 @@ class _GuestReservationForm extends StatelessWidget {
                       'J’accepte que mes données personnelles soient utilisées pour la gestion de mon rendez-vous.',
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(label: 'CRÉER MON COMPTE', onTap: onSubmit),
+                _FormActionButton(
+                  label: 'CRÉER MON COMPTE',
+                  loading: loading,
+                  onTap: onSubmit,
+                ),
               ],
             ),
           ),
@@ -3449,6 +4419,7 @@ class _LoginForm extends StatelessWidget {
     required this.formKey,
     required this.identifierController,
     required this.passwordController,
+    required this.loading,
     required this.onSubmit,
     required this.onForgot,
     required this.onBack,
@@ -3457,6 +4428,7 @@ class _LoginForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController identifierController;
   final TextEditingController passwordController;
+  final bool loading;
   final VoidCallback onSubmit;
   final VoidCallback onForgot;
   final VoidCallback onBack;
@@ -3519,7 +4491,11 @@ class _LoginForm extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(label: 'SE CONNECTER', onTap: onSubmit),
+                _FormActionButton(
+                  label: 'SE CONNECTER',
+                  loading: loading,
+                  onTap: onSubmit,
+                ),
               ],
             ),
           ),
@@ -3538,6 +4514,7 @@ class _SignupForm extends StatelessWidget {
     required this.emailController,
     required this.passwordController,
     required this.consent,
+    required this.loading,
     required this.onConsentChanged,
     required this.onSubmit,
     required this.onBack,
@@ -3550,6 +4527,7 @@ class _SignupForm extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final bool consent;
+  final bool loading;
   final ValueChanged<bool> onConsentChanged;
   final VoidCallback onSubmit;
   final VoidCallback onBack;
@@ -3649,7 +4627,11 @@ class _SignupForm extends StatelessWidget {
                       'J’accepte que mes données personnelles soient utilisées pour la gestion de mon rendez-vous.',
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(label: 'CRÉER MON COMPTE', onTap: onSubmit),
+                _FormActionButton(
+                  label: 'CRÉER MON COMPTE',
+                  loading: loading,
+                  onTap: onSubmit,
+                ),
               ],
             ),
           ),
@@ -3663,12 +4645,14 @@ class _ForgotPasswordForm extends StatelessWidget {
   const _ForgotPasswordForm({
     required this.formKey,
     required this.emailController,
+    required this.loading,
     required this.onSubmit,
     required this.onBack,
   });
 
   final GlobalKey<FormState> formKey;
   final TextEditingController emailController;
+  final bool loading;
   final VoidCallback onSubmit;
   final VoidCallback onBack;
 
@@ -3704,7 +4688,11 @@ class _ForgotPasswordForm extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 14),
-                _FormActionButton(label: 'ENVOYER LE LIEN', onTap: onSubmit),
+                _FormActionButton(
+                  label: 'ENVOYER LE LIEN',
+                  loading: loading,
+                  onTap: onSubmit,
+                ),
               ],
             ),
           ),
@@ -3717,11 +4705,13 @@ class _ForgotPasswordForm extends StatelessWidget {
 class _ConnectedPanel extends StatelessWidget {
   const _ConnectedPanel({
     required this.name,
+    required this.loading,
     required this.onLogout,
     required this.onConfirm,
   });
 
   final String name;
+  final bool loading;
   final VoidCallback onLogout;
   final VoidCallback onConfirm;
 
@@ -3775,6 +4765,7 @@ class _ConnectedPanel extends StatelessWidget {
               const SizedBox(height: 14),
               _FormActionButton(
                 label: 'RÉSERVER MON CRÉNEAU',
+                loading: loading,
                 onTap: onConfirm,
               ),
               const SizedBox(height: 8),
@@ -3894,9 +4885,14 @@ class _FormPanel extends StatelessWidget {
 }
 
 class _FormActionButton extends StatelessWidget {
-  const _FormActionButton({required this.label, required this.onTap});
+  const _FormActionButton({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
 
   final String label;
+  final bool loading;
   final VoidCallback onTap;
 
   @override
@@ -3912,18 +4908,34 @@ class _FormActionButton extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap,
+            onTap: loading ? null : onTap,
             borderRadius: BorderRadius.circular(14),
             child: Center(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: _RdvScreenState._titleFont,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                  color: Colors.black,
-                ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: loading
+                    ? const SizedBox(
+                        key: ValueKey('loading'),
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.black,
+                          ),
+                        ),
+                      )
+                    : Text(
+                        label,
+                        key: const ValueKey('label'),
+                        style: const TextStyle(
+                          fontFamily: _RdvScreenState._titleFont,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                          color: Colors.black,
+                        ),
+                      ),
               ),
             ),
           ),
