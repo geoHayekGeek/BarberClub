@@ -20,7 +20,7 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ## API Base URL Configuration
 
-The app uses `--dart-define` to configure the API base URL.
+The app uses `--dart-define` to configure the API base URL, the reservation backend, and the public website asset host.
 
 ### Android Emulator (default)
 
@@ -35,6 +35,18 @@ or explicitly:
 ```bash
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
 ```
+
+### Reservation Backend
+
+The reservation flow uses the website backend by default:
+
+```bash
+flutter run \
+  --dart-define=RESERVATION_API_BASE_URL=https://api.barberclub-grenoble.fr/api \
+  --dart-define=PUBLIC_SITE_BASE_URL=https://barberclub-grenoble.fr
+```
+
+If you are testing against another environment, override both values together so booking requests and barber photos stay in sync.
 
 ### iOS Simulator
 
