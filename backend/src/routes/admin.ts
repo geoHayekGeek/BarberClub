@@ -95,8 +95,10 @@ router.post(
     try {
       const salon = await salonsService.createSalon({
         name: req.body.name,
+        websiteId: req.body.websiteId,
         city: req.body.city,
         address: req.body.address,
+        location: req.body.location,
         description: req.body.description,
         openingHours: req.body.openingHours,
         openingHoursStructured: req.body.openingHoursStructured,

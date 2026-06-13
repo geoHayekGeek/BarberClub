@@ -127,10 +127,11 @@ describe('GET /api/v1/salons', () => {
     expect(response.body.data[2].name).toBe('Salon C');
   });
 
-  it('should return lightweight list fields (id, name, imageUrl)', async () => {
+  it('should return lightweight list fields including websiteId', async () => {
     const salon = await prisma.salon.create({
       data: {
         name: 'Test Salon',
+        websiteId: 'grenoble',
         city: 'Paris',
         address: '123 Main St',
         description: 'Test Description',
@@ -148,7 +149,7 @@ describe('GET /api/v1/salons', () => {
     expect(salonData).toHaveProperty('id', salon.id);
     expect(salonData).toHaveProperty('name', 'Test Salon');
     expect(salonData).toHaveProperty('imageUrl', 'https://example.com/image1.jpg');
-    expect(Object.keys(salonData)).toEqual(['id', 'name', 'imageUrl']);
+    expect(salonData).toHaveProperty('websiteId', 'grenoble');
   });
 });
 
@@ -167,6 +168,7 @@ describe('GET /api/v1/salons/:id', () => {
     const salon = await prisma.salon.create({
       data: {
         name: 'Test Salon',
+        websiteId: 'meylan',
         city: 'Paris',
         address: '123 Main St',
         description: 'Test Description',
@@ -187,6 +189,7 @@ describe('GET /api/v1/salons/:id', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveProperty('id', salon.id);
     expect(response.body.data).toHaveProperty('name', 'Test Salon');
+    expect(response.body.data).toHaveProperty('websiteId', 'meylan');
     expect(response.body.data).toHaveProperty('description', 'Test Description');
     expect(response.body.data).toHaveProperty('imageUrl', 'https://example.com/hero.jpg');
     expect(response.body.data).toHaveProperty('gallery');

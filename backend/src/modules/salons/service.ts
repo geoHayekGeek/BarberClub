@@ -21,7 +21,9 @@ export type OpeningHoursStructure = typeof DEFAULT_OPENING_HOURS;
 export interface SalonListItem {
   id: string;
   name: string;
+  websiteId: string | null;
   city: string;
+  location: string | null;
   imageUrl: string | null;
   timifyUrl: string | null;
 }
@@ -29,7 +31,9 @@ export interface SalonListItem {
 export interface SalonDetail {
   id: string;
   name: string;
+  websiteId: string | null;
   city: string;
+  location: string | null;
   description: string | null;
   imageUrl: string | null;
   gallery: string[];
@@ -50,6 +54,11 @@ function normalizeOpeningHours(raw: unknown): OpeningHoursStructure {
   return DEFAULT_OPENING_HOURS;
 }
 
+function normalizeWebsiteId(websiteId: string | null | undefined): string | null {
+  const normalized = websiteId?.trim().toLowerCase() ?? '';
+  return normalized.length > 0 ? normalized : null;
+}
+
 class SalonsService {
   async listSalons(): Promise<SalonListItem[]> {
     const salons = await prisma.salon.findMany({
@@ -58,7 +67,9 @@ class SalonsService {
       select: {
         id: true,
         name: true,
+        websiteId: true,
         city: true,
+        location: true,
         imageUrl: true,
         images: true,
         timifyUrl: true,
@@ -68,7 +79,9 @@ class SalonsService {
     return salons.map((s) => ({
       id: s.id,
       name: s.name,
+      websiteId: s.websiteId ?? null,
       city: s.city,
+      location: s.location ?? null,
       imageUrl: s.imageUrl ?? (s.images.length > 0 ? s.images[0] : null),
       timifyUrl: s.timifyUrl ?? null,
     }));
@@ -96,7 +109,9 @@ class SalonsService {
       select: {
         id: true,
         name: true,
+        websiteId: true,
         city: true,
+        location: true,
         imageUrl: true,
         images: true,
         timifyUrl: true,
@@ -106,7 +121,9 @@ class SalonsService {
     return salons.map((s) => ({
       id: s.id,
       name: s.name,
+      websiteId: s.websiteId ?? null,
       city: s.city,
+      location: s.location ?? null,
       imageUrl: s.imageUrl ?? (s.images.length > 0 ? s.images[0] : null),
       timifyUrl: s.timifyUrl ?? null,
     }));
@@ -118,7 +135,9 @@ class SalonsService {
       select: {
         id: true,
         name: true,
+        websiteId: true,
         city: true,
+        location: true,
         description: true,
         imageUrl: true,
         images: true,
@@ -140,7 +159,9 @@ class SalonsService {
     return {
       id: salon.id,
       name: salon.name,
+      websiteId: salon.websiteId ?? null,
       city: salon.city,
+      location: salon.location ?? null,
       description: salon.description,
       imageUrl: salon.imageUrl ?? (salon.images.length > 0 ? salon.images[0] : null),
       gallery: salon.gallery.length > 0 ? salon.gallery : salon.images,
@@ -156,8 +177,10 @@ class SalonsService {
 
   async createSalon(data: {
     name: string;
+    websiteId?: string | null;
     city: string;
     address: string;
+    location?: string | null;
     description?: string | null;
     openingHours: string;
     openingHoursStructured?: unknown;
@@ -173,8 +196,10 @@ class SalonsService {
     const salon = await prisma.salon.create({
       data: {
         name: data.name,
+        websiteId: normalizeWebsiteId(data.websiteId) ?? undefined,
         city: data.city,
         address: data.address,
+        location: data.location ?? undefined,
         description: data.description ?? undefined,
         openingHours: data.openingHours,
         openingHoursStructured: data.openingHoursStructured
@@ -194,7 +219,9 @@ class SalonsService {
     return {
       id: salon.id,
       name: salon.name,
+      websiteId: salon.websiteId ?? null,
       city: salon.city,
+      location: salon.location ?? null,
       imageUrl: salon.imageUrl ?? (salon.images.length > 0 ? salon.images[0] : null),
       timifyUrl: salon.timifyUrl ?? null,
     };

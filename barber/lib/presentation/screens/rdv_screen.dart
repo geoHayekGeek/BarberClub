@@ -128,6 +128,33 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     return null;
   }
 
+  String? _currentReservationSalonId([Salon? selectedSalon]) {
+    if (selectedSalon != null) {
+      return selectedSalon.reservationSalonId;
+    }
+
+    final selectedReservationSalonId =
+        ref.read(selectedReservationSalonIdForRdvProvider);
+    if (selectedReservationSalonId != null &&
+        selectedReservationSalonId.trim().isNotEmpty) {
+      return selectedReservationSalonId.trim();
+    }
+
+    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    if (selectedSalonId == null || selectedSalonId.trim().isEmpty) {
+      return null;
+    }
+
+    final salonsAsync = ref.read(salonsListProvider);
+    return salonsAsync.maybeWhen(
+      data: (salons) {
+        final selected = _selectedSalonFrom(salons, selectedSalonId);
+        return selected?.reservationSalonId;
+      },
+      orElse: () => null,
+    );
+  }
+
   void _resetReservationFlow() {
     _selectedBarber = null;
     _selectedService = null;
@@ -159,12 +186,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   void _selectSalon(Salon salon) {
-    ref.read(selectedSalonIdForRdvProvider.notifier).state = salon.id;
     setState(_resetReservationFlow);
+    ref.read(selectedSalonIdForRdvProvider.notifier).state = salon.id;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToTop();
     });
-    unawaited(_loadBarbersForSalon(salon.id));
+    unawaited(_loadBarbersForSalon(salon.reservationSalonId));
   }
 
   void _clearSalonSelection() {
@@ -775,7 +802,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         .toList(growable: false);
   }
 
-  Future<void> _loadBarbersForSalon(String salonId) async {
+  Future<void> _loadBarbersForSalon(String reservationSalonId) async {
     if (!mounted) return;
     setState(() {
       _barbersLoading = true;
@@ -800,8 +827,11 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
     try {
       final repository = ref.read(reservationRepositoryProvider);
-      final barbers = await repository.getBarbers(salonId: salonId);
-      if (!mounted || ref.read(selectedSalonIdForRdvProvider) != salonId) {
+      final barbers = await repository.getBarbers(
+        salonId: reservationSalonId,
+      );
+      if (!mounted ||
+          _currentReservationSalonId() != reservationSalonId) {
         return;
       }
 
@@ -836,9 +866,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Future<void> _loadServicesForCurrentSelection() async {
-    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final selectedReservationSalonId = _currentReservationSalonId();
     final barber = _selectedBarber;
-    if (selectedSalonId == null || barber == null) {
+    if (selectedReservationSalonId == null || barber == null) {
       return;
     }
 
@@ -864,11 +894,11 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     try {
       final repository = ref.read(reservationRepositoryProvider);
       final services = await repository.getServices(
-        salonId: selectedSalonId,
+        salonId: selectedReservationSalonId,
         barberId: barberId,
       );
       if (!mounted ||
-          ref.read(selectedSalonIdForRdvProvider) != selectedSalonId ||
+          _currentReservationSalonId() != selectedReservationSalonId ||
           _selectedBarber?.id != barber.id) {
         return;
       }
@@ -897,10 +927,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Future<void> _loadMonthAvailability() async {
-    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final selectedReservationSalonId = _currentReservationSalonId();
     final barber = _selectedBarber;
     final service = _selectedService;
-    if (selectedSalonId == null || barber == null || service == null) {
+    if (selectedReservationSalonId == null ||
+        barber == null ||
+        service == null) {
       return;
     }
 
@@ -916,7 +948,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     try {
       final repository = ref.read(reservationRepositoryProvider);
       final availability = await repository.getMonthAvailability(
-        salonId: selectedSalonId,
+        salonId: selectedReservationSalonId,
         serviceId: service.id,
         year: month.year,
         month: month.month,
@@ -925,7 +957,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       );
 
       if (!mounted ||
-          ref.read(selectedSalonIdForRdvProvider) != selectedSalonId ||
+          _currentReservationSalonId() != selectedReservationSalonId ||
           _selectedBarber?.id != barber.id ||
           _selectedService?.id != service.id ||
           _calendarMonth?.year != month.year ||
@@ -949,11 +981,11 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Future<void> _loadSlotsForSelectedDate() async {
-    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final selectedReservationSalonId = _currentReservationSalonId();
     final barber = _selectedBarber;
     final service = _selectedService;
     final date = _selectedDate;
-    if (selectedSalonId == null ||
+    if (selectedReservationSalonId == null ||
         barber == null ||
         service == null ||
         date == null) {
@@ -967,14 +999,14 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     try {
       final repository = ref.read(reservationRepositoryProvider);
       final slots = await repository.getAvailability(
-        salonId: selectedSalonId,
+        salonId: selectedReservationSalonId,
         serviceId: service.id,
         date: dateKey,
         barberId: barberId,
       );
 
       if (!mounted ||
-          ref.read(selectedSalonIdForRdvProvider) != selectedSalonId ||
+          _currentReservationSalonId() != selectedReservationSalonId ||
           _selectedBarber?.id != barber.id ||
           _selectedService?.id != service.id ||
           _selectedDate == null ||
@@ -1448,13 +1480,17 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   Future<void> _completeReservation() async {
     if (_bookingBusy) return;
 
-    final selectedSalonId = ref.read(selectedSalonIdForRdvProvider);
+    final selectedReservationSalonId = _currentReservationSalonId();
     final barber = _selectedBarber;
     final service = _selectedService;
     final date = _selectedDate;
     final slot = _selectedSlot;
 
-    if (selectedSalonId == null || barber == null || service == null || date == null || slot == null) {
+    if (selectedReservationSalonId == null ||
+        barber == null ||
+        service == null ||
+        date == null ||
+        slot == null) {
       _showMessage('Choisissez le barber, la prestation, la date et le creneau.');
       return;
     }
@@ -1482,7 +1518,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     try {
       final repository = ref.read(reservationRepositoryProvider);
       final booking = await repository.createBooking(
-        salonId: selectedSalonId,
+        salonId: selectedReservationSalonId,
         barberId: bookingBarberId,
         serviceId: service.id,
         date: _dateKey(date),
@@ -1603,11 +1639,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 if (selectedSalon == null) {
                   return _buildSalonSelectionView(context, salons);
                 }
+                final reservationSalonId = selectedSalon.reservationSalonId;
                 return _buildReservationFlow(
                   context: context,
                   bottomInset: bottomInset,
                   currentMonth: currentMonth,
                   selectedSalon: selectedSalon,
+                  reservationSalonId: reservationSalonId,
                 );
               },
               loading: () => _buildLoadingState(context),
@@ -1625,6 +1663,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     required double bottomInset,
     required DateTime currentMonth,
     required Salon selectedSalon,
+    required String reservationSalonId,
   }) {
     final dockReserve = bottomInset + 108.0;
     final contentBottomPadding = _showActionBar ? 20.0 : 48.0;
@@ -1681,7 +1720,11 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                     key: ValueKey(
                       '${_step.name}-${_authMode.name}-$headerTitle',
                     ),
-                    child: _buildCurrentStep(context, currentMonth),
+                    child: _buildCurrentStep(
+                      context,
+                      currentMonth,
+                      reservationSalonId,
+                    ),
                   ),
                 ),
               ),
@@ -1814,10 +1857,14 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     );
   }
 
-  Widget _buildCurrentStep(BuildContext context, DateTime currentMonth) {
+  Widget _buildCurrentStep(
+    BuildContext context,
+    DateTime currentMonth,
+    String reservationSalonId,
+  ) {
     switch (_step) {
       case _ReservationStep.barber:
-        return _buildBarberStep(context);
+        return _buildBarberStep(context, reservationSalonId);
       case _ReservationStep.service:
         return _buildServiceStep(context);
       case _ReservationStep.date:
@@ -1875,8 +1922,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     );
   }
 
-  Widget _buildBarberStep(BuildContext context) {
-    if (_barbersLoading) {
+  Widget _buildBarberStep(BuildContext context, String reservationSalonId) {
+    final isWaitingForBarbers =
+        reservationSalonId.isNotEmpty &&
+        _barbers.isEmpty &&
+        _barbersError == null;
+
+    if (_barbersLoading || isWaitingForBarbers) {
       return _buildPanelShell(
         child: const SizedBox(
           height: 360,
@@ -1908,9 +1960,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               const SizedBox(height: 14),
               FilledButton.icon(
                 onPressed: () {
-                  final salonId = ref.read(selectedSalonIdForRdvProvider);
-                  if (salonId != null) {
-                    unawaited(_loadBarbersForSalon(salonId));
+                  final currentReservationSalonId =
+                      _currentReservationSalonId();
+                  if (currentReservationSalonId != null) {
+                    unawaited(
+                      _loadBarbersForSalon(currentReservationSalonId),
+                    );
                   }
                 },
                 icon: const Icon(Icons.refresh),

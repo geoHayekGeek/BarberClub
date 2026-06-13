@@ -27,8 +27,10 @@ export const openingHoursStructureSchema = z.object({
 export const createSalonSchema = z.object({
   adminSecret: z.string(),
   name: z.string().min(1),
+  websiteId: z.string().trim().min(1).optional(),
   city: z.string().min(1),
   address: z.string().min(1),
+  location: z.string().min(1).optional(),
   description: z.string().max(5000).optional(),
   openingHours: z.string().min(1),
   openingHoursStructured: openingHoursStructureSchema.optional(),

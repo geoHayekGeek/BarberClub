@@ -1,24 +1,46 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/models/salon.dart';
-import '../../domain/models/api_error.dart';
-import '../../domain/repositories/salon_repository.dart';
+
 import '../../data/repositories/salon_repository_impl.dart';
+import '../../domain/models/api_error.dart';
+import '../../domain/models/salon.dart';
+import '../../domain/repositories/salon_repository.dart';
 import 'auth_providers.dart';
 
-/// Salon repository provider
+/// Salon repository provider.
 final salonRepositoryProvider = Provider<SalonRepository>((ref) {
   final dioClient = ref.watch(dioClientProvider);
   return SalonRepositoryImpl(dioClient: dioClient);
 });
 
-/// Selected salon ID when navigating to RDV tab (e.g. from Nos salons RÉSERVER).
-/// RDV screen can read this to open Timify for that salon.
+/// Selected salon ID in the app database (UUID).
+/// The RDV screen resolves the reservation backend slug separately.
 final selectedSalonIdForRdvProvider = StateProvider<String?>((ref) => null);
 
+/// Selected salon slug used by the website reservation backend.
+/// Resolves the app salon UUID to its public website identifier (e.g. meylan).
+final selectedReservationSalonIdForRdvProvider = Provider<String?>((ref) {
+  final selectedSalonId = ref.watch(selectedSalonIdForRdvProvider);
+  if (selectedSalonId == null || selectedSalonId.trim().isEmpty) {
+    return null;
+  }
+
+  final salonsAsync = ref.watch(salonsListProvider);
+  return salonsAsync.maybeWhen(
+    data: (salons) {
+      for (final salon in salons) {
+        if (salon.id == selectedSalonId) {
+          return salon.reservationSalonId;
+        }
+      }
+      return null;
+    },
+    orElse: () => null,
+  );
+});
+
 /// Salons list provider. Cached; refetch only on refresh.
-final salonsListProvider =
-    FutureProvider.autoDispose<List<Salon>>((ref) async {
+final salonsListProvider = FutureProvider.autoDispose<List<Salon>>((ref) async {
   final repository = ref.watch(salonRepositoryProvider);
   return repository.getSalons();
 });
