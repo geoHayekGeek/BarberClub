@@ -15,19 +15,22 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController(); // Only holds the national number now
+  final _phoneController =
+      TextEditingController(); // Only holds the national number now
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String _completePhoneNumber = ''; // Holds the full number (+33...)
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -40,18 +43,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
-    await ref.read(authStateProvider.notifier).register(
+    await ref
+        .read(authStateProvider.notifier)
+        .register(
           email: _emailController.text.trim(),
           // Use the complete phone number with the country code
-          phoneNumber: _completePhoneNumber.trim(), 
+          phoneNumber: _completePhoneNumber.trim(),
           password: _passwordController.text,
-          fullName: _fullNameController.text.trim().isEmpty
-              ? null
-              : _fullNameController.text.trim(),
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
         );
   }
 
-  InputDecoration _buildInputDecoration({required String label, required String hint, required IconData icon, Widget? suffix}) {
+  InputDecoration _buildInputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -71,7 +80,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white54), 
+        borderSide: const BorderSide(color: Colors.white54),
       ),
     );
   }
@@ -117,16 +126,40 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextFormField(
-                  controller: _fullNameController,
+                  controller: _firstNameController,
                   style: const TextStyle(color: Colors.white),
                   cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
-                    label: 'Nom complet *',
-                    hint: 'Jean Dupont',
+                    label: 'Prénom *',
+                    hint: 'Jean',
                     icon: Icons.person_outline,
                   ),
                   textInputAction: TextInputAction.next,
-                  validator: AuthValidators.validateFullName,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Le prénom est requis.';
+                    }
+                    return null;
+                  },
+                  enabled: !isLoading,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _lastNameController,
+                  style: const TextStyle(color: Colors.white),
+                  cursorColor: Colors.white,
+                  decoration: _buildInputDecoration(
+                    label: 'Nom *',
+                    hint: 'Dupont',
+                    icon: Icons.person_outline,
+                  ),
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Le nom est requis.';
+                    }
+                    return null;
+                  },
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
@@ -136,7 +169,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   cursorColor: Colors.white,
                   decoration: _buildInputDecoration(
                     label: 'E-mail *',
-                    hint: 'exemple@email.com',                 
+                    hint: 'exemple@email.com',
                     icon: Icons.email_outlined,
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -145,17 +178,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 16),
-                
+
                 // --- INTL PHONE FIELD ---
                 IntlPhoneField(
                   controller: _phoneController,
                   style: const TextStyle(color: Colors.white),
                   cursorColor: Colors.white,
                   dropdownTextStyle: const TextStyle(color: Colors.white),
-                  dropdownIcon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                  dropdownIcon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.white54,
+                  ),
                   decoration: _buildInputDecoration(
                     label: 'Numéro de téléphone *',
-                    hint: '6 12 34 56 78', // Note: removed +33 from hint as it's in the picker
+                    hint:
+                        '6 12 34 56 78', // Note: removed +33 from hint as it's in the picker
                     icon: Icons.phone_outlined,
                   ),
                   initialCountryCode: 'FR', // Default to France
@@ -173,7 +210,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     searchFieldInputDecoration: InputDecoration(
                       hintText: 'Rechercher un pays',
                       hintStyle: const TextStyle(color: Colors.white54),
-                      prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.white54,
+                      ),
                       enabledBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(color: Colors.white10),
                       ),
@@ -183,7 +223,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                   ),
                 ),
-                // Since IntlPhoneField adds some bottom padding for its own error text, 
+                // Since IntlPhoneField adds some bottom padding for its own error text,
                 // we can reduce the spacing here slightly compared to the others.
                 const SizedBox(height: 8),
 
@@ -240,10 +280,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   obscureText: _obscureConfirmPassword,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _handleSignup(),
-                  validator: (value) => AuthValidators.validatePasswordConfirmation(
-                    value,
-                    _passwordController.text,
-                  ),
+                  validator: (value) =>
+                      AuthValidators.validatePasswordConfirmation(
+                        value,
+                        _passwordController.text,
+                      ),
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 32),
@@ -251,8 +292,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   height: 54,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white12, 
-                      foregroundColor: Colors.white,   
+                      backgroundColor: Colors.white12,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -264,12 +305,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text(
                             'Créer mon compte',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                 ),
@@ -283,7 +329,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       style: TextStyle(color: Colors.white70),
                     ),
                     TextButton(
-                      style: TextButton.styleFrom(foregroundColor: Colors.white),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: isLoading ? null : () => context.pop(),
                       child: const Text('Se connecter'),
                     ),

@@ -23,6 +23,7 @@ class AppConfig {
       'RESERVATION_API_BASE_URL',
       defaultValue: _defaultReservationApiBaseUrl,
     );
+    
     final normalized = fromDefine.trim();
     return normalized.isEmpty ? _defaultReservationApiBaseUrl : normalized;
   }

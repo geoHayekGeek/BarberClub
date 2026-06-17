@@ -24,10 +24,10 @@ class ReservationBarber {
       workDates: _asStringList(json['work_dates']),
       offDates: _asStringList(json['off_dates']),
       guestDates: _asStringList(json['guest_dates']),
-      contractStart: json['contract_start'] as String? ??
-          json['contractStart'] as String?,
-      contractEnd: json['contract_end'] as String? ??
-          json['contractEnd'] as String?,
+      contractStart:
+          json['contract_start'] as String? ?? json['contractStart'] as String?,
+      contractEnd:
+          json['contract_end'] as String? ?? json['contractEnd'] as String?,
     );
   }
 
@@ -84,15 +84,13 @@ class ReservationService {
   final String? color;
   final int? customDurationMinutes;
 
-  int get effectiveDurationMinutes =>
-      customDurationMinutes ?? durationMinutes;
+  int get effectiveDurationMinutes => customDurationMinutes ?? durationMinutes;
 
   int durationForDate(DateTime date) {
     if (customDurationMinutes != null) {
       return customDurationMinutes!;
     }
-    if (date.weekday == DateTime.saturday &&
-        durationSaturdayMinutes != null) {
+    if (date.weekday == DateTime.saturday && durationSaturdayMinutes != null) {
       return durationSaturdayMinutes!;
     }
     return durationMinutes;
@@ -109,7 +107,8 @@ class ReservationSlot {
   factory ReservationSlot.fromJson(Map<String, dynamic> json) {
     return ReservationSlot(
       time: json['time'] as String? ?? '',
-      barberId: json['barber_id'] as String? ?? json['barberId'] as String? ?? '',
+      barberId:
+          json['barber_id'] as String? ?? json['barberId'] as String? ?? '',
       barberName:
           json['barber_name'] as String? ?? json['barberName'] as String? ?? '',
     );
@@ -130,7 +129,8 @@ class ReservationAlternativeBarber {
 
   factory ReservationAlternativeBarber.fromJson(Map<String, dynamic> json) {
     return ReservationAlternativeBarber(
-      barberId: json['barber_id'] as String? ?? json['barberId'] as String? ?? '',
+      barberId:
+          json['barber_id'] as String? ?? json['barberId'] as String? ?? '',
       barberName:
           json['barber_name'] as String? ?? json['barberName'] as String? ?? '',
       slotCount: _asInt(json['slot_count'] ?? json['slotCount']) ?? 0,
@@ -155,9 +155,9 @@ class ReservationMonthAvailability {
     final alternativesRaw = json['alternatives'];
     final alternatives = alternativesRaw is List
         ? alternativesRaw
-            .whereType<Map<String, dynamic>>()
-            .map(ReservationAlternativeBarber.fromJson)
-            .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(ReservationAlternativeBarber.fromJson)
+              .toList()
         : const <ReservationAlternativeBarber>[];
 
     return ReservationMonthAvailability(
@@ -182,8 +182,10 @@ class ReservationBooking {
     required this.clientId,
     required this.barberId,
     required this.barberName,
+    required this.barberPhotoUrl,
     required this.serviceId,
     required this.serviceName,
+    required this.salonId,
     required this.date,
     required this.startTime,
     required this.endTime,
@@ -198,14 +200,21 @@ class ReservationBooking {
   factory ReservationBooking.fromJson(Map<String, dynamic> json) {
     return ReservationBooking(
       id: json['id'] as String? ?? '',
-      clientId: json['client_id'] as String? ?? json['clientId'] as String? ?? '',
-      barberId: json['barber_id'] as String? ?? json['barberId'] as String? ?? '',
+      clientId:
+          json['client_id'] as String? ?? json['clientId'] as String? ?? '',
+      barberId:
+          json['barber_id'] as String? ?? json['barberId'] as String? ?? '',
       barberName:
           json['barber_name'] as String? ?? json['barberName'] as String? ?? '',
+      barberPhotoUrl:
+          json['barber_photo'] as String? ?? json['barberPhoto'] as String?,
       serviceId:
           json['service_id'] as String? ?? json['serviceId'] as String? ?? '',
       serviceName:
-          json['service_name'] as String? ?? json['serviceName'] as String? ?? '',
+          json['service_name'] as String? ??
+          json['serviceName'] as String? ??
+          '',
+      salonId: json['salon_id'] as String? ?? json['salonId'] as String? ?? '',
       date: json['date'] as String? ?? '',
       startTime:
           json['start_time'] as String? ?? json['startTime'] as String? ?? '',
@@ -213,7 +222,9 @@ class ReservationBooking {
       priceCents: _asInt(json['price']) ?? 0,
       status: json['status'] as String? ?? 'confirmed',
       cancelToken:
-          json['cancel_token'] as String? ?? json['cancelToken'] as String? ?? '',
+          json['cancel_token'] as String? ??
+          json['cancelToken'] as String? ??
+          '',
       source: json['source'] as String? ?? 'online',
       createdAt:
           json['created_at'] as String? ?? json['createdAt'] as String? ?? '',
@@ -225,8 +236,10 @@ class ReservationBooking {
   final String clientId;
   final String barberId;
   final String barberName;
+  final String? barberPhotoUrl;
   final String serviceId;
   final String serviceName;
+  final String salonId;
   final String date;
   final String startTime;
   final String endTime;
@@ -236,6 +249,41 @@ class ReservationBooking {
   final String source;
   final String createdAt;
   final bool hasAccount;
+}
+
+class ReservationClientBookingsPage {
+  const ReservationClientBookingsPage({
+    required this.upcoming,
+    required this.past,
+  });
+
+  factory ReservationClientBookingsPage.fromJson(Map<String, dynamic> json) {
+    return ReservationClientBookingsPage(
+      upcoming: _parseBookings(json['upcoming']),
+      past: _parseBookings(json['past']),
+    );
+  }
+
+  final List<ReservationBooking> upcoming;
+  final List<ReservationBooking> past;
+
+  bool get isEmpty => upcoming.isEmpty && past.isEmpty;
+
+  ReservationBooking? get nextUpcoming =>
+      upcoming.isNotEmpty ? upcoming.first : null;
+
+  List<ReservationBooking> get allBookings => [...upcoming, ...past];
+}
+
+List<ReservationBooking> _parseBookings(dynamic raw) {
+  if (raw is! List) {
+    return const [];
+  }
+
+  return raw
+      .whereType<Map<String, dynamic>>()
+      .map(ReservationBooking.fromJson)
+      .toList(growable: false);
 }
 
 int? _asInt(dynamic value) {
@@ -266,8 +314,5 @@ List<String> _asStringList(dynamic value) {
 
 List<int> _asIntList(dynamic value) {
   if (value is! List) return const [];
-  return value
-      .map(_asInt)
-      .whereType<int>()
-      .toList(growable: false);
+  return value.map(_asInt).whereType<int>().toList(growable: false);
 }

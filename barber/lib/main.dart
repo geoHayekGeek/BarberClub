@@ -8,6 +8,7 @@ import 'presentation/theme/app_theme.dart';
 import 'presentation/routing/app_router.dart';
 import 'domain/models/user.dart';
 import 'presentation/providers/auth_providers.dart';
+import 'presentation/providers/reservation_auth_providers.dart';
 import 'presentation/providers/loyalty_providers.dart';
 import 'presentation/widgets/loyalty_reward_modal.dart';
 import 'presentation/widgets/loyalty_reward_celebration_modal.dart';
@@ -47,7 +48,12 @@ class _MainAppState extends ConsumerState<MainApp> {
     super.initState();
     _startLaunchTransition();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(authStateProvider.notifier).bootstrapSession();
+      unawaited(
+        Future.wait([
+          ref.read(authStateProvider.notifier).bootstrapSession(),
+          ref.read(reservationSessionProvider.notifier).bootstrapSession(),
+        ]),
+      );
       final fcmService = ref.read(fcmServiceProvider);
       fcmService.setupListeners((String type, [Map<String, String>? data]) {
         final user = ref.read(authStateProvider).user;
