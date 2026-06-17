@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db/client';
 import { AppError, ErrorCode } from '../../utils/errors';
-import { hashPassword } from './utils/password';
+import { hashPassword, hashWebsitePassword } from './utils/password';
 import { hashToken } from './utils/token';
 import { emailProvider } from '../notifications';
 import { logger } from '../../utils/logger';
@@ -177,6 +177,7 @@ export class PasswordResetService {
     }
 
     const passwordHash = await hashPassword(newPassword);
+    const websitePasswordHash = await hashWebsitePassword(newPassword);
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -187,7 +188,7 @@ export class PasswordResetService {
 
         await tx.user.update({
           where: { id: user.id },
-          data: { passwordHash },
+          data: { passwordHash, websitePasswordHash },
         });
 
         await tx.refreshToken.updateMany({

@@ -7,6 +7,8 @@ import config from './config';
 import { logger } from './utils/logger';
 import prisma from './db/client';
 import { startFlashOfferExpiryJob, stopFlashOfferExpiryJob } from './jobs/flashOfferExpiry';
+import { startUserSyncJob, stopUserSyncJob } from './jobs/userSync';
+import { disconnectWebsiteClient } from './db/websiteClient';
 
 const app = createApp();
 
@@ -17,6 +19,7 @@ async function startServer(): Promise<void> {
 
     if (config.NODE_ENV !== 'test') {
       startFlashOfferExpiryJob();
+      startUserSyncJob();
     }
 
     app.listen(config.PORT, '0.0.0.0', () => {
@@ -31,18 +34,21 @@ async function startServer(): Promise<void> {
   }
 }
 
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+async function shutdown(signal: 'SIGTERM' | 'SIGINT'): Promise<void> {
+  logger.info(`${signal} received, shutting down gracefully`);
   stopFlashOfferExpiryJob();
-  await prisma.$disconnect();
+  stopUserSyncJob();
+
+  await Promise.allSettled([disconnectWebsiteClient(), prisma.$disconnect()]);
   process.exit(0);
+}
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
 });
 
-process.on('SIGINT', async () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  stopFlashOfferExpiryJob();
-  await prisma.$disconnect();
-  process.exit(0);
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
 });
 
 startServer();

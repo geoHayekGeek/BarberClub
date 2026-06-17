@@ -5,8 +5,14 @@
 
 import { Prisma } from '@prisma/client';
 import prisma from '../../db/client';
+import { getWebsiteClient } from '../../db/websiteClient';
 import { AppError, ErrorCode } from '../../utils/errors';
-import { hashPassword, verifyPassword } from './utils/password';
+import {
+  hashPassword,
+  hashWebsitePassword,
+  isBcryptHash,
+  verifyPasswordAgainstAnyHash,
+} from './utils/password';
 import { generateAccessToken, generateRefreshToken, verifyToken, hashToken } from './utils/token';
 import { validatePhoneNumber } from './utils/phone';
 import { logger } from '../../utils/logger';
@@ -44,6 +50,7 @@ export class AuthService {
     const normalizedEmail = input.email.toLowerCase().trim();
     const normalizedPhone = validatePhoneNumber(input.phoneNumber);
     const passwordHash = await hashPassword(input.password);
+    const websitePasswordHash = await hashWebsitePassword(input.password);
 
     // Check for existing email and phoneNumber before attempting to create
     const existingUser = await prisma.user.findFirst({
@@ -82,6 +89,7 @@ export class AuthService {
           email: normalizedEmail,
           phoneNumber: normalizedPhone,
           passwordHash,
+          websitePasswordHash,
           fullName: input.fullName?.trim() || null,
         },
         select: {
@@ -160,13 +168,13 @@ export class AuthService {
     if (input.email) {
       user = await prisma.user.findUnique({
         where: { email: input.email.toLowerCase().trim() },
-        select: { id: true, email: true, phoneNumber: true, fullName: true, avatarUrl: true, role: true, createdAt: true, isActive: true, passwordHash: true },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, avatarUrl: true, role: true, createdAt: true, isActive: true, passwordHash: true, websitePasswordHash: true },
       });
     } else if (input.phoneNumber) {
       const normalizedPhone = validatePhoneNumber(input.phoneNumber);
       user = await prisma.user.findUnique({
         where: { phoneNumber: normalizedPhone },
-        select: { id: true, email: true, phoneNumber: true, fullName: true, avatarUrl: true, role: true, createdAt: true, isActive: true, passwordHash: true },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, avatarUrl: true, role: true, createdAt: true, isActive: true, passwordHash: true, websitePasswordHash: true },
       });
     }
 
@@ -186,7 +194,10 @@ export class AuthService {
       );
     }
 
-    const isValidPassword = await verifyPassword(user.passwordHash, input.password);
+    const isValidPassword = await verifyPasswordAgainstAnyHash(input.password, [
+      user.passwordHash,
+      user.websitePasswordHash,
+    ]);
     if (!isValidPassword) {
       throw new AppError(
         ErrorCode.INVALID_CREDENTIALS,
@@ -195,9 +206,18 @@ export class AuthService {
       );
     }
 
+    const updateData: Prisma.UserUpdateInput = {
+      lastLoginAt: new Date(),
+    };
+    if (!user.websitePasswordHash) {
+      updateData.websitePasswordHash = isBcryptHash(user.passwordHash)
+        ? user.passwordHash
+        : await hashWebsitePassword(input.password);
+    }
+
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: updateData,
     });
 
     const role = (user.role === 'ADMIN' ? 'ADMIN' : 'USER') as 'USER' | 'ADMIN';
@@ -496,7 +516,7 @@ export class AuthService {
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, passwordHash: true, isActive: true },
+      select: { id: true, passwordHash: true, websitePasswordHash: true, isActive: true },
     });
 
     if (!user) {
@@ -507,7 +527,10 @@ export class AuthService {
       throw new AppError(ErrorCode.FORBIDDEN, 'Account is inactive', 403);
     }
 
-    const valid = await verifyPassword(user.passwordHash, oldPassword);
+    const valid = await verifyPasswordAgainstAnyHash(oldPassword, [
+      user.passwordHash,
+      user.websitePasswordHash,
+    ]);
     if (!valid) {
       throw new AppError(
         ErrorCode.INVALID_CREDENTIALS,
@@ -517,12 +540,13 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(newPassword);
+    const websitePasswordHash = await hashWebsitePassword(newPassword);
     const now = new Date();
 
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
-        data: { passwordHash },
+        data: { passwordHash, websitePasswordHash },
       }),
       prisma.refreshToken.updateMany({
         where: { userId, revokedAt: null },
@@ -543,6 +567,7 @@ export class AuthService {
         id: true,
         email: true,
         passwordHash: true,
+        websitePasswordHash: true,
         isActive: true,
         isSuperAdmin: true,
       },
@@ -564,7 +589,10 @@ export class AuthService {
       );
     }
 
-    const isValidPassword = await verifyPassword(user.passwordHash, password);
+    const isValidPassword = await verifyPasswordAgainstAnyHash(password, [
+      user.passwordHash,
+      user.websitePasswordHash,
+    ]);
     if (!isValidPassword) {
       throw new AppError(
         ErrorCode.INVALID_CREDENTIALS,
@@ -572,6 +600,14 @@ export class AuthService {
         401
       );
     }
+
+    const websiteClientDb = getWebsiteClient();
+    const syncLink = websiteClientDb
+      ? await prisma.userSyncLink.findUnique({
+          where: { appUserId: userId },
+          select: { websiteClientId: true },
+        })
+      : null;
 
     await prisma.$transaction(async (tx) => {
       await tx.refreshToken.updateMany({
@@ -583,6 +619,24 @@ export class AuthService {
         where: { id: userId },
       });
     });
+
+    if (websiteClientDb && syncLink?.websiteClientId) {
+      try {
+        await websiteClientDb.$executeRaw(Prisma.sql`
+          UPDATE clients
+          SET deleted_at = NOW(),
+              has_account = false,
+              password_hash = NULL
+          WHERE id = ${syncLink.websiteClientId}
+        `);
+      } catch (error) {
+        logger.warn('Website delete sync failed', {
+          userId,
+          websiteClientId: syncLink.websiteClientId,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
 
     logger.info('Account deleted', { userId, email: user.email });
   }

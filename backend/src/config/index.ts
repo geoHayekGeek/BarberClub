@@ -15,6 +15,7 @@ const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform(Number).pipe(z.number().int().positive()).default('3000'),
   DATABASE_URL: z.string().url(),
+  WEBSITE_DATABASE_URL: z.string().url().optional(),
   JWT_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),

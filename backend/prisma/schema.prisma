@@ -12,6 +12,7 @@ model User {
   email         String    @unique
   phoneNumber   String    @unique
   passwordHash  String    @map("password_hash")
+  websitePasswordHash String?   @map("website_password_hash")
   fullName      String?   @map("full_name")
   avatarUrl     String?   @map("avatar_url")
   dateOfBirth   DateTime? @map("date_of_birth")
@@ -35,6 +36,7 @@ model User {
   loyaltyCoupons LoyaltyCoupon[]
   loyaltyAccount LoyaltyAccount?
   offerActivations OfferActivation[]
+  syncLinks UserSyncLink[]
   referralsAsReferrer Referral[] @relation("Referrer")
   referralsAsReferee Referral[] @relation("Referee")
 
@@ -47,6 +49,28 @@ model User {
 enum UserRole {
   USER
   ADMIN
+}
+
+enum UserSyncSource {
+  APP
+  WEBSITE
+}
+
+model UserSyncLink {
+  id               String         @id @default(uuid())
+  appUserId        String         @unique @map("app_user_id")
+  websiteClientId   String?        @unique @map("website_client_id")
+  appSnapshot      String?        @map("app_snapshot")
+  websiteSnapshot  String?        @map("website_snapshot")
+  lastSyncedFrom   UserSyncSource? @map("last_synced_from")
+  lastSyncedAt     DateTime       @default(now()) @updatedAt @map("last_synced_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+
+  @@index([websiteClientId])
+  @@map("user_sync_links")
 }
 
 model RefreshToken {
