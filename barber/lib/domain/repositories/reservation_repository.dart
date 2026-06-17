@@ -35,4 +35,12 @@ abstract class ReservationRepository {
     required String phone,
     required String email,
   });
+
+  Future<ReservationClientBookingsPage> getClientBookings({String? salonId});
+
+  Future<void> cancelBooking({
+    required String bookingId,
+    required String cancelToken,
+    String? salonId,
+  });
 }

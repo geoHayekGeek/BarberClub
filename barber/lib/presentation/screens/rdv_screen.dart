@@ -9,9 +9,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/reservation_models.dart';
+import '../../domain/models/reservation_session.dart';
 import '../../domain/models/user.dart';
 import '../../domain/models/salon.dart';
 import '../providers/auth_providers.dart';
+import '../providers/reservation_auth_providers.dart';
 import '../providers/reservation_providers.dart';
 import '../providers/salon_providers.dart';
 import '../widgets/glowing_separator.dart';
@@ -60,11 +62,16 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   final TextEditingController _forgotEmailController = TextEditingController();
 
   late final DateTime _today;
+  late final ProviderSubscription<AuthState> _authStateSubscription;
+  late final ProviderSubscription<ReservationSessionState>
+  _reservationSessionSubscription;
+  late final ProviderSubscription<String?> _reservationSalonIdSubscription;
   List<_BarberOption> _barbers = const [];
   List<_ServiceOption> _services = const [];
   List<_SlotOption> _availableSlots = const [];
   List<_QuickSuggestion> _quickSuggestions = const [];
   Map<String, ReservationMonthAvailability> _monthAvailability = const {};
+  String? _loadedBarbersReservationSalonId;
 
   bool _policyDialogShown = false;
   bool _guestConsent = false;
@@ -75,6 +82,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   bool _slotsLoading = false;
   bool _quickSuggestionsLoading = false;
   bool _monthAvailabilityLoading = false;
+  bool _reservationSessionApplied = false;
+  bool _reservationSessionOverride = false;
+  String? _reservationSessionUserId;
 
   String? _barbersError;
   String? _servicesError;
@@ -96,13 +106,38 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     super.initState();
     _today = DateTime.now();
     _calendarMonth = DateTime(_today.year, _today.month);
+    _authStateSubscription = ref.listenManual<AuthState>(
+      authStateProvider,
+      _handleAuthStateChanged,
+    );
+    _reservationSessionSubscription = ref.listenManual<ReservationSessionState>(
+      reservationSessionProvider,
+      _handleReservationSessionChanged,
+    );
+    _reservationSalonIdSubscription = ref.listenManual<String?>(
+      selectedReservationSalonIdForRdvProvider,
+      _handleReservationSalonIdChanged,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showPolicyDialogIfNeeded();
+      if (!mounted) return;
+      _handleAuthStateChanged(null, ref.read(authStateProvider));
+      _handleReservationSessionChanged(
+        null,
+        ref.read(reservationSessionProvider),
+      );
+      _handleReservationSalonIdChanged(
+        null,
+        ref.read(selectedReservationSalonIdForRdvProvider),
+      );
+      unawaited(_showPolicyDialogIfNeeded());
     });
   }
 
   @override
   void dispose() {
+    _authStateSubscription.close();
+    _reservationSessionSubscription.close();
+    _reservationSalonIdSubscription.close();
     ref.read(selectedSalonIdForRdvProvider.notifier).state = null;
     _scrollController.dispose();
     _guestFirstNameController.dispose();
@@ -133,8 +168,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       return selectedSalon.reservationSalonId;
     }
 
-    final selectedReservationSalonId =
-        ref.read(selectedReservationSalonIdForRdvProvider);
+    final selectedReservationSalonId = ref.read(
+      selectedReservationSalonIdForRdvProvider,
+    );
     if (selectedReservationSalonId != null &&
         selectedReservationSalonId.trim().isNotEmpty) {
       return selectedReservationSalonId.trim();
@@ -165,7 +201,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _bookingBusy = false;
     _guestConsent = false;
     _signupConsent = true;
-    _connectedClientName = null;
     _booking = null;
     _barbers = const [];
     _services = const [];
@@ -181,6 +216,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _slotsLoading = false;
     _quickSuggestionsLoading = false;
     _monthAvailabilityLoading = false;
+    _loadedBarbersReservationSalonId = null;
     _step = _ReservationStep.barber;
     FocusScope.of(context).unfocus();
   }
@@ -191,7 +227,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToTop();
     });
-    unawaited(_loadBarbersForSalon(salon.reservationSalonId));
   }
 
   void _clearSalonSelection() {
@@ -204,6 +239,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   Future<void> _showPolicyDialogIfNeeded() async {
     if (_policyDialogShown || !mounted) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     _policyDialogShown = true;
 
     final accepted =
@@ -505,15 +542,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   String _formatWeekdayShort(DateTime date) {
-    const weekdays = <String>[
-      'LUN',
-      'MAR',
-      'MER',
-      'JEU',
-      'VEN',
-      'SAM',
-      'DIM',
-    ];
+    const weekdays = <String>['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
     return weekdays[date.weekday - 1];
   }
 
@@ -683,9 +712,150 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     if (_signupPhoneController.text.trim().isEmpty && phone.isNotEmpty) {
       _signupPhoneController.text = phone;
     }
+  }
+
+  void _prefillFormsFromReservationClient(ReservationClientProfile user) {
+    final fullName = user.fullName.trim();
+    final email = user.email.trim();
+    final phone = user.phone.trim();
+
+    if (user.firstName.trim().isNotEmpty &&
+        _guestFirstNameController.text.trim().isEmpty) {
+      _guestFirstNameController.text = user.firstName.trim();
+    }
+    if (user.lastName.trim().isNotEmpty &&
+        _guestLastNameController.text.trim().isEmpty) {
+      _guestLastNameController.text = user.lastName.trim();
+    }
+    if (user.firstName.trim().isNotEmpty &&
+        _signupFirstNameController.text.trim().isEmpty) {
+      _signupFirstNameController.text = user.firstName.trim();
+    }
+    if (user.lastName.trim().isNotEmpty &&
+        _signupLastNameController.text.trim().isEmpty) {
+      _signupLastNameController.text = user.lastName.trim();
+    }
+    if (_guestEmailController.text.trim().isEmpty) {
+      _guestEmailController.text = email;
+    }
+    if (_signupEmailController.text.trim().isEmpty) {
+      _signupEmailController.text = email;
+    }
+    if (_loginIdentifierController.text.trim().isEmpty) {
+      _loginIdentifierController.text = email.isNotEmpty ? email : phone;
+    }
+    if (_guestPhoneController.text.trim().isEmpty && phone.isNotEmpty) {
+      _guestPhoneController.text = phone;
+    }
+    if (_signupPhoneController.text.trim().isEmpty && phone.isNotEmpty) {
+      _signupPhoneController.text = phone;
+    }
 
     _connectedClientName = fullName.isNotEmpty ? fullName : email;
-    _authMode = _AuthMode.connected;
+    _reservationSessionApplied = true;
+    _reservationSessionUserId = user.id;
+  }
+
+  void _applyReservationSessionState(ReservationSessionState sessionState) {
+    if (sessionState.status != ReservationSessionStatus.authenticated ||
+        sessionState.user == null) {
+      _reservationSessionApplied = false;
+      _reservationSessionOverride = false;
+      _reservationSessionUserId = null;
+      _connectedClientName = null;
+      return;
+    }
+
+    if (_reservationSessionOverride) {
+      return;
+    }
+
+    final user = sessionState.user!;
+    if (_reservationSessionApplied && _reservationSessionUserId == user.id) {
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _prefillFormsFromReservationClient(user);
+    });
+  }
+
+  void _handleAuthStateChanged(AuthState? previous, AuthState next) {
+    if (next.status == AuthStatus.authenticated && next.user != null) {
+      final nextUserId = next.user!.id;
+      final previousUserId = previous?.user?.id;
+      if (_reservationSessionOverride) {
+        if (!mounted) return;
+        setState(() {
+          _reservationSessionOverride = false;
+        });
+      }
+      if (_connectedClientName == null || previousUserId != nextUserId) {
+        if (!mounted) return;
+        setState(() {
+          _prefillFormsFromUser(next.user!);
+        });
+      }
+      final reservationSessionState = ref.read(reservationSessionProvider);
+      if (reservationSessionState.status ==
+              ReservationSessionStatus.authenticated &&
+          reservationSessionState.user != null) {
+        _applyReservationSessionState(reservationSessionState);
+      }
+      return;
+    }
+
+    if (next.status == AuthStatus.error && next.errorMessage != null) {
+      if (!mounted) return;
+      _showMessage(next.errorMessage!);
+      ref.read(authStateProvider.notifier).clearError();
+    }
+  }
+
+  void _handleReservationSessionChanged(
+    ReservationSessionState? previous,
+    ReservationSessionState next,
+  ) {
+    if (next.status == ReservationSessionStatus.authenticated &&
+        next.user != null) {
+      _applyReservationSessionState(next);
+      return;
+    }
+
+    if (next.status == ReservationSessionStatus.unauthenticated) {
+      if (!mounted) return;
+      if (_reservationSessionApplied ||
+          _reservationSessionOverride ||
+          _reservationSessionUserId != null ||
+          _connectedClientName != null) {
+        setState(() {
+          _reservationSessionApplied = false;
+          _reservationSessionOverride = false;
+          _reservationSessionUserId = null;
+          _connectedClientName = null;
+        });
+      } else {
+        _reservationSessionApplied = false;
+        _reservationSessionOverride = false;
+        _reservationSessionUserId = null;
+      }
+    }
+  }
+
+  void _handleReservationSalonIdChanged(String? previous, String? next) {
+    final reservationSalonId = next?.trim();
+    if (reservationSalonId == null || reservationSalonId.isEmpty) {
+      _loadedBarbersReservationSalonId = null;
+      return;
+    }
+
+    if (_loadedBarbersReservationSalonId == reservationSalonId &&
+        (_barbersLoading || _barbers.isNotEmpty || _barbersError != null)) {
+      return;
+    }
+
+    unawaited(_loadBarbersForSalon(reservationSalonId));
   }
 
   void _refreshQuickSuggestions() {
@@ -706,7 +876,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       }
 
       final availability = _monthAvailabilityFor(date);
-      if (_monthAvailability.isNotEmpty && availability != null && availability.total <= 0) {
+      if (_monthAvailability.isNotEmpty &&
+          availability != null &&
+          availability.total <= 0) {
         continue;
       }
 
@@ -714,7 +886,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         _QuickSuggestion(
           date: date,
           dayLabel: _formatWeekdayShort(date),
-          label: date.day == today.day + 1 && date.month == today.month && date.year == today.year
+          label:
+              date.day == today.day + 1 &&
+                  date.month == today.month &&
+                  date.year == today.year
               ? 'Demain'
               : _formatShortDate(date),
           slotCount: availability?.total,
@@ -804,6 +979,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   Future<void> _loadBarbersForSalon(String reservationSalonId) async {
     if (!mounted) return;
+    _loadedBarbersReservationSalonId = reservationSalonId;
     setState(() {
       _barbersLoading = true;
       _barbersError = null;
@@ -827,11 +1003,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
     try {
       final repository = ref.read(reservationRepositoryProvider);
-      final barbers = await repository.getBarbers(
-        salonId: reservationSalonId,
-      );
-      if (!mounted ||
-          _currentReservationSalonId() != reservationSalonId) {
+      final barbers = await repository.getBarbers(salonId: reservationSalonId);
+      if (!mounted || _currentReservationSalonId() != reservationSalonId) {
         return;
       }
 
@@ -1045,7 +1218,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _selectedSlot = null;
       _calendarMonth = DateTime(_today.year, _today.month);
       _authMode = _AuthMode.choice;
-      _connectedClientName = null;
       _services = const [];
       _availableSlots = const [];
       _quickSuggestions = const [];
@@ -1069,7 +1241,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _selectedSlot = null;
       _calendarMonth = DateTime(_today.year, _today.month);
       _authMode = _AuthMode.choice;
-      _connectedClientName = null;
       _availableSlots = const [];
       _quickSuggestions = const [];
       _monthAvailability = const {};
@@ -1389,14 +1560,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     if (identifier.contains('@')) {
       await authController.login(email: identifier, password: password);
     } else {
-      await authController.login(
-        phoneNumber: identifier,
-        password: password,
-      );
+      await authController.login(phoneNumber: identifier, password: password);
     }
 
     final authState = ref.read(authStateProvider);
-    if (authState.status == AuthStatus.authenticated && authState.user != null) {
+    if (authState.status == AuthStatus.authenticated &&
+        authState.user != null) {
       setState(() {
         _prefillFormsFromUser(authState.user!);
       });
@@ -1409,11 +1578,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       ref.read(authStateProvider.notifier).clearError();
       return;
     }
-    setState(() {
-      _authMode = _AuthMode.connected;
-      _connectedClientName = 'Geo Hayek';
-    });
-    _showMessage('Connexion de démonstration réussie.');
   }
 
   Future<void> _handleSignupSubmit() async {
@@ -1423,18 +1587,19 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     final phone = _signupPhoneController.text.trim();
     final email = _signupEmailController.text.trim();
     final password = _signupPasswordController.text;
-    final fullName = [firstName, lastName].where((value) => value.isNotEmpty).join(' ');
 
     final authController = ref.read(authStateProvider.notifier);
     await authController.register(
       email: email,
       phoneNumber: phone,
       password: password,
-      fullName: fullName.isEmpty ? null : fullName,
+      firstName: firstName,
+      lastName: lastName,
     );
 
     final authState = ref.read(authStateProvider);
-    if (authState.status == AuthStatus.authenticated && authState.user != null) {
+    if (authState.status == AuthStatus.authenticated &&
+        authState.user != null) {
       setState(() {
         _prefillFormsFromUser(authState.user!);
       });
@@ -1447,14 +1612,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       ref.read(authStateProvider.notifier).clearError();
       return;
     }
-
-    setState(() {
-      _authMode = _AuthMode.connected;
-      _connectedClientName =
-          '${_signupFirstNameController.text.trim()} ${_signupLastNameController.text.trim()}'
-              .trim();
-    });
-    _showMessage('Compte de démonstration créé.');
   }
 
   Future<void> _handleForgotSubmit() async {
@@ -1491,7 +1648,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         service == null ||
         date == null ||
         slot == null) {
-      _showMessage('Choisissez le barber, la prestation, la date et le creneau.');
+      _showMessage(
+        'Choisissez le barber, la prestation, la date et le creneau.',
+      );
       return;
     }
 
@@ -1506,7 +1665,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     final phone = _guestPhoneController.text.trim();
     final email = _guestEmailController.text.trim();
 
-    if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty || email.isEmpty) {
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty ||
+        email.isEmpty) {
       _showMessage('Veuillez completer vos coordonnees.');
       return;
     }
@@ -1553,16 +1715,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _showMessage(_friendlyErrorMessage(error));
       return;
     }
-
   }
 
   void _chooseAuthMode(_AuthMode mode) {
     ref.read(authStateProvider.notifier).clearError();
     setState(() {
       _authMode = mode;
-      if (mode == _AuthMode.choice) {
-        _connectedClientName = null;
-      }
     });
     FocusScope.of(context).unfocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1589,6 +1747,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   void _resetToAuthChoice() {
     setState(() {
       _authMode = _AuthMode.choice;
+      _reservationSessionOverride = true;
     });
     ref.read(authStateProvider.notifier).clearError();
   }
@@ -1599,29 +1758,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     final currentMonth = _calendarMonth ?? DateTime(_today.year, _today.month);
     final salonsAsync = ref.watch(salonsListProvider);
     final selectedSalonId = ref.watch(selectedSalonIdForRdvProvider);
-
-    ref.listen<AuthState>(authStateProvider, (previous, next) {
-      if (next.status == AuthStatus.authenticated && next.user != null) {
-        final nextUserId = next.user!.id;
-        final previousUserId = previous?.user?.id;
-        if (_connectedClientName == null || previousUserId != nextUserId) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            setState(() {
-              _prefillFormsFromUser(next.user!);
-            });
-          });
-        }
-      }
-
-      if (next.status == AuthStatus.error && next.errorMessage != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          _showMessage(next.errorMessage!);
-          ref.read(authStateProvider.notifier).clearError();
-        });
-      }
-    });
 
     return Scaffold(
       backgroundColor: _pageBackground,
@@ -1717,9 +1853,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                     );
                   },
                   child: KeyedSubtree(
-                    key: ValueKey(
-                      '${_step.name}-${_authMode.name}-$headerTitle',
-                    ),
+                    key: ValueKey(_step.name),
                     child: _buildCurrentStep(
                       context,
                       currentMonth,
@@ -1946,7 +2080,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSectionHeader('Votre barber', 'Impossible de charger les barbers'),
+              _buildSectionHeader(
+                'Votre barber',
+                'Impossible de charger les barbers',
+              ),
               const SizedBox(height: 18),
               Text(
                 _barbersError!,
@@ -1963,9 +2100,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                   final currentReservationSalonId =
                       _currentReservationSalonId();
                   if (currentReservationSalonId != null) {
-                    unawaited(
-                      _loadBarbersForSalon(currentReservationSalonId),
-                    );
+                    unawaited(_loadBarbersForSalon(currentReservationSalonId));
                   }
                 },
                 icon: const Icon(Icons.refresh),
@@ -2023,7 +2158,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSectionHeader('Prestation', 'Impossible de charger les prestations'),
+              _buildSectionHeader(
+                'Prestation',
+                'Impossible de charger les prestations',
+              ),
               const SizedBox(height: 18),
               Text(
                 _servicesError!,
@@ -2258,6 +2396,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   Widget _buildBookingStep(BuildContext context) {
     final authBusy =
         ref.watch(authStateProvider).status == AuthStatus.authenticating;
+    final showConnectedReservationPanel =
+        _reservationSessionApplied && !_reservationSessionOverride;
 
     return _buildPanelShell(
       child: Padding(
@@ -2276,7 +2416,16 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               price: _formatPrice(_selectedService?.priceCents ?? 2000),
             ),
             const SizedBox(height: 18),
-            if (_authMode == _AuthMode.choice) ...[
+            if (showConnectedReservationPanel) ...[
+              _ConnectedPanel(
+                name: _connectedClientName ?? 'Client BarberClub',
+                loading: authBusy,
+                onLogout: _resetToAuthChoice,
+                onConfirm: () async {
+                  await _completeReservation();
+                },
+              ),
+            ] else if (_authMode == _AuthMode.choice) ...[
               _AuthOptionCard(
                 icon: Icons.edit_outlined,
                 title: "RÉSERVER EN TANT QU'INVITÉ",
@@ -2347,15 +2496,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 loading: authBusy,
                 onSubmit: _handleForgotSubmit,
                 onBack: () => _chooseAuthMode(_AuthMode.login),
-              ),
-            ] else if (_authMode == _AuthMode.connected) ...[
-              _ConnectedPanel(
-                name: _connectedClientName ?? 'Client BarberClub',
-                loading: authBusy,
-                onLogout: _resetToAuthChoice,
-                onConfirm: () async {
-                  await _completeReservation();
-                },
               ),
             ],
           ],
@@ -2582,7 +2722,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
 enum _ReservationStep { barber, service, date, booking, success }
 
-enum _AuthMode { choice, guest, login, signup, forgot, connected }
+enum _AuthMode { choice, guest, login, signup, forgot }
 
 enum _ServiceCategory { cuts, beard, reduced }
 
@@ -2647,8 +2787,7 @@ class _ServiceOption {
     if (customDurationMinutes != null) {
       return customDurationMinutes!;
     }
-    if (date.weekday == DateTime.saturday &&
-        durationSaturdayMinutes != null) {
+    if (date.weekday == DateTime.saturday && durationSaturdayMinutes != null) {
       return durationSaturdayMinutes!;
     }
     return durationMinutes;

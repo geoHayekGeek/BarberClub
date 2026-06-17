@@ -152,6 +152,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 extendBody: true,
                 body: navigationShell,
                 bottomNavigationBar: BottomNavBar(
+                  key: const ValueKey('shell-bottom-nav'),
                   navigationShell: navigationShell,
                 ),
               );
