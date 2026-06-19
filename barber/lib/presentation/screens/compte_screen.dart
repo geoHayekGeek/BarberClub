@@ -1508,115 +1508,117 @@ class _CompteScreenShell extends ConsumerWidget {
               )
             : DefaultTabController(
                 length: 2,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                      child: Column(
-                        children: [
-                          _buildAvatar(
-                            initials: initials,
-                            avatarUrl: appUser?.avatarUrl,
-                            size: 104,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            firstName.isNotEmpty
-                                ? 'Bonjour, $firstName.'
-                                : 'Bonjour.',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
+                child: NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                        child: Column(
+                          children: [
+                            _buildAvatar(
+                              initials: initials,
+                              avatarUrl: appUser?.avatarUrl,
+                              size: 104,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Membre depuis $memberSince',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.white60,
+                            const SizedBox(height: 12),
+                            Text(
+                              firstName.isNotEmpty
+                                  ? 'Bonjour, $firstName.'
+                                  : 'Bonjour.',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              _buildStatCard(
-                                context,
-                                value: bookingsAsync?.hasError == true
-                                    ? '—'
-                                    : completedCount.toString(),
-                                label: 'Visites',
+                            const SizedBox(height: 6),
+                            Text(
+                              'Membre depuis $memberSince',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white60,
                               ),
-                              const SizedBox(width: 10),
-                              _buildStatCard(
-                                context,
-                                value: memberDuration,
-                                label: 'Membre',
-                              ),
-                              const SizedBox(width: 10),
-                              _buildStatCard(
-                                context,
-                                value: bookingsAsync?.hasError == true
-                                    ? '—'
-                                    : upcomingCount.toString(),
-                                label: 'A venir',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _cardBackground,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: TabBar(
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          indicator: BoxDecoration(
-                            color: Colors.white12,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          labelColor: Colors.white,
-                          unselectedLabelColor: Colors.white60,
-                          dividerColor: Colors.transparent,
-                          splashFactory: NoSplash.splashFactory,
-                          overlayColor: const MaterialStatePropertyAll(
-                            Colors.transparent,
-                          ),
-                          tabs: const [
-                            Tab(text: 'Mes RDV'),
-                            Tab(text: 'Mon Profil'),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                _buildStatCard(
+                                  context,
+                                  value: bookingsAsync?.hasError == true
+                                      ? '—'
+                                      : completedCount.toString(),
+                                  label: 'Visites',
+                                ),
+                                const SizedBox(width: 10),
+                                _buildStatCard(
+                                  context,
+                                  value: memberDuration,
+                                  label: 'Membre',
+                                ),
+                                const SizedBox(width: 10),
+                                _buildStatCard(
+                                  context,
+                                  value: bookingsAsync?.hasError == true
+                                      ? '—'
+                                      : upcomingCount.toString(),
+                                  label: 'A venir',
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          if (bookingsAsync == null)
-                            const SizedBox.shrink()
-                          else
-                            _buildBookingsTab(
-                              context: context,
-                              ref: ref,
-                              bookingsAsync: bookingsAsync,
-                              salonFilter: bookingsSalonId,
-                            ),
-                          _buildProfileTab(
-                            context: context,
-                            appUser: appUser,
-                            reservationUser: reservationUser,
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _cardBackground,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: Colors.white10),
                           ),
-                        ],
+                          child: TabBar(
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            indicator: BoxDecoration(
+                              color: Colors.white12,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            labelColor: Colors.white,
+                            unselectedLabelColor: Colors.white60,
+                            dividerColor: Colors.transparent,
+                            splashFactory: NoSplash.splashFactory,
+                            overlayColor: const MaterialStatePropertyAll(
+                              Colors.transparent,
+                            ),
+                            tabs: const [
+                              Tab(text: 'Mes RDV'),
+                              Tab(text: 'Mon Profil'),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
                   ],
+                  body: TabBarView(
+                    children: [
+                      if (bookingsAsync == null)
+                        const SizedBox.shrink()
+                      else
+                        _buildBookingsTab(
+                          context: context,
+                          ref: ref,
+                          bookingsAsync: bookingsAsync,
+                          salonFilter: bookingsSalonId,
+                        ),
+                      _buildProfileTab(
+                        context: context,
+                        appUser: appUser,
+                        reservationUser: reservationUser,
+                      ),
+                    ],
+                  ),
                 ),
               ),
       ),
