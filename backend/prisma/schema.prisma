@@ -341,7 +341,7 @@ model Offer {
   id              String   @id @default(uuid())
   title           String
   price           Int
-
+  orderIndex  Int      @default(0)    
   salonId         String   @map("salon_id")
   salon           Salon    @relation(fields: [salonId], references: [id])
 
