@@ -19,12 +19,13 @@ class Offer {
     this.orderIndex = 99,
   });
 
-  factory Offer.fromJson(Map<String, dynamic> json) {
+factory Offer.fromJson(Map<String, dynamic> json) {
+    // ADD THIS PRINT STATEMENT:
+    print('Raw offer JSON received: ${json['title']} -> orderIndex is: ${json['orderIndex']}');
+
     return Offer(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      description: json['description'] as String?,
-      imageUrl: json['imageUrl'] as String?,
       price: (json['price'] as num?)?.toInt() ?? 0,
       durationMinutes: (json['durationMinutes'] as num?)?.toInt() ?? 0,
       salonId: json['salonId'] as String? ?? '',
