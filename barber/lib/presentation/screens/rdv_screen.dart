@@ -312,7 +312,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                             _PolicyRuleCard(
                               title: 'ANNULATION',
                               description:
-                                  'Vous pouvez annuler jusqu’à 12h avant votre rendez-vous via le lien dans votre email de confirmation ou en nous envoyant un message.',
+                                  'Vous pouvez annuler jusqu’à 12 heures avant votre rendez-vous via le lien dans votre email de confirmation ou en nous envoyant un message.',
                               icon: Icons.calendar_month_outlined,
                             ),
                             const SizedBox(height: 10),

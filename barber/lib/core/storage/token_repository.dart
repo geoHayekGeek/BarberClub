@@ -38,4 +38,13 @@ abstract class ReservationTokenRepository {
 
   /// Check whether a reservation session is present.
   Future<bool> hasReservationTokens();
+
+  /// Save the cancel token for a specific reservation booking.
+  Future<void> saveReservationBookingCancelToken({
+    required String bookingId,
+    required String cancelToken,
+  });
+
+  /// Read a cached cancel token for a specific reservation booking.
+  Future<String?> getReservationBookingCancelToken(String bookingId);
 }

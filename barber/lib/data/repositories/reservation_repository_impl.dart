@@ -188,7 +188,9 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
-        return ReservationBooking.fromJson(data);
+        final booking = ReservationBooking.fromJson(data);
+        await _cacheBookingCancelToken(booking);
+        return booking;
       }
       throw const ApiError(
         code: 'UNKNOWN_ERROR',
@@ -208,7 +210,9 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
           final retryData = retryResponse.data;
           if (retryData is Map<String, dynamic>) {
-            return ReservationBooking.fromJson(retryData);
+            final booking = ReservationBooking.fromJson(retryData);
+            await _cacheBookingCancelToken(booking);
+            return booking;
           }
         }
       }
@@ -236,7 +240,9 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
-        return ReservationClientBookingsPage.fromJson(data);
+        return _hydrateClientBookingsPage(
+          ReservationClientBookingsPage.fromJson(data),
+        );
       }
       throw const ApiError(
         code: 'UNKNOWN_ERROR',
@@ -256,7 +262,9 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
           final retryData = retryResponse.data;
           if (retryData is Map<String, dynamic>) {
-            return ReservationClientBookingsPage.fromJson(retryData);
+            return _hydrateClientBookingsPage(
+              ReservationClientBookingsPage.fromJson(retryData),
+            );
           }
         }
       }
@@ -270,7 +278,11 @@ class ReservationRepositoryImpl implements ReservationRepository {
     required String cancelToken,
     String? salonId,
   }) async {
-    final body = <String, dynamic>{'token': cancelToken};
+    final resolvedToken = await _resolveCancelToken(
+      bookingId: bookingId,
+      cancelToken: cancelToken,
+    );
+    final body = <String, dynamic>{'token': resolvedToken};
     final normalizedSalonId = salonId?.trim();
     if (normalizedSalonId != null && normalizedSalonId.isNotEmpty) {
       body['salon_id'] = normalizedSalonId;
@@ -294,6 +306,70 @@ class ReservationRepositoryImpl implements ReservationRepository {
       }
       throw _mapDioError(error);
     }
+  }
+
+  Future<void> _cacheBookingCancelToken(ReservationBooking booking) async {
+    final token = booking.cancelToken.trim();
+    if (token.isEmpty) return;
+
+    await _tokenRepository.saveReservationBookingCancelToken(
+      bookingId: booking.id,
+      cancelToken: token,
+    );
+  }
+
+  Future<ReservationClientBookingsPage> _hydrateClientBookingsPage(
+    ReservationClientBookingsPage page,
+  ) async {
+    final upcoming = await Future.wait(
+      page.upcoming.map(_hydrateBookingCancelToken),
+    );
+    final past = await Future.wait(page.past.map(_hydrateBookingCancelToken));
+    return ReservationClientBookingsPage(upcoming: upcoming, past: past);
+  }
+
+  Future<ReservationBooking> _hydrateBookingCancelToken(
+    ReservationBooking booking,
+  ) async {
+    final token = booking.cancelToken.trim();
+    if (token.isNotEmpty) {
+      await _cacheBookingCancelToken(booking);
+      return booking;
+    }
+
+    final cachedToken = await _tokenRepository.getReservationBookingCancelToken(
+      booking.id,
+    );
+    final resolvedToken = cachedToken?.trim();
+    if (resolvedToken == null || resolvedToken.isEmpty) {
+      return booking;
+    }
+
+    return booking.copyWith(cancelToken: resolvedToken);
+  }
+
+  Future<String> _resolveCancelToken({
+    required String bookingId,
+    required String cancelToken,
+  }) async {
+    final normalizedToken = cancelToken.trim();
+    if (normalizedToken.isNotEmpty) {
+      return normalizedToken;
+    }
+
+    final cachedToken = await _tokenRepository.getReservationBookingCancelToken(
+      bookingId,
+    );
+    final resolvedToken = cachedToken?.trim() ?? '';
+    if (resolvedToken.isEmpty) {
+      throw const ApiError(
+        code: 'UNKNOWN_ERROR',
+        message:
+            "Le code d'annulation est manquant pour ce rendez-vous. Ouvrez a nouveau la reservation depuis l'email de confirmation.",
+      );
+    }
+
+    return resolvedToken;
   }
 
   Future<Options> _buildReservationRequestOptions() async {
