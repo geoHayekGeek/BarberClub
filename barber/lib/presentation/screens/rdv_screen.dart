@@ -140,7 +140,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _authStateSubscription.close();
     _reservationSessionSubscription.close();
     _reservationSalonIdSubscription.close();
-    _providerContainer.read(selectedSalonIdForRdvProvider.notifier).state = null;
+    _providerContainer.read(selectedSalonIdForRdvProvider.notifier).state =
+        null;
     _scrollController.dispose();
     _guestFirstNameController.dispose();
     _guestLastNameController.dispose();
@@ -4196,7 +4197,7 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         children: [
           _SummaryRow(label: 'BARBER', value: barber),
-          _SummaryRow(label: 'PRESTATION', value: service),
+          _SummaryRow(label: 'PRESTATION', value: service, maxValueLines: 2),
           _SummaryRow(label: 'DATE', value: date),
           _SummaryRow(label: 'HEURE', value: time),
           _SummaryRow(label: 'DURÉE', value: '$duration min'),
@@ -4219,12 +4220,16 @@ class _SummaryRow extends StatelessWidget {
     required this.value,
     this.largeValue = false,
     this.isLast = false,
+    this.maxValueLines = 1,
+    this.labelWidth = 92,
   });
 
   final String label;
   final String value;
   final bool largeValue;
   final bool isLast;
+  final int maxValueLines;
+  final double labelWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -4238,10 +4243,16 @@ class _SummaryRow extends StatelessWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment: maxValueLines > 1
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
-          Expanded(
+          SizedBox(
+            width: labelWidth,
             child: Text(
               label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -4251,15 +4262,20 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            value,
-            textAlign: TextAlign.end,
-            style: TextStyle(
-              fontFamily: _RdvScreenState._titleFont,
-              fontSize: largeValue ? 18 : 13,
-              fontWeight: FontWeight.w700,
-              letterSpacing: largeValue ? 0.5 : 0.2,
-              color: Colors.white,
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: maxValueLines,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+              style: TextStyle(
+                fontFamily: _RdvScreenState._titleFont,
+                fontSize: largeValue ? 18 : 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: largeValue ? 0.5 : 0.2,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
