@@ -420,32 +420,42 @@ async function main() {
 
   console.log(`Seed completed: ${created} new/updated barbers processed.`);
   
-  // --- OFFERS (Simplified) ---
-const offersData = [
-    // GRENOBLE OFFERS
-    { title: 'Coupe + Barbe', price: 30, isActive: true, salonId: salonGrenoble.id },
-    { title: 'Coupe + Traçage Barbe', price: 25, isActive: true, salonId: salonGrenoble.id },
-    { title: 'Coupe Homme', price: 20, isActive: true, salonId: salonGrenoble.id },
-    { title: 'Barbe Uniquement', price: 15, isActive: true, salonId: salonGrenoble.id },
-    { title: 'Tarif Étudiant', price: 15, isActive: true, salonId: salonGrenoble.id },
+// --- OFFERS (Simplified) ---
+  const offersData = [
+    // --- GRENOBLE OFFERS ---
+    { title: 'Coupe Homme', price: 20, isActive: true, orderIndex: 1, salonId: salonGrenoble.id },
+    { title: 'Coupe + Traçage Barbe', price: 25, isActive: true, orderIndex: 2, salonId: salonGrenoble.id },
+    { title: 'Coupe + Barbe', price: 30, isActive: true, orderIndex: 3, salonId: salonGrenoble.id },
+    { title: 'Barbe Uniquement', price: 15, isActive: true, orderIndex: 4, salonId: salonGrenoble.id },
+    { title: 'Tarif Étudiant', price: 15, isActive: true, orderIndex: 5, salonId: salonGrenoble.id },
+    { title: 'Enfant -12 ans', price: 15, isActive: true, orderIndex: 6, salonId: salonGrenoble.id },
 
-    // MEYLAN OFFERS
-    { title: 'Coupe + Barbe + Soin Complet', price: 48, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe + Barbe', price: 38, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe + Traçage Barbe', price: 33, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe Homme', price: 27, isActive: true, salonId: salonMeylan.id },
-    { title: 'Barbe Uniquement', price: 20, isActive: true, salonId: salonMeylan.id },
-    { title: 'Soin Visage + Barbe', price: 20, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe Étudiante', price: 24, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe Partenaire', price: 24, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe + Traçage Partenaire', price: 29, isActive: true, salonId: salonMeylan.id },
-    { title: 'Coupe + Barbe Partenaire', price: 33, isActive: true, salonId: salonMeylan.id },
+    // --- MEYLAN OFFERS ---
+    { title: 'Coupe Homme', price: 27, isActive: true, orderIndex: 1, salonId: salonMeylan.id },
+    { title: 'Coupe + Traçage Barbe', price: 33, isActive: true, orderIndex: 2, salonId: salonMeylan.id },
+    { title: 'Coupe + Barbe', price: 38, isActive: true, orderIndex: 3, salonId: salonMeylan.id },
+    { title: 'Coupe + Barbe + Soin Complet', price: 48, isActive: true, orderIndex: 4, salonId: salonMeylan.id },
+    { title: 'Barbe Uniquement', price: 20, isActive: true, orderIndex: 5, salonId: salonMeylan.id },
+    { title: 'Soin Visage + Barbe', price: 30, isActive: true, orderIndex: 6, salonId: salonMeylan.id }, // Corrected price to 30€
+    { title: 'Coupe Étudiante', price: 24, isActive: true, orderIndex: 7, salonId: salonMeylan.id },
+    { title: 'Coupe Partenaire', price: 24, isActive: true, orderIndex: 8, salonId: salonMeylan.id },
+    { title: 'Coupe + Traçage Partenaire', price: 29, isActive: true, orderIndex: 9, salonId: salonMeylan.id },
+    { title: 'Coupe + Barbe Partenaire', price: 33, isActive: true, orderIndex: 10, salonId: salonMeylan.id },
   ];
 
   for (const offer of offersData) {
-    const existing = await prisma.offer.findFirst({ where: { title: offer.title, salonId: offer.salonId } });
-    if (!existing) {
-        await prisma.offer.create({ data: offer });
+    const existing = await prisma.offer.findFirst({ 
+      where: { title: offer.title, salonId: offer.salonId } 
+    });
+    
+    // If it exists, update it so it gets the new orderIndex and price corrections.
+    if (existing) {
+      await prisma.offer.update({
+        where: { id: existing.id },
+        data: offer,
+      });
+    } else {
+      await prisma.offer.create({ data: offer });
     }
   }
 

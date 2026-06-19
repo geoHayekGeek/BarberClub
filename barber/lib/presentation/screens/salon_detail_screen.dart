@@ -449,7 +449,6 @@ class _SalonDetailContent extends StatelessWidget {
     );
   }
 }
-
 class _SalonPrestationsSection extends ConsumerWidget {
   final String salonId;
 
@@ -460,6 +459,11 @@ class _SalonPrestationsSection extends ConsumerWidget {
     final async = ref.watch(prestationsListProvider(salonId));
     return async.when(
       data: (offers) {
+        
+        // --- 1. TRIER LA LISTE ICI ---
+        // On crée une copie de la liste et on la trie selon l'orderIndex
+        final sortedOffers = List.of(offers)..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           padding: const EdgeInsets.all(20),
@@ -498,7 +502,9 @@ class _SalonPrestationsSection extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              if (offers.isEmpty)
+              
+              // --- 2. UTILISER "sortedOffers" AU LIEU DE "offers" ---
+              if (sortedOffers.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Center(
@@ -512,14 +518,14 @@ class _SalonPrestationsSection extends ConsumerWidget {
                   ),
                 )
               else
-                ...offers.asMap().entries.map((entry) {
+                ...sortedOffers.asMap().entries.map((entry) {
                   final index = entry.key;
                   final offer = entry.value;
                   return Column(
                     key: ValueKey(offer.id),
                     children: [
                       PrestationItem(offer: offer),
-                      if (index < offers.length - 1)
+                      if (index < sortedOffers.length - 1)
                         Container(
                           height: 1,
                           margin: const EdgeInsets.symmetric(vertical: 16),
