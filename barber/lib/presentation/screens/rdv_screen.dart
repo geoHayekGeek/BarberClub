@@ -66,6 +66,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   late final ProviderSubscription<ReservationSessionState>
   _reservationSessionSubscription;
   late final ProviderSubscription<String?> _reservationSalonIdSubscription;
+  late final ProviderContainer _providerContainer;
   List<_BarberOption> _barbers = const [];
   List<_ServiceOption> _services = const [];
   List<_SlotOption> _availableSlots = const [];
@@ -104,6 +105,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   @override
   void initState() {
     super.initState();
+    _providerContainer = ProviderScope.containerOf(context, listen: false);
     _today = DateTime.now();
     _calendarMonth = DateTime(_today.year, _today.month);
     _authStateSubscription = ref.listenManual<AuthState>(
@@ -138,7 +140,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _authStateSubscription.close();
     _reservationSessionSubscription.close();
     _reservationSalonIdSubscription.close();
-    ref.read(selectedSalonIdForRdvProvider.notifier).state = null;
+    _providerContainer.read(selectedSalonIdForRdvProvider.notifier).state = null;
     _scrollController.dispose();
     _guestFirstNameController.dispose();
     _guestLastNameController.dispose();
