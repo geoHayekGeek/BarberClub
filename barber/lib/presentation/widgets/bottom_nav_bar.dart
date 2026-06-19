@@ -8,9 +8,10 @@ import 'package:go_router/go_router.dart';
 /// Website-style bottom dock:
 /// left 2 tabs + center elevated reserve button + right 2 tabs.
 class BottomNavBar extends ConsumerWidget {
-  const BottomNavBar({super.key, this.navigationShell});
+  const BottomNavBar({super.key, this.navigationShell, this.activeBranchIndex});
 
   final StatefulNavigationShell? navigationShell;
+  final int? activeBranchIndex;
 
   static const _items = [
     _DockItem(
@@ -51,20 +52,16 @@ class BottomNavBar extends ConsumerWidget {
       return navigationShell!.currentIndex;
     }
 
-    final path = GoRouterState.of(context).uri.path;
-    if (path == '/home' || path.startsWith('/home')) return 0;
-    if (path == '/coiffeurs' || path.startsWith('/coiffeurs')) return 1;
-    if (path == '/rdv' || path.startsWith('/rdv')) return 2;
-    if (path == '/carte-fidelite' || path.startsWith('/carte-fidelite')) {
-      return 3;
-    }
-    if (path == '/offres' || path.startsWith('/offres/')) return 4;
-    return 0;
+    return activeBranchIndex ?? -1;
   }
 
   void _onTap(BuildContext context, _DockItem item) {
     if (navigationShell != null) {
       navigationShell!.goBranch(item.branchIndex);
+      return;
+    }
+
+    if (!context.mounted) {
       return;
     }
 

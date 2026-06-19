@@ -583,7 +583,8 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
       onDeleteAccount: () => _showDeleteAccountDialog(context, ref),
       onLogout: () async {
         await ref.read(authStateProvider.notifier).logout();
-        if (context.mounted) context.go('/home');
+        if (!context.mounted) return;
+        context.go('/home');
       },
     );
 
@@ -847,6 +848,7 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
       ),
       bottomNavigationBar: const BottomNavBar(
         key: ValueKey('account-bottom-nav'),
+        activeBranchIndex: 4,
       ),
     );
   }
@@ -1156,7 +1158,9 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                       onPressed: () async {
                         if (!formKey.currentState!.validate()) return;
                         try {
-                          Navigator.pop(ctx);
+                          if (ctx.mounted) {
+                            Navigator.of(ctx, rootNavigator: true).pop();
+                          }
                           await ref
                               .read(authStateProvider.notifier)
                               .updateProfile(
@@ -1322,7 +1326,13 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                                     );
 
                                 if (ctx.mounted) {
-                                  Navigator.pop(ctx);
+                                  if (!context.mounted) {
+                                    return;
+                                  }
+                                  Navigator.of(
+                                    ctx,
+                                    rootNavigator: true,
+                                  ).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -1612,6 +1622,7 @@ class _CompteScreenShell extends ConsumerWidget {
       ),
       bottomNavigationBar: const BottomNavBar(
         key: ValueKey('account-bottom-nav'),
+        activeBranchIndex: 4,
       ),
     );
   }
