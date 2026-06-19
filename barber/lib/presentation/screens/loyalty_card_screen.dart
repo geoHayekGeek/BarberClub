@@ -18,9 +18,22 @@ import '../widgets/app_primary_button.dart';
 class LoyaltyCardScreen extends ConsumerWidget {
   const LoyaltyCardScreen({super.key});
 
-  static const double _horizontalPadding = LoyaltyUIConstants.horizontalScreenPadding;
+  static const double _horizontalPadding =
+      LoyaltyUIConstants.horizontalScreenPadding;
   static const double _verticalRhythm = LoyaltyUIConstants.verticalRhythm;
   static const double _bottomNavPadding = LoyaltyUIConstants.bottomNavPadding;
+  static final BoxDecoration _pageBackgroundDecoration = BoxDecoration(
+    gradient: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Colors.black.withOpacity(0.22),
+        Colors.transparent,
+        Colors.black.withOpacity(0.74),
+      ],
+      stops: const [0.0, 0.38, 1.0],
+    ),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,65 +42,119 @@ class LoyaltyCardScreen extends ConsumerWidget {
 
     if (authState.status != AuthStatus.authenticated) {
       return Scaffold(
-        appBar: AppBar(title: const Text(LoyaltyStrings.pageTitle)),
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(LoyaltyUIConstants.cardPadding),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Vous êtes en mode invité.\nConnectez-vous pour accéder à la carte fidélité et aux avantages premium.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+        backgroundColor: Colors.black,
+        extendBody: true,
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          title: const Text(LoyaltyStrings.pageTitle),
+        ),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const _LoyaltyBackdrop(),
+            SafeArea(
+              bottom: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(LoyaltyUIConstants.cardPadding),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Vous êtes en mode invité.\nConnectez-vous pour accéder à la carte fidélité et aux avantages premium.',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white.withOpacity(0.9),
                         ),
-                    textAlign: TextAlign.center,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: LoyaltyUIConstants.sectionSpacing),
+                      SizedBox(
+                        height: LoyaltyUIConstants.minTouchTargetSize,
+                        child: FilledButton(
+                          onPressed: () =>
+                              context.go('/login?redirect=%2Fcarte-fidelite'),
+                          child: const Text('Se connecter'),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: LoyaltyUIConstants.sectionSpacing),
-                  SizedBox(
-                    height: LoyaltyUIConstants.minTouchTargetSize,
-                    child: FilledButton(
-                      onPressed: () => context.go('/login?redirect=%2Fcarte-fidelite'),
-                      child: const Text('Se connecter'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Colors.black,
+      extendBody: true,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
         elevation: 0,
         title: Text(
           LoyaltyStrings.pageTitle,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-      ),
-      body: stateAsync.when(
-        data: (state) {
-          if (state == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return _LoyaltyV2Body(state: state);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
-          child: Text(
-            'Erreur de chargement',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
+            color: Colors.white70,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const _LoyaltyBackdrop(),
+          stateAsync.when(
+            data: (state) {
+              if (state == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return _LoyaltyV2Body(state: state);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => Center(
+              child: Text(
+                'Erreur de chargement',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoyaltyBackdrop extends StatelessWidget {
+  const _LoyaltyBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/barber_background.jpg',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              Container(color: const Color(0xFF111111)),
+        ),
+        Container(color: Colors.black.withOpacity(0.62)),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: LoyaltyCardScreen._pageBackgroundDecoration,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -236,18 +303,18 @@ class _Header extends StatelessWidget {
         Text(
           'BARBERCLUB',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2,
-              ),
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           'PROGRAMME FIDÉLITÉ',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white70,
-                letterSpacing: 1,
-              ),
+            color: Colors.white70,
+            letterSpacing: 1,
+          ),
         ),
       ],
     );
@@ -277,8 +344,11 @@ class _MainCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nextTier = state.nextTier;
-    final totalToNext = nextTier != null ? state.lifetimeEarned + nextTier.remainingPoints : 0.0;
-    final progress = nextTier != null && nextTier.remainingPoints > 0 && totalToNext > 0
+    final totalToNext = nextTier != null
+        ? state.lifetimeEarned + nextTier.remainingPoints
+        : 0.0;
+    final progress =
+        nextTier != null && nextTier.remainingPoints > 0 && totalToNext > 0
         ? 1.0 - (nextTier.remainingPoints / totalToNext)
         : 1.0;
 
@@ -298,7 +368,9 @@ class _MainCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: _tierColor(state.tier).withOpacity(0.25),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _tierColor(state.tier).withOpacity(0.5)),
+                border: Border.all(
+                  color: _tierColor(state.tier).withOpacity(0.5),
+                ),
               ),
               child: Text(
                 state.tier.toUpperCase(),
@@ -314,18 +386,18 @@ class _MainCard extends StatelessWidget {
           Text(
             '${state.currentBalance}',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 68,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 68,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'POINTS',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.white54,
-                  letterSpacing: 2,
-                ),
+              color: Colors.white54,
+              letterSpacing: 2,
+            ),
           ),
           if (nextTier != null) ...[
             const SizedBox(height: 16),
@@ -334,17 +406,11 @@ class _MainCard extends StatelessWidget {
               children: [
                 Text(
                   state.tier,
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 Text(
                   '${nextTier.name} — ${_nextTierThreshold(nextTier.name)} pts',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -355,14 +421,18 @@ class _MainCard extends StatelessWidget {
                 value: progress.clamp(0.0, 1.0),
                 minHeight: 8,
                 backgroundColor: const Color(0xFF2A2A2A),
-                valueColor: AlwaysStoppedAnimation<Color>(_tierColor(nextTier.name)),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _tierColor(nextTier.name),
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Center(
               child: Text(
                 '${nextTier.remainingPoints} pts avant ${nextTier.name}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.white54),
               ),
             ),
           ],
@@ -373,10 +443,14 @@ class _MainCard extends StatelessWidget {
 
   static int _nextTierThreshold(String name) {
     switch (name) {
-      case 'Silver': return 200;
-      case 'Gold': return 500;
-      case 'Platinum': return 1000;
-      default: return 0;
+      case 'Silver':
+        return 200;
+      case 'Gold':
+        return 500;
+      case 'Platinum':
+        return 1000;
+      default:
+        return 0;
     }
   }
 }
@@ -390,11 +464,16 @@ class _TierCarousel extends StatelessWidget {
 
   static Color _tierColor(String t) {
     switch (t) {
-      case 'Bronze': return const Color(0xFFCD7F32);
-      case 'Silver': return const Color(0xFFC0C0C0);
-      case 'Gold': return const Color(0xFFB8860B);
-      case 'Platinum': return const Color(0xFFE5E4E2);
-      default: return const Color(0xFFC0C0C0);
+      case 'Bronze':
+        return const Color(0xFFCD7F32);
+      case 'Silver':
+        return const Color(0xFFC0C0C0);
+      case 'Gold':
+        return const Color(0xFFB8860B);
+      case 'Platinum':
+        return const Color(0xFFE5E4E2);
+      default:
+        return const Color(0xFFC0C0C0);
     }
   }
 
@@ -412,10 +491,14 @@ class _TierCarousel extends StatelessWidget {
             width: LoyaltyUIConstants.tierCardWidth,
             margin: const EdgeInsets.only(right: 12),
             decoration: BoxDecoration(
-              color: isCurrent ? _tierColor(tier).withOpacity(0.15) : const Color(0xFF1A1A1A),
+              color: isCurrent
+                  ? _tierColor(tier).withOpacity(0.15)
+                  : const Color(0xFF1A1A1A),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isCurrent ? _tierColor(tier) : Colors.white.withOpacity(0.08),
+                color: isCurrent
+                    ? _tierColor(tier)
+                    : Colors.white.withOpacity(0.08),
                 width: isCurrent ? 2 : 1,
               ),
             ),
@@ -428,23 +511,24 @@ class _TierCarousel extends StatelessWidget {
                       Icon(
                         _tierIcon(tier),
                         size: 28,
-                        color: isCurrent ? _tierColor(tier) : Colors.white.withOpacity(0.25),
+                        color: isCurrent
+                            ? _tierColor(tier)
+                            : Colors.white.withOpacity(0.25),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         tier.toUpperCase(),
                         style: TextStyle(
                           color: isCurrent ? _tierColor(tier) : Colors.white54,
-                          fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isCurrent
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           fontSize: 14,
                         ),
                       ),
                       Text(
                         _tierRange(tier),
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: Colors.white54, fontSize: 11),
                       ),
                     ],
                   ),
@@ -454,7 +538,10 @@ class _TierCarousel extends StatelessWidget {
                     top: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(4),
@@ -480,21 +567,31 @@ class _TierCarousel extends StatelessWidget {
   /// Tier icons per spec: Bronze=Shield, Silver=Star, Gold=Crown, Platinum=Gem (visual badges only).
   static IconData _tierIcon(String t) {
     switch (t) {
-      case 'Bronze': return Icons.shield_outlined;
-      case 'Silver': return Icons.star;
-      case 'Gold': return Icons.workspace_premium_outlined;
-      case 'Platinum': return Icons.diamond_outlined;
-      default: return Icons.shield_outlined;
+      case 'Bronze':
+        return Icons.shield_outlined;
+      case 'Silver':
+        return Icons.star;
+      case 'Gold':
+        return Icons.workspace_premium_outlined;
+      case 'Platinum':
+        return Icons.diamond_outlined;
+      default:
+        return Icons.shield_outlined;
     }
   }
 
   static String _tierRange(String t) {
     switch (t) {
-      case 'Bronze': return '0 - 199 pts';
-      case 'Silver': return '200 - 499 pts';
-      case 'Gold': return '500 - 999 pts';
-      case 'Platinum': return '1000+ pts';
-      default: return '';
+      case 'Bronze':
+        return '0 - 199 pts';
+      case 'Silver':
+        return '200 - 499 pts';
+      case 'Gold':
+        return '500 - 999 pts';
+      case 'Platinum':
+        return '1000+ pts';
+      default:
+        return '';
     }
   }
 }
@@ -511,7 +608,9 @@ class _RewardsSection extends ConsumerWidget {
         if (rewards.isEmpty) {
           return Text(
             'Aucune récompense disponible',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
           );
         }
         final balance = stateAsync.valueOrNull?.currentBalance ?? 0;
@@ -537,7 +636,9 @@ class _RewardsSection extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: const Color(0xFF1A1A1A),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.06),
+                            ),
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -545,13 +646,16 @@ class _RewardsSection extends ConsumerWidget {
                             children: [
                               const SizedBox(height: 8),
                               ClipOval(
-                                child: r.imageUrl != null && r.imageUrl!.isNotEmpty
+                                child:
+                                    r.imageUrl != null && r.imageUrl!.isNotEmpty
                                     ? Image.network(
-                                        AppConfig.resolveImageUrl(r.imageUrl) ?? r.imageUrl!,
+                                        AppConfig.resolveImageUrl(r.imageUrl) ??
+                                            r.imageUrl!,
                                         height: 80,
                                         width: 80,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => _rewardPlaceholder(),
+                                        errorBuilder: (_, __, ___) =>
+                                            _rewardPlaceholder(),
                                       )
                                     : _rewardPlaceholder(),
                               ),
@@ -587,7 +691,9 @@ class _RewardsSection extends ConsumerWidget {
                               SizedBox(
                                 width: double.infinity,
                                 child: Material(
-                                  color: canAfford ? Colors.white : Colors.white24,
+                                  color: canAfford
+                                      ? Colors.white
+                                      : Colors.white24,
                                   borderRadius: BorderRadius.circular(8),
                                   child: InkWell(
                                     onTap: () {
@@ -599,12 +705,16 @@ class _RewardsSection extends ConsumerWidget {
                                     },
                                     borderRadius: BorderRadius.circular(8),
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                       child: Center(
                                         child: Text(
                                           'Échanger',
                                           style: TextStyle(
-                                            color: canAfford ? Colors.black87 : Colors.white54,
+                                            color: canAfford
+                                                ? Colors.black87
+                                                : Colors.white54,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 14,
                                           ),
@@ -626,7 +736,10 @@ class _RewardsSection extends ConsumerWidget {
           ),
         );
       },
-      loading: () => SizedBox(height: LoyaltyUIConstants.rewardsListHeight, child: const Center(child: CircularProgressIndicator())),
+      loading: () => SizedBox(
+        height: LoyaltyUIConstants.rewardsListHeight,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -639,7 +752,11 @@ class _RewardsSection extends ConsumerWidget {
         color: Colors.white.withOpacity(0.08),
         shape: BoxShape.circle,
       ),
-      child: Icon(Icons.card_giftcard, color: Colors.white.withOpacity(0.3), size: 36),
+      child: Icon(
+        Icons.card_giftcard,
+        color: Colors.white.withOpacity(0.3),
+        size: 36,
+      ),
     );
   }
 
@@ -648,7 +765,10 @@ class _RewardsSection extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1C1C1C),
-        title: const Text('Points insuffisants', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Points insuffisants',
+          style: TextStyle(color: Colors.white),
+        ),
         content: const Text(
           'Vous n\'avez pas assez de points pour cette récompense.',
           style: TextStyle(color: Colors.white70),
@@ -663,12 +783,19 @@ class _RewardsSection extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmRedeem(BuildContext context, WidgetRef ref, LoyaltyRewardItem r) async {
+  Future<void> _confirmRedeem(
+    BuildContext context,
+    WidgetRef ref,
+    LoyaltyRewardItem r,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1C1C1C),
-        title: Text('Confirmer l\'échange', style: const TextStyle(color: Colors.white)),
+        title: Text(
+          'Confirmer l\'échange',
+          style: const TextStyle(color: Colors.white),
+        ),
         content: Text(
           'Confirmer l\'échange de ${r.costPoints} pts ?',
           style: const TextStyle(color: Colors.white70),
@@ -688,20 +815,25 @@ class _RewardsSection extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
     final dio = ref.read(dioClientProvider).dio;
     try {
-      await dio.post<Map<String, dynamic>>('/api/v1/loyalty/rewards/redeem', data: {'rewardId': r.id});
+      await dio.post<Map<String, dynamic>>(
+        '/api/v1/loyalty/rewards/redeem',
+        data: {'rewardId': r.id},
+      );
       if (!context.mounted) return;
       ref.invalidate(loyaltyV2StateProvider);
       ref.invalidate(loyaltyRewardsProvider);
       ref.invalidate(loyaltyRedemptionsProvider);
       ref.invalidate(loyaltyTransactionsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Récompense échangée. Retrouvez-la dans Mes bons.')),
+        const SnackBar(
+          content: Text('Récompense échangée. Retrouvez-la dans Mes bons.'),
+        ),
       );
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Échange impossible')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Échange impossible')));
       }
     }
   }
@@ -720,10 +852,16 @@ String _redemptionStatusLabel(String status) {
   }
 }
 
-Future<void> _openVoucherQrDialog(BuildContext context, WidgetRef ref, String redemptionId) async {
+Future<void> _openVoucherQrDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String redemptionId,
+) async {
   final dio = ref.read(dioClientProvider).dio;
   try {
-    final response = await dio.post<Map<String, dynamic>>('/api/v1/loyalty/redemptions/$redemptionId/qr');
+    final response = await dio.post<Map<String, dynamic>>(
+      '/api/v1/loyalty/redemptions/$redemptionId/qr',
+    );
     final payload = response.data?['data'] as Map<String, dynamic>?;
     final qrPayload = payload?['qrPayload'] as String?;
     if (qrPayload == null || qrPayload.isEmpty || !context.mounted) return;
@@ -752,14 +890,16 @@ Future<void> _openVoucherQrDialog(BuildContext context, WidgetRef ref, String re
   }
 }
 
-Future<void> _cancelRedemptionDialog(BuildContext context, WidgetRef ref, String redemptionId) async {
+Future<void> _cancelRedemptionDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String redemptionId,
+) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Annuler le bon'),
-      content: const Text(
-        'Annuler ce bon et récupérer les points ?',
-      ),
+      content: const Text('Annuler ce bon et récupérer les points ?'),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
@@ -841,7 +981,9 @@ class _VoucherCardState extends ConsumerState<_VoucherCard> {
               const SizedBox(height: 6),
               Text(
                 _redemptionStatusLabel(r.status),
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white54,
+                ),
               ),
               if (r.isPending) ...[
                 const SizedBox(height: 12),
@@ -855,7 +997,9 @@ class _VoucherCardState extends ConsumerState<_VoucherCard> {
                     ),
                     Expanded(
                       child: TextButton(
-                        onPressed: _isOpeningQr ? null : () => _cancelRedemptionDialog(context, ref, r.id),
+                        onPressed: _isOpeningQr
+                            ? null
+                            : () => _cancelRedemptionDialog(context, ref, r.id),
                         child: const Text('Annuler'),
                       ),
                     ),
@@ -881,7 +1025,9 @@ class _RedemptionsSection extends ConsumerWidget {
         if (list.isEmpty) {
           return Text(
             'Aucun bon pour le moment',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
           );
         }
         return Column(
@@ -889,7 +1035,10 @@ class _RedemptionsSection extends ConsumerWidget {
           children: list.map((r) => _VoucherCard(redemption: r)).toList(),
         );
       },
-      loading: () => const SizedBox(height: 60, child: Center(child: CircularProgressIndicator())),
+      loading: () => const SizedBox(
+        height: 60,
+        child: Center(child: CircularProgressIndicator()),
+      ),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -906,7 +1055,9 @@ class _TransactionsSection extends ConsumerWidget {
         if (list.isEmpty) {
           return Text(
             'Aucune opération récente',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white54),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.white54),
           );
         }
         return Container(
@@ -923,7 +1074,10 @@ class _TransactionsSection extends ConsumerWidget {
                 if (i > 0)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: Colors.white.withOpacity(0.08)),
+                    child: Divider(
+                      height: 1,
+                      color: Colors.white.withOpacity(0.08),
+                    ),
                   ),
                 _TransactionRow(t: list[i]),
               ],
@@ -931,7 +1085,10 @@ class _TransactionsSection extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+      loading: () => const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator()),
+      ),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -945,7 +1102,20 @@ class _TransactionRow extends StatelessWidget {
   static String _formatDate(String iso) {
     final d = DateTime.tryParse(iso);
     if (d == null) return iso;
-    const months = ['janv.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    const months = [
+      'janv.',
+      'fév.',
+      'mars',
+      'avr.',
+      'mai',
+      'juin',
+      'juil.',
+      'août',
+      'sept.',
+      'oct.',
+      'nov.',
+      'déc.',
+    ];
     final i = d.month - 1;
     return '${d.day} ${i >= 0 && i < months.length ? months[i] : ''} ${d.year}';
   }
@@ -1043,7 +1213,9 @@ class _InfoCard extends StatelessWidget {
     final idx = text.indexOf(boldPart);
     final before = idx >= 0 ? text.substring(0, idx) : text;
     final bold = idx >= 0 ? text.substring(idx, idx + boldPart.length) : '';
-    final after = idx >= 0 && idx + boldPart.length <= text.length ? text.substring(idx + boldPart.length) : '';
+    final after = idx >= 0 && idx + boldPart.length <= text.length
+        ? text.substring(idx + boldPart.length)
+        : '';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1097,7 +1269,8 @@ class _EarnQrFullscreenDialog extends StatefulWidget {
   final VoidCallback onClose;
 
   @override
-  State<_EarnQrFullscreenDialog> createState() => _EarnQrFullscreenDialogState();
+  State<_EarnQrFullscreenDialog> createState() =>
+      _EarnQrFullscreenDialogState();
 }
 
 class _EarnQrFullscreenDialogState extends State<_EarnQrFullscreenDialog> {
@@ -1111,7 +1284,10 @@ class _EarnQrFullscreenDialogState extends State<_EarnQrFullscreenDialog> {
       final end = DateTime.tryParse(widget.expiresAt!);
       if (end != null) {
         _updateSecondsLeft(end);
-        _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateSecondsLeft(end));
+        _timer = Timer.periodic(
+          const Duration(seconds: 1),
+          (_) => _updateSecondsLeft(end),
+        );
       }
     }
   }
@@ -1161,14 +1337,18 @@ class _EarnQrFullscreenDialogState extends State<_EarnQrFullscreenDialog> {
             const Spacer(),
             Text(
               'Présentez ce QR code au coiffeur',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.white70),
             ),
             if (_secondsLeft > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Expire dans ${_secondsLeft}s',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white54),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.white54),
                 ),
               ),
             const SizedBox(height: 32),
@@ -1217,7 +1397,9 @@ class _VoucherQrFullscreenDialog extends StatelessWidget {
             const Spacer(),
             Text(
               'Présentez ce bon au salon',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.white70),
             ),
             const SizedBox(height: 32),
           ],

@@ -96,7 +96,7 @@ class BottomNavBar extends ConsumerWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                    filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
                     child: Container(
                       height: 58,
                       padding: const EdgeInsets.symmetric(
@@ -104,17 +104,17 @@ class BottomNavBar extends ConsumerWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xF20A0A0A),
+                        color: const Color(0xB0111111),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: const Color(0x1AFFFFFF),
+                          color: Colors.white.withValues(alpha: 0.08),
                           width: 1,
                         ),
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x80000000),
-                            blurRadius: 32,
-                            offset: Offset(0, 8),
+                            color: Color(0x55000000),
+                            blurRadius: 18,
+                            offset: Offset(0, 6),
                           ),
                         ],
                       ),

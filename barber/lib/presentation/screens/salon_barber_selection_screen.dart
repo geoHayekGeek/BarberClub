@@ -17,7 +17,7 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
     final barbersAsync = ref.watch(barbersListProvider);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF121212),
       body: SafeArea(
         bottom: false,
         child: barbersAsync.when(

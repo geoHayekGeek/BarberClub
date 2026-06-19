@@ -599,6 +599,7 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212), // Explicit dark background
+      extendBody: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1450,6 +1451,7 @@ class _CompteScreenShell extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _pageBackground,
+      extendBody: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

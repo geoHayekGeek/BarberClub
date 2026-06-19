@@ -51,17 +51,18 @@ class OffersListScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF121212),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF050505), Color(0xFF000000), Color(0xFF000000)],
-            stops: [0.0, 0.32, 1.0],
+            colors: [Color(0xFF050505), Color(0xFF0E0E0E), Color(0xFF121212)],
+            stops: [0.0, 0.34, 1.0],
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: DefaultTabController(
             length: 3,
             child: Column(
