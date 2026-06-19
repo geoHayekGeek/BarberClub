@@ -224,11 +224,52 @@ class ReservationBooking {
       cancelToken:
           json['cancel_token'] as String? ??
           json['cancelToken'] as String? ??
+          json['token'] as String? ??
           '',
       source: json['source'] as String? ?? 'online',
       createdAt:
           json['created_at'] as String? ?? json['createdAt'] as String? ?? '',
       hasAccount: _asBool(json['has_account']) ?? false,
+    );
+  }
+
+  ReservationBooking copyWith({
+    String? id,
+    String? clientId,
+    String? barberId,
+    String? barberName,
+    String? barberPhotoUrl,
+    String? serviceId,
+    String? serviceName,
+    String? salonId,
+    String? date,
+    String? startTime,
+    String? endTime,
+    int? priceCents,
+    String? status,
+    String? cancelToken,
+    String? source,
+    String? createdAt,
+    bool? hasAccount,
+  }) {
+    return ReservationBooking(
+      id: id ?? this.id,
+      clientId: clientId ?? this.clientId,
+      barberId: barberId ?? this.barberId,
+      barberName: barberName ?? this.barberName,
+      barberPhotoUrl: barberPhotoUrl ?? this.barberPhotoUrl,
+      serviceId: serviceId ?? this.serviceId,
+      serviceName: serviceName ?? this.serviceName,
+      salonId: salonId ?? this.salonId,
+      date: date ?? this.date,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      priceCents: priceCents ?? this.priceCents,
+      status: status ?? this.status,
+      cancelToken: cancelToken ?? this.cancelToken,
+      source: source ?? this.source,
+      createdAt: createdAt ?? this.createdAt,
+      hasAccount: hasAccount ?? this.hasAccount,
     );
   }
 

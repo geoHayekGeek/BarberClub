@@ -379,7 +379,8 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
       '${booking.date}T${booking.startTime}',
     );
     if (bookingDate == null) return false;
-    return bookingDate.difference(DateTime.now()).inHours >= 12;
+    return bookingDate.difference(DateTime.now()) >=
+        const Duration(hours: 12);
   }
 
   Uri _buildManageBookingUri(ReservationBooking booking) {
@@ -1330,10 +1331,7 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                                   if (!context.mounted) {
                                     return;
                                   }
-                                  Navigator.of(
-                                    ctx,
-                                    rootNavigator: true,
-                                  ).pop();
+                                  Navigator.of(ctx, rootNavigator: true).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -2636,7 +2634,8 @@ class _CompteScreenShell extends ConsumerWidget {
       '${booking.date}T${booking.startTime}',
     );
     if (bookingDate == null) return false;
-    return bookingDate.difference(DateTime.now()).inHours >= 12;
+    return bookingDate.difference(DateTime.now()) >=
+        const Duration(hours: 12);
   }
 
   Uri _buildManageBookingUri(ReservationBooking booking) {
@@ -2664,7 +2663,7 @@ class _CompteScreenShell extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Les annulations sont possibles au moins 12h avant le rendez-vous.',
+            'Les annulations sont possibles au moins 12 heures avant le rendez-vous.',
           ),
         ),
       );

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'token_repository.dart';
 
@@ -20,6 +22,8 @@ class SecureTokenRepository
   static const String _refreshTokenKey = 'refresh_token';
   static const String _reservationAccessTokenKey = 'reservation_access_token';
   static const String _reservationRefreshTokenKey = 'reservation_refresh_token';
+  static const String _reservationBookingCancelTokensKey =
+      'reservation_booking_cancel_tokens';
 
   @override
   Future<void> saveAccessToken(String token) async {
@@ -89,5 +93,67 @@ class SecureTokenRepository
     final accessToken = await getReservationAccessToken();
     final refreshToken = await getReservationRefreshToken();
     return accessToken != null && refreshToken != null;
+  }
+
+  @override
+  Future<void> saveReservationBookingCancelToken({
+    required String bookingId,
+    required String cancelToken,
+  }) async {
+    final normalizedBookingId = bookingId.trim();
+    final normalizedCancelToken = cancelToken.trim();
+    if (normalizedBookingId.isEmpty || normalizedCancelToken.isEmpty) {
+      return;
+    }
+
+    final tokens = await _readReservationBookingCancelTokens();
+    tokens[normalizedBookingId] = normalizedCancelToken;
+    await _writeReservationBookingCancelTokens(tokens);
+  }
+
+  @override
+  Future<String?> getReservationBookingCancelToken(String bookingId) async {
+    final normalizedBookingId = bookingId.trim();
+    if (normalizedBookingId.isEmpty) {
+      return null;
+    }
+
+    final tokens = await _readReservationBookingCancelTokens();
+    final token = tokens[normalizedBookingId]?.trim();
+    return token == null || token.isEmpty ? null : token;
+  }
+
+  Future<Map<String, String>> _readReservationBookingCancelTokens() async {
+    final raw = await _storage.read(key: _reservationBookingCancelTokensKey);
+    if (raw == null || raw.trim().isEmpty) {
+      return <String, String>{};
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded.map(
+          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+        );
+      }
+    } catch (_) {
+      // Ignore malformed cache entries and rebuild from fresh data.
+    }
+
+    return <String, String>{};
+  }
+
+  Future<void> _writeReservationBookingCancelTokens(
+    Map<String, String> tokens,
+  ) async {
+    if (tokens.isEmpty) {
+      await _storage.delete(key: _reservationBookingCancelTokensKey);
+      return;
+    }
+
+    await _storage.write(
+      key: _reservationBookingCancelTokensKey,
+      value: jsonEncode(tokens),
+    );
   }
 }
