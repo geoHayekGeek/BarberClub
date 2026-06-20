@@ -2,13 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/models/api_error.dart';
-import '../../domain/models/offer.dart';
-import '../../domain/models/global_offer.dart';
-import '../../domain/models/client_offer.dart';
-import '../../domain/models/my_offer_item.dart';
-import '../../domain/repositories/offer_repository.dart';
 import '../../data/repositories/offer_repository_impl.dart';
+import '../../domain/models/api_error.dart';
+import '../../domain/models/client_offer.dart';
+import '../../domain/models/global_offer.dart';
+import '../../domain/models/my_offer_item.dart';
+import '../../domain/models/offer.dart';
+import '../../domain/repositories/offer_repository.dart';
 import 'auth_providers.dart';
 
 final offerRepositoryProvider = Provider<OfferRepository>((ref) {
@@ -16,7 +16,7 @@ final offerRepositoryProvider = Provider<OfferRepository>((ref) {
   return OfferRepositoryImpl(dioClient: dioClient);
 });
 
-/// Global offers (promotions) - legacy, returns empty
+/// Global offers (promotions) - legacy, returns empty.
 final globalOffersListProvider = FutureProvider.autoDispose<List<GlobalOffer>>((
   ref,
 ) async {
@@ -49,7 +49,7 @@ final currentOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((
   return filtered;
 });
 
-/// Offres Ã  venir: future start, not expired.
+/// Offres à venir: future start, not expired.
 final upcomingOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((
   ref,
 ) async {
@@ -72,7 +72,7 @@ final myOffersProvider = FutureProvider.autoDispose<List<MyOfferItem>>((
   }
 });
 
-/// Set of offer IDs the current user has activated (for feed "Offre activÃ©e" state)
+/// Set of offer IDs the current user has activated (for feed "Offre activée" state).
 final activatedOfferIdsProvider = FutureProvider.autoDispose<Set<String>>((
   ref,
 ) async {
@@ -94,7 +94,7 @@ final activationStatesProvider =
       }
     });
 
-/// Prestations (pricing) for a single salon
+/// Prestations (pricing) for a single salon.
 final prestationsListProvider = FutureProvider.autoDispose
     .family<List<Offer>, String>((ref, salonId) async {
       final repository = ref.watch(offerRepositoryProvider);
@@ -115,9 +115,9 @@ String getOfferFeedErrorMessage(Object error, [StackTrace? stackTrace]) {
   if (error is ApiError) {
     switch (error.code) {
       case 'NETWORK_ERROR':
-        return 'Impossible de se connecter. VÃ©rifiez votre connexion.';
+        return 'Impossible de se connecter. Vérifiez votre connexion.';
       default:
-        return 'Impossible de charger les offres. RÃ©essayez plus tard.';
+        return 'Impossible de charger les offres. Réessayez plus tard.';
     }
   }
   if (error is DioException) {
@@ -125,54 +125,23 @@ String getOfferFeedErrorMessage(Object error, [StackTrace? stackTrace]) {
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.connectionError) {
-      return 'Impossible de se connecter. VÃ©rifiez votre connexion.';
+      return 'Impossible de se connecter. Vérifiez votre connexion.';
     }
   }
-  return 'Impossible de charger les offres. RÃ©essayez plus tard.';
+  return 'Impossible de charger les offres. Réessayez plus tard.';
 }
 
 List<ClientOffer> _debugPreviewOffers() {
   final now = DateTime.now();
   return [
     ClientOffer(
-      id: 'debug-offer-anniversaire',
+      id: 'debug-offer-carte-cadeau',
       type: 'permanent',
-      title: 'Offre anniversaire',
-      description:
-          'À votre anniversaire, bénéficiez de -20% sur une prestation. Ajoutez votre date de naissance dans votre profil.',
-      discountType: 'percentage',
-      discountValue: 20,
-      startsAt: now.subtract(const Duration(days: 14)),
-      endsAt: null,
-      maxSpots: null,
-      spotsTaken: 0,
-      imageUrl: null,
-      applicableServices: const [],
-    ),
-    ClientOffer(
-      id: 'debug-offer-pack',
-      type: 'pack',
-      title: 'Pack Coupe + Barbe + Soin',
-      description:
-          'Les trois prestations ensemble à prix pack. Économisez sur votre coupe, barbe et soin.',
+      title: 'BarberClub Carte Cadeau',
+      description: 'Montant libre, valable 1 an dans nos deux salons.',
       discountType: 'fixed',
-      discountValue: 49,
-      startsAt: now.subtract(const Duration(days: 7)),
-      endsAt: null,
-      maxSpots: null,
-      spotsTaken: 0,
-      imageUrl: null,
-      applicableServices: const [],
-    ),
-    ClientOffer(
-      id: 'debug-offer-parrainage',
-      type: 'permanent',
-      title: 'Parrainage',
-      description:
-          'Parrainez un ami: vous recevez tous les deux une réduction sur votre prochaine visite.',
-      discountType: 'percentage',
-      discountValue: 10,
-      startsAt: now.subtract(const Duration(days: 21)),
+      discountValue: 20,
+      startsAt: now.subtract(const Duration(days: 1)),
       endsAt: null,
       maxSpots: null,
       spotsTaken: 0,

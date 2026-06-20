@@ -22,18 +22,6 @@ class LoyaltyCardScreen extends ConsumerWidget {
       LoyaltyUIConstants.horizontalScreenPadding;
   static const double _verticalRhythm = LoyaltyUIConstants.verticalRhythm;
   static const double _bottomNavPadding = LoyaltyUIConstants.bottomNavPadding;
-  static final BoxDecoration _pageBackgroundDecoration = BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        Colors.black.withOpacity(0.22),
-        Colors.transparent,
-        Colors.black.withOpacity(0.74),
-      ],
-      stops: const [0.0, 0.38, 1.0],
-    ),
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -139,23 +127,7 @@ class _LoyaltyBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          'assets/images/barber_background.jpg',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              Container(color: const Color(0xFF111111)),
-        ),
-        Container(color: Colors.black.withOpacity(0.62)),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: LoyaltyCardScreen._pageBackgroundDecoration,
-          ),
-        ),
-      ],
-    );
+    return const ColoredBox(color: Colors.black);
   }
 }
 
