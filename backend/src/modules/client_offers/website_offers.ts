@@ -47,20 +47,22 @@ function buildWebsiteWelcomeOffer(now: Date): ClientOfferSeed {
   };
 }
 
-async function upsertOffer(prisma: PrismaClient, offer: ClientOfferSeed) {
-  const existing = await prisma.clientOffer.findFirst({
+type ClientOfferDb = Pick<PrismaClient, 'clientOffer'>;
+
+async function upsertOffer(db: ClientOfferDb, offer: ClientOfferSeed) {
+  const existing = await db.clientOffer.findFirst({
     where: { title: offer.title, type: offer.type },
   });
 
   if (existing) {
-    await prisma.clientOffer.update({
+    await db.clientOffer.update({
       where: { id: existing.id },
       data: offer,
     });
     return;
   }
 
-  await prisma.clientOffer.create({ data: offer });
+  await db.clientOffer.create({ data: offer });
 }
 
 export async function syncWebsiteOffers(prisma: PrismaClient) {
