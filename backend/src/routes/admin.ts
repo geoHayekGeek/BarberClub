@@ -21,6 +21,7 @@ import { assertAdminHasAccessToSalon } from '../modules/admin/salonAccess';
 import { createSalonBodySchema } from '../modules/salons/validation';
 import { createBarberBodySchema } from '../modules/barbers/validation';
 import { createOfferBodySchema } from '../modules/offers/validation';
+import { pointsFromPrice } from '../modules/loyalty_v2/points';
 import { z } from 'zod';
 
 const router = Router();
@@ -300,7 +301,7 @@ router.get(
         id: o.id,
         name: o.title,
         priceCents: o.price < 100 ? o.price * 100 : o.price,
-        pointsEarned: o.price < 100 ? o.price : Math.floor(o.price / 100),
+        pointsEarned: pointsFromPrice(o.price),
       }));
       res.json({ data });
     } catch (error) {

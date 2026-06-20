@@ -37,6 +37,7 @@ model User {
   loyaltyAccount LoyaltyAccount?
   offerActivations OfferActivation[]
   syncLinks UserSyncLink[]
+  websiteBookingLoyaltyGrants WebsiteBookingLoyaltyGrant[]
   referralsAsReferrer Referral[] @relation("Referrer")
   referralsAsReferee Referral[] @relation("Referee")
 
@@ -440,6 +441,7 @@ model LoyaltyAccount {
   transactions    LoyaltyTransaction[]
   redemptions     LoyaltyRedemptionVoucher[]
   earnQrTokens    LoyaltyAccountQrToken[]
+  websiteBookingLoyaltyGrants WebsiteBookingLoyaltyGrant[]
 
   @@map("loyalty_accounts")
 }
@@ -465,6 +467,28 @@ model LoyaltyTransaction {
   @@index([accountId])
   @@index([adminId])
   @@map("loyalty_transactions")
+}
+
+model WebsiteBookingLoyaltyGrant {
+  id             String   @id @default(uuid())
+  websiteBookingId String @unique @map("website_booking_id")
+  websiteClientId String  @map("website_client_id")
+  appUserId      String?  @map("app_user_id")
+  loyaltyAccountId String? @map("loyalty_account_id")
+  serviceName    String   @map("service_name")
+  bookingPrice   Int      @map("booking_price")
+  pointsAwarded  Int      @map("points_awarded")
+  awardedAt      DateTime @default(now()) @map("awarded_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  appUser        User?          @relation(fields: [appUserId], references: [id], onDelete: SetNull)
+  loyaltyAccount LoyaltyAccount? @relation(fields: [loyaltyAccountId], references: [id], onDelete: SetNull)
+
+  @@index([websiteClientId])
+  @@index([appUserId])
+  @@index([loyaltyAccountId])
+  @@map("website_booking_loyalty_grants")
 }
 
 model LoyaltyReward {
