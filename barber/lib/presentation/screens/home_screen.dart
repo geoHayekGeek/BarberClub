@@ -238,7 +238,7 @@ class _IntroCenterContent extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Nous ne suivons pas la tendance, nous la créons.',
+              'Barber club est né d’une conviction : Chaque client mérite l’exception',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: 18,
                 color: Colors.white.withOpacity(0.84),
