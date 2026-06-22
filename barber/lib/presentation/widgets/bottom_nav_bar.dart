@@ -21,7 +21,7 @@ class BottomNavBar extends ConsumerWidget {
       label: 'Accueil',
     ),
     _DockItem(
-      branchIndex: 1,
+      branchIndex: 3,
       path: '/carte-fidelite',
       iconAsset: 'assets/icons/nav_carte_fidelite.svg',
       label: 'CARTE FIDÉLITÉ',
@@ -34,13 +34,13 @@ class BottomNavBar extends ConsumerWidget {
       isCenter: true,
     ),
     _DockItem(
-      branchIndex: 3,
+      branchIndex: 4,
       path: '/offres',
       iconAsset: 'assets/icons/nav_offres.svg',
       label: 'OFFRES',
     ),
         _DockItem(
-      branchIndex: 4,
+      branchIndex: 1,
       path: '/coiffeurs',
       iconAsset: 'assets/icons/nav_barbers.svg',
       label: 'BARBERS',
