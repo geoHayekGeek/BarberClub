@@ -720,11 +720,19 @@ async function runUserSyncJob(): Promise<void> {
       matchedAppUserIds.add(appUser.id);
       matchedWebsiteClientIds.add(websiteClient.id);
 
-      await reconcilePair(appUser, websiteClient, {
-        appSnapshot: link.appSnapshot,
-        websiteSnapshot: link.websiteSnapshot,
-        lastSyncedFrom: link.lastSyncedFrom,
-      });
+      try {
+        await reconcilePair(appUser, websiteClient, {
+          appSnapshot: link.appSnapshot,
+          websiteSnapshot: link.websiteSnapshot,
+          lastSyncedFrom: link.lastSyncedFrom,
+        });
+      } catch (error) {
+        logger.warn('User sync pair reconciliation failed', {
+          appUserId: appUser.id,
+          websiteClientId: websiteClient.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
     }
 
     // App users without a link yet.
@@ -743,16 +751,31 @@ async function runUserSyncJob(): Promise<void> {
         const websiteProfile = buildWebsiteProfile(websiteClient);
         const linkSource = appUser.createdAt <= websiteClient.created_at ? UserSyncSource.APP : UserSyncSource.WEBSITE;
 
-        await reconcilePair(appUser, websiteClient, {
-          appSnapshot: serializeProfile(appProfile),
-          websiteSnapshot: serializeProfile(websiteProfile),
-          lastSyncedFrom: linkSource,
-        });
+        try {
+          await reconcilePair(appUser, websiteClient, {
+            appSnapshot: serializeProfile(appProfile),
+            websiteSnapshot: serializeProfile(websiteProfile),
+            lastSyncedFrom: linkSource,
+          });
+        } catch (error) {
+          logger.warn('User sync app match reconciliation failed', {
+            appUserId: appUser.id,
+            websiteClientId: websiteClient.id,
+            error: error instanceof Error ? error.message : error,
+          });
+        }
         continue;
       }
 
       // No website row yet. Create one so the reservation backend can see the user.
-      await syncAppUserToWebsite(appUser, null, appProfile, UserSyncSource.APP);
+      try {
+        await syncAppUserToWebsite(appUser, null, appProfile, UserSyncSource.APP);
+      } catch (error) {
+        logger.warn('User sync app-to-website create failed', {
+          appUserId: appUser.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
       matchedAppUserIds.add(appUser.id);
     }
 
@@ -772,11 +795,19 @@ async function runUserSyncJob(): Promise<void> {
         const appProfile = buildAppProfile(appUser);
         const linkSource = appUser.createdAt <= websiteClient.created_at ? UserSyncSource.APP : UserSyncSource.WEBSITE;
 
-        await reconcilePair(appUser, websiteClient, {
-          appSnapshot: serializeProfile(appProfile),
-          websiteSnapshot: serializeProfile(websiteProfile),
-          lastSyncedFrom: linkSource,
-        });
+        try {
+          await reconcilePair(appUser, websiteClient, {
+            appSnapshot: serializeProfile(appProfile),
+            websiteSnapshot: serializeProfile(websiteProfile),
+            lastSyncedFrom: linkSource,
+          });
+        } catch (error) {
+          logger.warn('User sync website match reconciliation failed', {
+            appUserId: appUser.id,
+            websiteClientId: websiteClient.id,
+            error: error instanceof Error ? error.message : error,
+          });
+        }
         continue;
       }
 
@@ -784,7 +815,14 @@ async function runUserSyncJob(): Promise<void> {
         continue;
       }
 
-      await syncWebsiteClientToApp(websiteClient, null, websiteProfile, UserSyncSource.WEBSITE);
+      try {
+        await syncWebsiteClientToApp(websiteClient, null, websiteProfile, UserSyncSource.WEBSITE);
+      } catch (error) {
+        logger.warn('User sync website-to-app create failed', {
+          websiteClientId: websiteClient.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
       matchedWebsiteClientIds.add(websiteClient.id);
     }
 

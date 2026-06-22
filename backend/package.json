@@ -16,6 +16,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "add-offers": "tsx scripts/add-offers.ts",
     "sync-website-offers": "tsx scripts/sync-website-offers.ts",
+    "backfill-booking-loyalty": "tsx scripts/backfill-booking-loyalty.ts",
     "reset-passwords": "tsx scripts/reset-all-passwords.ts",
     "seed:prod": "node dist/prisma/seed.js",
     "lint": "eslint src --ext .ts",

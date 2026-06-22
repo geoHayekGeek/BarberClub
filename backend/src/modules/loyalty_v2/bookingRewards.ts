@@ -12,23 +12,9 @@ import { getCheapestRewardCost, getTierFromLifetime, type LoyaltyTierName } from
 
 const NEAR_REWARD_THRESHOLD = 20;
 
-const WEBSITE_BOOKING_QUERY = Prisma.sql`
-  SELECT
-    b.id,
-    b.client_id,
-    b.price,
-    COALESCE(s.name, 'Reservation') AS service_name
-  FROM bookings b
-  LEFT JOIN services s ON s.id = b.service_id
-  WHERE b.status = 'completed'
-    AND b.deleted_at IS NULL
-    AND b.price > 0
-  ORDER BY b.created_at ASC
-`;
-
 export interface CompletedWebsiteBookingRow {
   id: string;
-  client_id: string;
+  client_id: string | null;
   price: number;
   service_name: string | null;
 }
@@ -50,6 +36,51 @@ export interface CompletedBookingRewardResult {
 
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function chunkArray<T>(values: T[], size: number): T[][] {
+  if (size <= 0) {
+    return [values];
+  }
+
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string }): Prisma.Sql {
+  const filters: Prisma.Sql[] = [
+    Prisma.sql`b.status = 'completed'`,
+    Prisma.sql`b.deleted_at IS NULL`,
+    Prisma.sql`b.price > 0`,
+  ];
+
+  if (params?.fromDate) {
+    filters.push(Prisma.sql`b.date >= ${params.fromDate}`);
+  }
+
+  if (params?.toDate) {
+    filters.push(Prisma.sql`b.date <= ${params.toDate}`);
+  }
+
+  return Prisma.sql`
+    SELECT
+      b.id,
+      b.client_id,
+      b.price,
+      COALESCE(s.name, 'Reservation') AS service_name
+    FROM bookings b
+    LEFT JOIN services s ON s.id = b.service_id
+    WHERE ${Prisma.join(filters, ' AND ')}
+    ORDER BY b.created_at ASC
+  `;
 }
 
 async function sendEarnNotifications(params: {
@@ -233,39 +264,47 @@ export async function awardPointsForCompletedBooking(
   }
 }
 
-export async function runBookingLoyaltyRewardSync(): Promise<void> {
+export async function runBookingLoyaltyRewardSync(params?: {
+  fromDate?: string;
+  toDate?: string;
+}): Promise<void> {
   const websiteClient = getWebsiteClient();
   if (!websiteClient) {
     logger.info('Booking loyalty reward job disabled - WEBSITE_DATABASE_URL not configured');
     return;
   }
 
+  const query = buildWebsiteBookingQuery(params);
   const [bookings, rewardedRows] = await Promise.all([
-    websiteClient.$queryRaw<CompletedWebsiteBookingRow[]>(WEBSITE_BOOKING_QUERY),
+    websiteClient.$queryRaw<CompletedWebsiteBookingRow[]>(query),
     prisma.websiteBookingLoyaltyGrant.findMany({
       select: { websiteBookingId: true },
     }),
   ]);
 
   const rewardedBookingIds = new Set(rewardedRows.map((row) => row.websiteBookingId));
-  const clientIds = [...new Set(bookings.map((row) => row.client_id))];
+  const clientIds = [...new Set(bookings.map((row) => row.client_id).filter(isNonEmptyString))];
 
   const links = clientIds.length > 0
-    ? await prisma.userSyncLink.findMany({
-        where: { websiteClientId: { in: clientIds } },
-        select: {
-          websiteClientId: true,
-          appUserId: true,
-          user: {
+    ? (await Promise.all(
+        chunkArray(clientIds, 500).map((chunk) =>
+          prisma.userSyncLink.findMany({
+            where: { websiteClientId: { in: chunk } },
             select: {
-              id: true,
-              fcmToken: true,
-              fullName: true,
-              email: true,
+              websiteClientId: true,
+              appUserId: true,
+              user: {
+                select: {
+                  id: true,
+                  fcmToken: true,
+                  fullName: true,
+                  email: true,
+                },
+              },
             },
-          },
-        },
-      })
+          })
+        )
+      )).flat()
     : [];
 
   const linkByClientId = new Map(links.map((link) => [link.websiteClientId, link]));
@@ -276,6 +315,15 @@ export async function runBookingLoyaltyRewardSync(): Promise<void> {
   let skippedNoPoints = 0;
 
   for (const booking of bookings) {
+    if (!isNonEmptyString(booking.client_id)) {
+      pendingLink += 1;
+      logger.warn('Booking loyalty sync skipped invalid website client id', {
+        websiteBookingId: booking.id,
+        clientId: booking.client_id,
+      });
+      continue;
+    }
+
     if (rewardedBookingIds.has(booking.id)) {
       alreadyRewarded += 1;
       continue;
