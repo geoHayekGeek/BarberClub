@@ -63,11 +63,11 @@ function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string 
   ];
 
   if (params?.fromDate) {
-    filters.push(Prisma.sql`b.date >= ${params.fromDate}`);
+    filters.push(Prisma.sql`b.date >= CAST(${params.fromDate} AS DATE)`);
   }
 
   if (params?.toDate) {
-    filters.push(Prisma.sql`b.date <= ${params.toDate}`);
+    filters.push(Prisma.sql`b.date <= CAST(${params.toDate} AS DATE)`);
   }
 
   return Prisma.sql`

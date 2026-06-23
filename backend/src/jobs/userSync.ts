@@ -137,6 +137,22 @@ function collectIndexedValues<T extends { id: string }>(
   return values;
 }
 
+function uniqueById<T extends { id: string }>(values: T[]): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+
+  for (const value of values) {
+    if (seen.has(value.id)) {
+      continue;
+    }
+
+    seen.add(value.id);
+    result.push(value);
+  }
+
+  return result;
+}
+
 function clamp(value: string, maxLength = 100): string {
   return value.trim().slice(0, maxLength);
 }
@@ -450,7 +466,7 @@ async function syncAppUserToWebsite(
       password_hash = ${mergedProfile.isActive ? mergedProfile.passwordHash : null},
       has_account = ${mergedProfile.isActive && Boolean(mergedProfile.passwordHash)},
       deleted_at = ${mergedProfile.isActive ? null : new Date()}
-    WHERE id = ${websiteClient.id}
+    WHERE id = CAST(${websiteClient.id} AS UUID)
   `);
 
   await persistLinkState({
@@ -589,7 +605,7 @@ async function reconcilePair(
         password_hash = ${mergedProfile.isActive ? mergedProfile.passwordHash : null},
         has_account = ${mergedProfile.isActive && Boolean(mergedProfile.passwordHash)},
         deleted_at = ${mergedProfile.isActive ? null : new Date()}
-      WHERE id = ${websiteClient.id}
+      WHERE id = CAST(${websiteClient.id} AS UUID)
     `);
 
     await persistLinkState({
@@ -608,7 +624,7 @@ async function reconcilePair(
   }
 }
 
-async function runUserSyncJob(): Promise<void> {
+export async function runUserSyncOnce(): Promise<void> {
   if (isRunning) {
     return;
   }
@@ -684,8 +700,16 @@ async function runUserSyncJob(): Promise<void> {
       ).filter((client) => client.deleted_at == null);
       const emailMatches = (websiteClientsByEmail.get(normalizeEmail(appUser.email)) ?? [])
         .filter((client) => !matchedWebsiteClientIds.has(client.id) && client.deleted_at == null);
-      const candidates = [...phoneMatches, ...emailMatches];
-      return selectBestWebsiteClient(candidates);
+      const allPhoneMatches = collectIndexedValues(
+        websiteClientsByPhone,
+        phoneMatchKeys(appUser.phoneNumber),
+        new Set<string>()
+      ).filter((client) => client.deleted_at == null);
+      const allEmailMatches = (websiteClientsByEmail.get(normalizeEmail(appUser.email)) ?? [])
+        .filter((client) => client.deleted_at == null);
+      const candidates = uniqueById([...phoneMatches, ...emailMatches]);
+      const fallbackCandidates = uniqueById([...allPhoneMatches, ...allEmailMatches]);
+      return selectBestWebsiteClient(candidates) ?? selectBestWebsiteClient(fallbackCandidates);
     };
 
     const matchAppForWebsite = (websiteClient: WebsiteClientRow): AppUserRow | null => {
@@ -693,11 +717,18 @@ async function runUserSyncJob(): Promise<void> {
         appUsersByPhone,
         phoneMatchKeys(websiteClient.phone),
         matchedAppUserIds
-      ).filter((user) => user.isActive);
+      );
       const emailMatches = (appUsersByEmail.get(normalizeEmail(websiteClient.email)) ?? [])
-        .filter((user) => !matchedAppUserIds.has(user.id) && user.isActive);
-      const candidates = [...phoneMatches, ...emailMatches];
-      return selectBestAppUser(candidates);
+        .filter((user) => !matchedAppUserIds.has(user.id));
+      const allPhoneMatches = collectIndexedValues(
+        appUsersByPhone,
+        phoneMatchKeys(websiteClient.phone),
+        new Set<string>()
+      );
+      const allEmailMatches = appUsersByEmail.get(normalizeEmail(websiteClient.email)) ?? [];
+      const candidates = uniqueById([...phoneMatches, ...emailMatches]);
+      const fallbackCandidates = uniqueById([...allPhoneMatches, ...allEmailMatches]);
+      return selectBestAppUser(candidates) ?? selectBestAppUser(fallbackCandidates);
     };
 
     // Reconcile already linked users first.
@@ -852,11 +883,11 @@ export function startUserSyncJob(): void {
   }
 
   intervalId = setInterval(() => {
-    void runUserSyncJob();
+    void runUserSyncOnce();
   }, INTERVAL_MS);
 
   logger.info('User sync job started', { intervalMinutes: INTERVAL_MS / 60000 });
-  void runUserSyncJob();
+  void runUserSyncOnce();
 }
 
 export function stopUserSyncJob(): void {

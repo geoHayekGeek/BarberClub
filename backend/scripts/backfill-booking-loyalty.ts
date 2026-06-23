@@ -7,7 +7,7 @@ type CliOptions = {
 };
 
 function pad(value: number): string {
-  return String(value).padStart(2, '0');
+  return String(value).padStart(2,   '0');
 }
 
 function formatLocalDate(date: Date): string {

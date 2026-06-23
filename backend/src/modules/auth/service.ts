@@ -627,7 +627,7 @@ export class AuthService {
           SET deleted_at = NOW(),
               has_account = false,
               password_hash = NULL
-          WHERE id = ${syncLink.websiteClientId}
+          WHERE id = CAST(${syncLink.websiteClientId} AS UUID)
         `);
       } catch (error) {
         logger.warn('Website delete sync failed', {
