@@ -14,11 +14,11 @@ class BottomNavBar extends ConsumerWidget {
   final int? activeBranchIndex;
 
   static const _items = [
-    _DockItem(
-      branchIndex: 1,
-      path: '/coiffeurs',
-      iconAsset: 'assets/icons/nav_barbers.svg',
-      label: 'BARBERS',
+     _DockItem(
+      branchIndex: 0,
+      path: '/home',
+      iconAsset: 'assets/icons/nav_salon.svg',
+      label: 'Accueil',
     ),
     _DockItem(
       branchIndex: 3,
@@ -39,11 +39,11 @@ class BottomNavBar extends ConsumerWidget {
       iconAsset: 'assets/icons/nav_offres.svg',
       label: 'OFFRES',
     ),
-    _DockItem(
-      branchIndex: 0,
-      path: '/home',
-      iconAsset: 'assets/icons/nav_salon.svg',
-      label: 'SALON',
+        _DockItem(
+      branchIndex: 1,
+      path: '/coiffeurs',
+      iconAsset: 'assets/icons/nav_barbers.svg',
+      label: 'BARBERS',
     ),
   ];
 

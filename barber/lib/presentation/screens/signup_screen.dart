@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl_phone_field/intl_phone_field.dart'; // Import the package
-import 'package:intl_phone_field/country_picker_dialog.dart'; // <-- ADD THIS LINE
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
@@ -18,14 +18,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController =
-      TextEditingController(); // Only holds the national number now
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String _completePhoneNumber = ''; // Holds the full number (+33...)
+  String _completePhoneNumber = '';
 
   @override
   void dispose() {
@@ -43,11 +42,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
-    await ref
-        .read(authStateProvider.notifier)
-        .register(
+    await ref.read(authStateProvider.notifier).register(
           email: _emailController.text.trim(),
-          // Use the complete phone number with the country code
           phoneNumber: _completePhoneNumber.trim(),
           password: _passwordController.text,
           firstName: _firstNameController.text.trim(),
@@ -191,18 +187,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   decoration: _buildInputDecoration(
                     label: 'Numéro de téléphone *',
-                    hint:
-                        '6 12 34 56 78', // Note: removed +33 from hint as it's in the picker
+                    hint: '6 12 34 56 78',
                     icon: Icons.phone_outlined,
                   ),
-                  initialCountryCode: 'FR', // Default to France
+                  initialCountryCode: 'FR',
                   textInputAction: TextInputAction.next,
                   enabled: !isLoading,
                   onChanged: (phone) {
-                    // This gives you the full string, e.g., "+33612345678"
                     _completePhoneNumber = phone.completeNumber;
                   },
-                  // Optional: Customize the picker dialog theme to match your dark mode
                   pickerDialogStyle: PickerDialogStyle(
                     backgroundColor: const Color(0xFF1A1A1A),
                     countryCodeStyle: const TextStyle(color: Colors.white),
@@ -223,8 +216,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                   ),
                 ),
-                // Since IntlPhoneField adds some bottom padding for its own error text,
-                // we can reduce the spacing here slightly compared to the others.
                 const SizedBox(height: 8),
 
                 TextFormField(
@@ -282,9 +273,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   onFieldSubmitted: (_) => _handleSignup(),
                   validator: (value) =>
                       AuthValidators.validatePasswordConfirmation(
-                        value,
-                        _passwordController.text,
-                      ),
+                    value,
+                    _passwordController.text,
+                  ),
                   enabled: !isLoading,
                 ),
                 const SizedBox(height: 32),

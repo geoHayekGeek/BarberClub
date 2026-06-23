@@ -68,13 +68,22 @@ class AuthValidators {
     return null;
   }
 
-  /// Validate password (minimum 8 characters)
+  /// Validate password (minimum 8 characters, 1 uppercase, 1 lowercase, 1 number)
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Le mot de passe est requis.';
     }
     if (value.length < 8) {
       return 'Le mot de passe doit contenir au moins 8 caractères.';
+    }
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Le mot de passe doit contenir au moins une lettre majuscule.';
+    }
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Le mot de passe doit contenir au moins une lettre minuscule.';
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Le mot de passe doit contenir au moins un chiffre.';
     }
     return null;
   }
