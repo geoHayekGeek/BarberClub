@@ -79,6 +79,7 @@ class HomeScreen extends ConsumerWidget {
                                 'NOS SALONS',
                                 style: Theme.of(context).textTheme.displaySmall
                                     ?.copyWith(
+                                      fontFamily: 'Orbitron',
                                       fontSize: 26,
                                       letterSpacing: 2.6,
                                       fontWeight: FontWeight.w800,
@@ -286,6 +287,7 @@ class _HeroPrimaryButton extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: const TextStyle(
+                  fontFamily: 'Orbitron',
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
@@ -608,6 +610,7 @@ class _GlassCta extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: const TextStyle(
+              fontFamily: 'Orbitron',
               color: Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: 11,
