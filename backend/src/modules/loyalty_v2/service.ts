@@ -5,13 +5,14 @@
 import prisma from '../../db/client';
 import { getMessaging } from '../../config/firebase';
 import { AppError, ErrorCode } from '../../utils/errors';
-
-const INVALID_QR_MESSAGE = 'QR code invalide';
 import { logger } from '../../utils/logger';
 import config from '../../config';
 import { generateToken, hashToken, encodeQRPayload, QRType } from '../../utils/qr';
 import { getTierFromLifetime, getNextTier, getCheapestRewardCost, type LoyaltyTierName } from './tiers';
 import { assertAdminHasAccessToSalon } from '../admin/salonAccess';
+import { pointsFromPrice } from './points';
+
+const INVALID_QR_MESSAGE = 'QR code invalide';
 
 const VOUCHER_QR_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const NEAR_REWARD_THRESHOLD = 20;
@@ -46,6 +47,21 @@ export interface AdminEarnResponse {
   newBalance: number;
   newLifetime: number;
   newTier: LoyaltyTierName;
+}
+
+export interface CompletedBookingEarnResponse {
+  pointsEarned: number;
+  newBalance: number;
+  newLifetime: number;
+  newTier: LoyaltyTierName;
+}
+
+export interface CompletedBookingEarnInput {
+  appUserId: string;
+  websiteBookingId: string;
+  websiteClientId: string;
+  serviceName: string;
+  bookingPrice: number;
 }
 
 export async function ensureLoyaltyAccount(userId: string): Promise<{ id: string }> {
@@ -314,7 +330,7 @@ export async function adminEarnPoints(
   if (adminId) {
     await assertAdminHasAccessToSalon(adminId, offer.salonId);
   }
-  const pointsEarned = offer.price < 100 ? offer.price : Math.floor(offer.price / 100);
+  const pointsEarned = pointsFromPrice(offer.price);
   if (pointsEarned <= 0) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Montant invalide pour ce service', 400);
 
   if (adminId) logger.info('LOYALTY_EARN admin_earn', { adminId, accountId: tokenRecord.accountId, serviceId, pointsEarned });

@@ -49,6 +49,7 @@ type WebsiteClientRow = {
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
+type WebsiteClientDb = NonNullable<ReturnType<typeof getWebsiteClient>>;
 
 function normalizeEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
@@ -135,6 +136,22 @@ function collectIndexedValues<T extends { id: string }>(
   }
 
   return values;
+}
+
+function uniqueById<T extends { id: string }>(values: T[]): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+
+  for (const value of values) {
+    if (seen.has(value.id)) {
+      continue;
+    }
+
+    seen.add(value.id);
+    result.push(value);
+  }
+
+  return result;
 }
 
 function clamp(value: string, maxLength = 100): string {
@@ -376,6 +393,174 @@ function selectBestWebsiteClient(candidates: WebsiteClientRow[]): WebsiteClientR
   })[0];
 }
 
+async function findWebsiteClientByPhone(
+  websiteClientDb: WebsiteClientDb,
+  phone: string,
+  excludeWebsiteClientId?: string | null
+): Promise<WebsiteClientRow | null> {
+  const normalizedPhone = phone.trim();
+  if (!normalizedPhone) {
+    return null;
+  }
+
+  const rows = await websiteClientDb.$queryRaw<WebsiteClientRow[]>(Prisma.sql`
+    SELECT id, first_name, last_name, phone, email, password_hash, has_account, deleted_at, created_at
+    FROM clients
+    WHERE phone = ${normalizedPhone}
+      ${excludeWebsiteClientId ? Prisma.sql`AND id <> CAST(${excludeWebsiteClientId} AS UUID)` : Prisma.sql``}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+
+  return rows[0] ?? null;
+}
+
+async function findWebsiteClientByEmail(
+  websiteClientDb: WebsiteClientDb,
+  email: string,
+  excludeWebsiteClientId?: string | null
+): Promise<WebsiteClientRow | null> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const rows = await websiteClientDb.$queryRaw<WebsiteClientRow[]>(Prisma.sql`
+    SELECT id, first_name, last_name, phone, email, password_hash, has_account, deleted_at, created_at
+    FROM clients
+    WHERE email IS NOT NULL
+      AND LOWER(email) = LOWER(${normalizedEmail})
+      ${excludeWebsiteClientId ? Prisma.sql`AND id <> CAST(${excludeWebsiteClientId} AS UUID)` : Prisma.sql``}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+
+  return rows[0] ?? null;
+}
+
+async function resolveWebsiteClientTarget(
+  websiteClientDb: WebsiteClientDb,
+  profile: CanonicalProfile,
+  currentWebsiteClient: WebsiteClientRow | null
+): Promise<WebsiteClientRow | null> {
+  const excludeWebsiteClientId = currentWebsiteClient?.id ?? null;
+  const phoneCandidate = await findWebsiteClientByPhone(websiteClientDb, profile.phone, excludeWebsiteClientId);
+  if (phoneCandidate) {
+    return phoneCandidate;
+  }
+
+  const emailCandidate = await findWebsiteClientByEmail(websiteClientDb, profile.email, excludeWebsiteClientId);
+  if (emailCandidate) {
+    return emailCandidate;
+  }
+
+  return currentWebsiteClient;
+}
+
+async function updateWebsiteClientProfile(
+  websiteClientDb: WebsiteClientDb,
+  websiteClientId: string,
+  mergedProfile: CanonicalProfile,
+  context: { appUserId: string; source: 'sync' | 'reconcile' }
+): Promise<void> {
+  const [phoneConflict, emailConflict] = await Promise.all([
+    findWebsiteClientByPhone(websiteClientDb, mergedProfile.phone, websiteClientId),
+    findWebsiteClientByEmail(websiteClientDb, mergedProfile.email, websiteClientId),
+  ]);
+
+  if (phoneConflict || emailConflict) {
+    logger.warn('Website client sync skipped conflicting unique fields', {
+      appUserId: context.appUserId,
+      websiteClientId,
+      source: context.source,
+      phoneConflictId: phoneConflict?.id ?? null,
+      emailConflictId: emailConflict?.id ?? null,
+      phone: mergedProfile.phone,
+      email: mergedProfile.email,
+    });
+  }
+
+  const updateFields: Prisma.Sql[] = [
+    Prisma.sql`first_name = ${mergedProfile.firstName}`,
+    Prisma.sql`last_name = ${mergedProfile.lastName}`,
+    ...(mergedProfile.phone && !phoneConflict ? [Prisma.sql`phone = ${mergedProfile.phone}`] : []),
+    ...(mergedProfile.email && !emailConflict ? [Prisma.sql`email = ${mergedProfile.email || null}`] : []),
+    Prisma.sql`password_hash = ${mergedProfile.isActive ? mergedProfile.passwordHash : null}`,
+    Prisma.sql`has_account = ${mergedProfile.isActive && Boolean(mergedProfile.passwordHash)}`,
+    Prisma.sql`deleted_at = ${mergedProfile.isActive ? null : new Date()}`,
+  ];
+
+  await websiteClientDb.$executeRaw(Prisma.sql`
+    UPDATE clients
+    SET ${Prisma.join(updateFields, ', ')}
+    WHERE id = CAST(${websiteClientId} AS UUID)
+  `);
+}
+
+async function findAppUserByPhone(phone: string): Promise<AppUserRow | null> {
+  const normalizedPhone = phone.trim();
+  if (!normalizedPhone) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { phoneNumber: normalizedPhone },
+    select: {
+      id: true,
+      email: true,
+      phoneNumber: true,
+      fullName: true,
+      passwordHash: true,
+      websitePasswordHash: true,
+      isActive: true,
+      createdAt: true,
+    },
+  });
+
+  return user as AppUserRow | null;
+}
+
+async function findAppUserByEmail(email: string): Promise<AppUserRow | null> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: {
+      id: true,
+      email: true,
+      phoneNumber: true,
+      fullName: true,
+      passwordHash: true,
+      websitePasswordHash: true,
+      isActive: true,
+      createdAt: true,
+    },
+  });
+
+  return user as AppUserRow | null;
+}
+
+async function resolveAppUserTarget(profile: CanonicalProfile, currentAppUser: AppUserRow | null): Promise<AppUserRow | null> {
+  if (currentAppUser) {
+    return currentAppUser;
+  }
+
+  const phoneCandidate = await findAppUserByPhone(profile.phone);
+  if (phoneCandidate) {
+    return phoneCandidate;
+  }
+
+  const emailCandidate = await findAppUserByEmail(profile.email);
+  if (emailCandidate) {
+    return emailCandidate;
+  }
+
+  return null;
+}
+
 async function persistLinkState(params: {
   appUserId: string;
   websiteClientId?: string | null;
@@ -408,13 +593,15 @@ async function syncAppUserToWebsite(
   websiteClient: WebsiteClientRow | null,
   mergedProfile: CanonicalProfile,
   lastSyncedFrom: UserSyncSource | null
-): Promise<void> {
+): Promise<string | null> {
   const websiteClientDb = getWebsiteClient();
   if (!websiteClientDb) {
-    return;
+    return null;
   }
 
-  if (!websiteClient) {
+  const targetWebsiteClient = await resolveWebsiteClientTarget(websiteClientDb, mergedProfile, websiteClient);
+
+  if (!targetWebsiteClient) {
     const created = await websiteClientDb.$queryRaw<WebsiteClientRow[]>(Prisma.sql`
       INSERT INTO clients (first_name, last_name, phone, email, password_hash, has_account, deleted_at)
       VALUES (
@@ -437,29 +624,22 @@ async function syncAppUserToWebsite(
       websiteSnapshot: serializeProfile(mergedProfile),
       lastSyncedFrom,
     });
-    return;
+    return createdClient.id;
   }
 
-  await websiteClientDb.$executeRaw(Prisma.sql`
-    UPDATE clients
-    SET
-      first_name = ${mergedProfile.firstName},
-      last_name = ${mergedProfile.lastName},
-      phone = ${mergedProfile.phone},
-      email = ${mergedProfile.email || null},
-      password_hash = ${mergedProfile.isActive ? mergedProfile.passwordHash : null},
-      has_account = ${mergedProfile.isActive && Boolean(mergedProfile.passwordHash)},
-      deleted_at = ${mergedProfile.isActive ? null : new Date()}
-    WHERE id = ${websiteClient.id}
-  `);
+  await updateWebsiteClientProfile(websiteClientDb, targetWebsiteClient.id, mergedProfile, {
+    appUserId: appUser.id,
+    source: 'sync',
+  });
 
   await persistLinkState({
     appUserId: appUser.id,
-    websiteClientId: websiteClient.id,
+    websiteClientId: targetWebsiteClient.id,
     appSnapshot: serializeProfile(mergedProfile),
     websiteSnapshot: serializeProfile(mergedProfile),
     lastSyncedFrom,
   });
+  return targetWebsiteClient.id;
 }
 
 async function syncWebsiteClientToApp(
@@ -468,7 +648,9 @@ async function syncWebsiteClientToApp(
   mergedProfile: CanonicalProfile,
   lastSyncedFrom: UserSyncSource | null
 ): Promise<void> {
-  if (!appUser) {
+  const targetAppUser = await resolveAppUserTarget(mergedProfile, appUser);
+
+  if (!targetAppUser) {
     if (!websiteClient.password_hash || !websiteClient.email || !websiteClient.phone || websiteClient.deleted_at != null) {
       return;
     }
@@ -498,7 +680,7 @@ async function syncWebsiteClientToApp(
   }
 
   await prisma.user.update({
-    where: { id: appUser.id },
+    where: { id: targetAppUser.id },
     data: {
       email: mergedProfile.email,
       phoneNumber: mergedProfile.phone,
@@ -509,7 +691,7 @@ async function syncWebsiteClientToApp(
   });
 
   await persistLinkState({
-    appUserId: appUser.id,
+    appUserId: targetAppUser.id,
     websiteClientId: websiteClient.id,
     appSnapshot: serializeProfile(mergedProfile),
     websiteSnapshot: serializeProfile(mergedProfile),
@@ -525,7 +707,7 @@ async function reconcilePair(
     websiteSnapshot: string | null;
     lastSyncedFrom: UserSyncSource | null;
   }
-): Promise<void> {
+): Promise<string | null> {
   const appProfile = buildAppProfile(appUser);
   const websiteProfile = buildWebsiteProfile(websiteClient);
   const previousAppProfile = parseProfile(link.appSnapshot);
@@ -570,45 +752,44 @@ async function reconcilePair(
       websiteClientId: websiteClient.id,
       error: error instanceof Error ? error.message : error,
     });
-    return;
+    return null;
   }
 
   const websiteClientDb = getWebsiteClient();
   if (!websiteClientDb) {
-    return;
+    return null;
   }
 
   try {
-    await websiteClientDb.$executeRaw(Prisma.sql`
-      UPDATE clients
-      SET
-        first_name = ${mergedProfile.firstName},
-        last_name = ${mergedProfile.lastName},
-        phone = ${mergedProfile.phone},
-        email = ${mergedProfile.email || null},
-        password_hash = ${mergedProfile.isActive ? mergedProfile.passwordHash : null},
-        has_account = ${mergedProfile.isActive && Boolean(mergedProfile.passwordHash)},
-        deleted_at = ${mergedProfile.isActive ? null : new Date()}
-      WHERE id = ${websiteClient.id}
-    `);
+    const targetWebsiteClient = await resolveWebsiteClientTarget(websiteClientDb, mergedProfile, websiteClient);
+    if (!targetWebsiteClient) {
+      return null;
+    }
+
+    await updateWebsiteClientProfile(websiteClientDb, targetWebsiteClient.id, mergedProfile, {
+      appUserId: appUser.id,
+      source: 'reconcile',
+    });
 
     await persistLinkState({
       appUserId: appUser.id,
-      websiteClientId: websiteClient.id,
+      websiteClientId: targetWebsiteClient.id,
       appSnapshot: serializeProfile(mergedProfile),
       websiteSnapshot: serializeProfile(mergedProfile),
       lastSyncedFrom: dominantSource,
     });
+    return targetWebsiteClient.id;
   } catch (error) {
     logger.warn('Website client sync update failed', {
       appUserId: appUser.id,
       websiteClientId: websiteClient.id,
       error: error instanceof Error ? error.message : error,
     });
+    return null;
   }
 }
 
-async function runUserSyncJob(): Promise<void> {
+export async function runUserSyncOnce(): Promise<void> {
   if (isRunning) {
     return;
   }
@@ -684,8 +865,16 @@ async function runUserSyncJob(): Promise<void> {
       ).filter((client) => client.deleted_at == null);
       const emailMatches = (websiteClientsByEmail.get(normalizeEmail(appUser.email)) ?? [])
         .filter((client) => !matchedWebsiteClientIds.has(client.id) && client.deleted_at == null);
-      const candidates = [...phoneMatches, ...emailMatches];
-      return selectBestWebsiteClient(candidates);
+      const allPhoneMatches = collectIndexedValues(
+        websiteClientsByPhone,
+        phoneMatchKeys(appUser.phoneNumber),
+        new Set<string>()
+      ).filter((client) => client.deleted_at == null);
+      const allEmailMatches = (websiteClientsByEmail.get(normalizeEmail(appUser.email)) ?? [])
+        .filter((client) => client.deleted_at == null);
+      const candidates = uniqueById([...phoneMatches, ...emailMatches]);
+      const fallbackCandidates = uniqueById([...allPhoneMatches, ...allEmailMatches]);
+      return selectBestWebsiteClient(candidates) ?? selectBestWebsiteClient(fallbackCandidates);
     };
 
     const matchAppForWebsite = (websiteClient: WebsiteClientRow): AppUserRow | null => {
@@ -693,11 +882,18 @@ async function runUserSyncJob(): Promise<void> {
         appUsersByPhone,
         phoneMatchKeys(websiteClient.phone),
         matchedAppUserIds
-      ).filter((user) => user.isActive);
+      );
       const emailMatches = (appUsersByEmail.get(normalizeEmail(websiteClient.email)) ?? [])
-        .filter((user) => !matchedAppUserIds.has(user.id) && user.isActive);
-      const candidates = [...phoneMatches, ...emailMatches];
-      return selectBestAppUser(candidates);
+        .filter((user) => !matchedAppUserIds.has(user.id));
+      const allPhoneMatches = collectIndexedValues(
+        appUsersByPhone,
+        phoneMatchKeys(websiteClient.phone),
+        new Set<string>()
+      );
+      const allEmailMatches = appUsersByEmail.get(normalizeEmail(websiteClient.email)) ?? [];
+      const candidates = uniqueById([...phoneMatches, ...emailMatches]);
+      const fallbackCandidates = uniqueById([...allPhoneMatches, ...allEmailMatches]);
+      return selectBestAppUser(candidates) ?? selectBestAppUser(fallbackCandidates);
     };
 
     // Reconcile already linked users first.
@@ -720,11 +916,22 @@ async function runUserSyncJob(): Promise<void> {
       matchedAppUserIds.add(appUser.id);
       matchedWebsiteClientIds.add(websiteClient.id);
 
-      await reconcilePair(appUser, websiteClient, {
-        appSnapshot: link.appSnapshot,
-        websiteSnapshot: link.websiteSnapshot,
-        lastSyncedFrom: link.lastSyncedFrom,
-      });
+      try {
+        const reconciledWebsiteClientId = await reconcilePair(appUser, websiteClient, {
+          appSnapshot: link.appSnapshot,
+          websiteSnapshot: link.websiteSnapshot,
+          lastSyncedFrom: link.lastSyncedFrom,
+        });
+        if (reconciledWebsiteClientId) {
+          matchedWebsiteClientIds.add(reconciledWebsiteClientId);
+        }
+      } catch (error) {
+        logger.warn('User sync pair reconciliation failed', {
+          appUserId: appUser.id,
+          websiteClientId: websiteClient.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
     }
 
     // App users without a link yet.
@@ -743,16 +950,37 @@ async function runUserSyncJob(): Promise<void> {
         const websiteProfile = buildWebsiteProfile(websiteClient);
         const linkSource = appUser.createdAt <= websiteClient.created_at ? UserSyncSource.APP : UserSyncSource.WEBSITE;
 
-        await reconcilePair(appUser, websiteClient, {
-          appSnapshot: serializeProfile(appProfile),
-          websiteSnapshot: serializeProfile(websiteProfile),
-          lastSyncedFrom: linkSource,
-        });
+        try {
+          const reconciledWebsiteClientId = await reconcilePair(appUser, websiteClient, {
+            appSnapshot: serializeProfile(appProfile),
+            websiteSnapshot: serializeProfile(websiteProfile),
+            lastSyncedFrom: linkSource,
+          });
+          if (reconciledWebsiteClientId) {
+            matchedWebsiteClientIds.add(reconciledWebsiteClientId);
+          }
+        } catch (error) {
+          logger.warn('User sync app match reconciliation failed', {
+            appUserId: appUser.id,
+            websiteClientId: websiteClient.id,
+            error: error instanceof Error ? error.message : error,
+          });
+        }
         continue;
       }
 
       // No website row yet. Create one so the reservation backend can see the user.
-      await syncAppUserToWebsite(appUser, null, appProfile, UserSyncSource.APP);
+      try {
+        const websiteClientId = await syncAppUserToWebsite(appUser, null, appProfile, UserSyncSource.APP);
+        if (websiteClientId) {
+          matchedWebsiteClientIds.add(websiteClientId);
+        }
+      } catch (error) {
+        logger.warn('User sync app-to-website create failed', {
+          appUserId: appUser.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
       matchedAppUserIds.add(appUser.id);
     }
 
@@ -772,11 +1000,22 @@ async function runUserSyncJob(): Promise<void> {
         const appProfile = buildAppProfile(appUser);
         const linkSource = appUser.createdAt <= websiteClient.created_at ? UserSyncSource.APP : UserSyncSource.WEBSITE;
 
-        await reconcilePair(appUser, websiteClient, {
-          appSnapshot: serializeProfile(appProfile),
-          websiteSnapshot: serializeProfile(websiteProfile),
-          lastSyncedFrom: linkSource,
-        });
+        try {
+          const reconciledWebsiteClientId = await reconcilePair(appUser, websiteClient, {
+            appSnapshot: serializeProfile(appProfile),
+            websiteSnapshot: serializeProfile(websiteProfile),
+            lastSyncedFrom: linkSource,
+          });
+          if (reconciledWebsiteClientId) {
+            matchedWebsiteClientIds.add(reconciledWebsiteClientId);
+          }
+        } catch (error) {
+          logger.warn('User sync website match reconciliation failed', {
+            appUserId: appUser.id,
+            websiteClientId: websiteClient.id,
+            error: error instanceof Error ? error.message : error,
+          });
+        }
         continue;
       }
 
@@ -784,7 +1023,14 @@ async function runUserSyncJob(): Promise<void> {
         continue;
       }
 
-      await syncWebsiteClientToApp(websiteClient, null, websiteProfile, UserSyncSource.WEBSITE);
+      try {
+        await syncWebsiteClientToApp(websiteClient, null, websiteProfile, UserSyncSource.WEBSITE);
+      } catch (error) {
+        logger.warn('User sync website-to-app create failed', {
+          websiteClientId: websiteClient.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
       matchedWebsiteClientIds.add(websiteClient.id);
     }
 
@@ -814,11 +1060,11 @@ export function startUserSyncJob(): void {
   }
 
   intervalId = setInterval(() => {
-    void runUserSyncJob();
+    void runUserSyncOnce();
   }, INTERVAL_MS);
 
   logger.info('User sync job started', { intervalMinutes: INTERVAL_MS / 60000 });
-  void runUserSyncJob();
+  void runUserSyncOnce();
 }
 
 export function stopUserSyncJob(): void {

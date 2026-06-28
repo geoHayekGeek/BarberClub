@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,9 +9,8 @@ import '../../domain/models/loyalty_v2_state.dart';
 import '../constants/loyalty_ui_constants.dart';
 import '../providers/auth_providers.dart';
 import '../providers/loyalty_providers.dart';
-import '../widgets/app_primary_button.dart';
 
-/// Loyalty v2 screen: points, tiers, rewards catalog, earn QR, vouchers, history.
+/// Loyalty v2 screen: points, tiers, rewards catalog, vouchers, history.
 /// UI matches mockups: no yellow, tier-specific accents, responsive layout.
 class LoyaltyCardScreen extends ConsumerWidget {
   const LoyaltyCardScreen({super.key});
@@ -22,18 +19,6 @@ class LoyaltyCardScreen extends ConsumerWidget {
       LoyaltyUIConstants.horizontalScreenPadding;
   static const double _verticalRhythm = LoyaltyUIConstants.verticalRhythm;
   static const double _bottomNavPadding = LoyaltyUIConstants.bottomNavPadding;
-  static final BoxDecoration _pageBackgroundDecoration = BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        Colors.black.withOpacity(0.22),
-        Colors.transparent,
-        Colors.black.withOpacity(0.74),
-      ],
-      stops: const [0.0, 0.38, 1.0],
-    ),
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -139,23 +124,7 @@ class _LoyaltyBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          'assets/images/barber_background.jpg',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              Container(color: const Color(0xFF111111)),
-        ),
-        Container(color: Colors.black.withOpacity(0.62)),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: LoyaltyCardScreen._pageBackgroundDecoration,
-          ),
-        ),
-      ],
-    );
+    return const ColoredBox(color: Colors.black);
   }
 }
 
@@ -169,52 +138,6 @@ class _LoyaltyV2Body extends ConsumerStatefulWidget {
 }
 
 class _LoyaltyV2BodyState extends ConsumerState<_LoyaltyV2Body> {
-  bool _isOpeningEarnQr = false;
-
-  Future<void> _openEarnQr() async {
-    if (_isOpeningEarnQr) return;
-    setState(() => _isOpeningEarnQr = true);
-    await _showEarnQr(context, ref);
-    if (mounted) {
-      setState(() => _isOpeningEarnQr = false);
-    }
-  }
-
-  Future<void> _showEarnQr(BuildContext context, WidgetRef ref) async {
-    final dio = ref.read(dioClientProvider).dio;
-    try {
-      final response = await dio.post('/api/v1/loyalty/v2/qr');
-      final data = response.data as Map<String, dynamic>;
-      final payload = data['data'] as Map<String, dynamic>?;
-      final qrPayload = payload?['qrPayload'] as String?;
-      final expiresAt = payload?['expiresAt'] as String?;
-      if (qrPayload == null || qrPayload.isEmpty || !context.mounted) return;
-      ref.read(qrDialogCloserProvider.notifier).state = () {
-        final ctx = navigatorKey.currentContext;
-        if (ctx != null) Navigator.of(ctx).pop();
-      };
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        builder: (ctx) => _EarnQrFullscreenDialog(
-          qrPayload: qrPayload,
-          expiresAt: expiresAt,
-          onClose: () => Navigator.of(ctx).pop(),
-        ),
-      );
-      if (context.mounted) {
-        ref.read(qrDialogCloserProvider.notifier).state = null;
-        ref.invalidate(loyaltyV2StateProvider);
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de générer le QR code')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
@@ -250,18 +173,6 @@ class _LoyaltyV2BodyState extends ConsumerState<_LoyaltyV2Body> {
                 _SectionTitle('HISTORIQUE RÉCENT'),
                 SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
                 const _TransactionsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                IgnorePointer(
-                  ignoring: _isOpeningEarnQr,
-                  child: AnimatedOpacity(
-                    opacity: _isOpeningEarnQr ? 0.5 : 1,
-                    duration: const Duration(milliseconds: 150),
-                    child: AppPrimaryButton(
-                      label: 'Afficher mon QR',
-                      onTap: _openEarnQr,
-                    ),
-                  ),
-                ),
                 SizedBox(height: LoyaltyUIConstants.betweenSections),
                 const _InfoCards(),
                 SizedBox(height: LoyaltyUIConstants.betweenSections),
@@ -1252,108 +1163,6 @@ class _InfoCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EarnQrFullscreenDialog extends StatefulWidget {
-  const _EarnQrFullscreenDialog({
-    required this.qrPayload,
-    required this.expiresAt,
-    required this.onClose,
-  });
-
-  final String qrPayload;
-  final String? expiresAt;
-  final VoidCallback onClose;
-
-  @override
-  State<_EarnQrFullscreenDialog> createState() =>
-      _EarnQrFullscreenDialogState();
-}
-
-class _EarnQrFullscreenDialogState extends State<_EarnQrFullscreenDialog> {
-  Timer? _timer;
-  int _secondsLeft = 120;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.expiresAt != null) {
-      final end = DateTime.tryParse(widget.expiresAt!);
-      if (end != null) {
-        _updateSecondsLeft(end);
-        _timer = Timer.periodic(
-          const Duration(seconds: 1),
-          (_) => _updateSecondsLeft(end),
-        );
-      }
-    }
-  }
-
-  void _updateSecondsLeft(DateTime end) {
-    final left = end.difference(DateTime.now()).inSeconds;
-    if (left <= 0 && _timer != null) {
-      _timer?.cancel();
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
-    if (mounted) setState(() => _secondsLeft = left > 0 ? left : 0);
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog.fullscreen(
-      backgroundColor: const Color(0xFF121212),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: widget.onClose,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.all(24),
-              color: Colors.white,
-              child: QrImageView(
-                data: widget.qrPayload,
-                version: QrVersions.auto,
-                backgroundColor: Colors.white,
-                padding: const EdgeInsets.all(16),
-                errorCorrectionLevel: QrErrorCorrectLevel.H,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              'Présentez ce QR code au coiffeur',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: Colors.white70),
-            ),
-            if (_secondsLeft > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Expire dans ${_secondsLeft}s',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.white54),
-                ),
-              ),
-            const SizedBox(height: 32),
-          ],
-        ),
       ),
     );
   }

@@ -3,17 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/app_config.dart';
 
-/// Placeholder asset when no image or error.
-const String _kPlaceholderAsset = 'assets/images/barber_background.jpg';
-
 /// Horizontal scroll of salon photos (rounded thumbnails).
 /// Supports network URLs and asset paths.
 class SalonGallery extends StatelessWidget {
-
-  const SalonGallery({
-    super.key,
-    required this.imageUrls,
-  });
+  const SalonGallery({super.key, required this.imageUrls});
   final List<String> imageUrls;
 
   @override
@@ -51,13 +44,7 @@ class SalonGallery extends StatelessWidget {
                       ),
                       errorWidget: (_, __, ___) => _placeholder(),
                     )
-                  : (url != null && url.isNotEmpty
-                      ? Image.asset(
-                          url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholder(),
-                        )
-                      : _placeholder()),
+                  : _placeholder(),
             ),
           );
         },
