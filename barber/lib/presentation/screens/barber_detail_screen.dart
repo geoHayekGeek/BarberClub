@@ -353,6 +353,7 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
               Text(
                 barber.displayName.toUpperCase(),
                 style: const TextStyle(
+                  fontFamily: 'Orbitron',
                   color: Colors.white,
                   fontSize: 40,
                   fontWeight: FontWeight.w700,
