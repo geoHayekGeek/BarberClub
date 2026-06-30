@@ -3100,7 +3100,7 @@ class _SalonChoicePanel extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    salon.name.toUpperCase(),
+                    salon.city.toUpperCase(),
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontSize: 34,
                       fontWeight: FontWeight.w800,
@@ -3112,7 +3112,7 @@ class _SalonChoicePanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    salon.city.toUpperCase(),
+                    salon.location?.toUpperCase() ?? '',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.white70,
                       letterSpacing: 1.8,
@@ -3191,6 +3191,7 @@ class _SalonChoiceCta extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: const TextStyle(
+              fontFamily: 'Orbitron',
               color: Colors.white,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.2,
