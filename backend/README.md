@@ -95,6 +95,10 @@ SMTP_USER=
 SMTP_PASSWORD=
 SMTP_FROM=
 
+BREVO_API_KEY=
+BREVO_SENDER_EMAIL=
+BREVO_SENDER_NAME=
+
 LOYALTY_TARGET=10
 LOYALTY_QR_TTL_SECONDS=120
 
@@ -124,7 +128,8 @@ ADMIN_SECRET=change-me-in-production
 - `QR_TOKEN_PEPPER`: Secret pepper for hashing QR tokens (min 32 characters, required)
 - `ENABLE_LOCAL_CANCEL`: Allow users to cancel bookings via API (`true`/`false`, default: `false`)
 - `ADMIN_SECRET`: Secret for admin endpoints (required in production; see [ADMIN.md](./ADMIN.md)). Must be changed from default in production.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: Optional. When all set, password-reset emails are sent via SMTP. Otherwise, in development a dev provider stores emails in-memory (see [Email / Password Reset](#email--password-reset)).
+- `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`: Optional. When set in production, password-reset emails are sent via Brevo API. The app also accepts the `*_GRENOBLE` variants as fallbacks if you already use the website backend env names.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`: Optional fallback. If Brevo is not configured, password-reset emails are sent via SMTP.
 
 ### Email / Password Reset (OTP flow)
 
@@ -132,9 +137,10 @@ The **forgot-password** and **reset-password** flows use a 6-digit OTP code sent
 
 - **forgot-password**: Sends a 6-digit code to the user's email. Code expires in 10 minutes. Resend cooldown: 60 seconds per email.
 - **reset-password**: Accepts `email`, `code` (6 digits), and `newPassword`. Max 5 failed attempts per code before lockout.
-- **Development without SMTP**: If `SMTP_*` are not set, the app uses an in-memory dev provider. Emails are not sent; you can view them at `GET /api/v1/dev/emails` (see [Development](#development) endpoints).
-- **Development or production with SMTP**: Set all of `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. Password-reset emails are sent via SMTP.
-- **Production without SMTP**: Forgot-password will fail when sending the email. Configure SMTP for production if you use password reset.
+- **Development**: the app uses the in-memory dev provider. Emails are not sent; you can view them at `GET /api/v1/dev/emails` (see [Development](#development) endpoints).
+- **Production with Brevo**: set `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and `BREVO_SENDER_NAME` in Railway. Password-reset emails will go through Brevo's transactional email API.
+- **Production with SMTP fallback**: if Brevo is not configured, set all of `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`.
+- **Production without any email provider**: forgot-password will fail when sending the email, which is useful for catching misconfiguration early.
 
 ## Local PostgreSQL Setup (using pgAdmin)
 
