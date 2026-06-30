@@ -28,9 +28,7 @@ class AppSnackBar {
       elevation: 0,
       backgroundColor: backgroundColor,
       duration: duration,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: Row(
         children: [
           Icon(icon, color: foregroundColor, size: 18),

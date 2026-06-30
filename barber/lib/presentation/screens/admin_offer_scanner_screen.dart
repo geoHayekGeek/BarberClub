@@ -12,10 +12,12 @@ class AdminOfferScannerScreen extends ConsumerStatefulWidget {
   const AdminOfferScannerScreen({super.key});
 
   @override
-  ConsumerState<AdminOfferScannerScreen> createState() => _AdminOfferScannerScreenState();
+  ConsumerState<AdminOfferScannerScreen> createState() =>
+      _AdminOfferScannerScreenState();
 }
 
-class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScreen> {
+class _AdminOfferScannerScreenState
+    extends ConsumerState<AdminOfferScannerScreen> {
   static const _scanCooldown = Duration(seconds: 5);
   static const _cameraStartDelay = Duration(milliseconds: 500);
 
@@ -71,7 +73,11 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
       _lastScanAt = DateTime.now();
       setState(() {});
       _startCooldownTimer();
-      await _showSuccessDialog(context, offerName: offerName, clientName: clientName);
+      await _showSuccessDialog(
+        context,
+        offerName: offerName,
+        clientName: clientName,
+      );
     } catch (e) {
       if (!mounted) return;
       final isRateLimit = e is DioException && e.response?.statusCode == 429;
@@ -83,7 +89,8 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
         _startCooldownTimer();
       } else {
         final code = e is DioException
-            ? (e.response?.data as Map<String, dynamic>?)?['error']?['code'] as String?
+            ? (e.response?.data as Map<String, dynamic>?)?['error']?['code']
+                  as String?
             : null;
         if (code == 'INVALID_OR_EXPIRED_QR' || code == 'INVALID_QR') {
           message = 'QR déjà utilisé ou invalide';
@@ -139,7 +146,10 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
             const SizedBox(height: 8),
             Text(
               clientName,
-              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -161,10 +171,7 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
       fit: StackFit.expand,
       children: [
         if (_cameraReady)
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          )
+          MobileScanner(controller: _controller, onDetect: _onDetect)
         else
           const ColoredBox(
             color: Colors.black,
@@ -172,7 +179,10 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
               child: CircularProgressIndicator(color: Colors.white),
             ),
           ),
-        if (_cameraReady) const ScannerOverlay(instructionText: 'Scannez le QR d\'activation offre'),
+        if (_cameraReady)
+          const ScannerOverlay(
+            instructionText: 'Scannez le QR d\'activation offre',
+          ),
         if (_isSubmitting)
           Container(
             color: Colors.black54,
@@ -191,7 +201,9 @@ class _AdminOfferScannerScreenState extends ConsumerState<AdminOfferScannerScree
                   const SizedBox(height: 16),
                   Text(
                     'Attendez 5 secondes...',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: Colors.white),
                   ),
                 ],
               ),

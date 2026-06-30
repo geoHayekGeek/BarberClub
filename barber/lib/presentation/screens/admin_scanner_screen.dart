@@ -60,7 +60,9 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
     final qrPayload = barcode?.rawValue?.trim();
     if (qrPayload == null || qrPayload.isEmpty) return;
 
-    final serviceId = GoRouterState.of(context).uri.queryParameters['serviceId'];
+    final serviceId = GoRouterState.of(
+      context,
+    ).uri.queryParameters['serviceId'];
 
     setState(() => _isSubmitting = true);
     try {
@@ -79,7 +81,11 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
           _lastScanAt = DateTime.now();
           setState(() {});
           _startCooldownTimer();
-          await _showEarnSuccessDialog(context, points: points, newBalance: newBalance);
+          await _showEarnSuccessDialog(
+            context,
+            points: points,
+            newBalance: newBalance,
+          );
         }
         return;
       }
@@ -97,10 +103,7 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
         successMessage = 'Point ajouté';
       }
 
-      await dio.post(
-        endpoint,
-        data: {'qrPayload': qrPayload},
-      );
+      await dio.post(endpoint, data: {'qrPayload': qrPayload});
 
       if (mounted) {
         _lastScanAt = DateTime.now();
@@ -116,7 +119,9 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
     } catch (e) {
       if (mounted) {
         final isRateLimit = e is DioException && e.response?.statusCode == 429;
-        final message = isRateLimit ? 'Attendez 5 secondes entre chaque scan' : 'QR invalide';
+        final message = isRateLimit
+            ? 'Attendez 5 secondes entre chaque scan'
+            : 'QR invalide';
         AppSnackBar.show(
           context,
           message,
@@ -185,7 +190,9 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final serviceId = GoRouterState.of(context).uri.queryParameters['serviceId'];
+    final serviceId = GoRouterState.of(
+      context,
+    ).uri.queryParameters['serviceId'];
     final hasServiceSelected = serviceId != null && serviceId.isNotEmpty;
 
     return PopScope(
@@ -204,10 +211,7 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
         fit: StackFit.expand,
         children: [
           if (_cameraReady)
-            MobileScanner(
-              controller: _controller,
-              onDetect: _onDetect,
-            )
+            MobileScanner(controller: _controller, onDetect: _onDetect)
           else
             const ColoredBox(
               color: Colors.black,
@@ -215,7 +219,8 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
                 child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
-          if (_cameraReady) const ScannerOverlay(instructionText: 'Scannez le QR code'),
+          if (_cameraReady)
+            const ScannerOverlay(instructionText: 'Scannez le QR code'),
           if (_isSubmitting)
             Container(
               color: Colors.black54,
@@ -234,7 +239,9 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Attendez 5 secondes...',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleMedium?.copyWith(color: Colors.white),
                     ),
                   ],
                 ),

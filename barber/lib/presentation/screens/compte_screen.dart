@@ -962,7 +962,9 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                             AppSnackBar.show(
                               context,
                               message,
-                              backgroundColor: Theme.of(context).colorScheme.error,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
                               foregroundColor: Colors.white,
                               icon: Icons.error_outline_rounded,
                             );
@@ -1185,7 +1187,9 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                             AppSnackBar.show(
                               context,
                               'Erreur: $e',
-                              backgroundColor: Theme.of(context).colorScheme.error,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
                               foregroundColor: Colors.white,
                               icon: Icons.error_outline_rounded,
                             );
@@ -4425,7 +4429,9 @@ class _CompteScreenShell extends ConsumerWidget {
                               AppSnackBar.show(
                                 context,
                                 message,
-                                backgroundColor: Theme.of(context).colorScheme.error,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.error,
                                 foregroundColor: Colors.white,
                                 icon: Icons.error_outline_rounded,
                               );

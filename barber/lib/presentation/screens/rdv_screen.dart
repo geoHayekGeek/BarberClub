@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/ui/app_snackbar.dart';
@@ -507,6 +508,44 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   void _openAccount() {
     context.go('/compte');
+  }
+
+  Future<void> _openMaps(String address) async {
+    final trimmedAddress = address.trim();
+    if (trimmedAddress.isEmpty) {
+      _showMessage('Adresse du salon indisponible.');
+      return;
+    }
+
+    final query = Uri.encodeComponent(trimmedAddress);
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$query',
+    );
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        _showMessage('Impossible d\'ouvrir Google Maps.');
+      }
+    } catch (_) {
+      _showMessage('Impossible d\'ouvrir Google Maps.');
+    }
+  }
+
+  String _resolveMapsLabel(Salon salon) {
+    final address = salon.address.trim();
+    if (address.isNotEmpty) return address;
+
+    final location = salon.location?.trim() ?? '';
+    if (location.isNotEmpty) return location;
+
+    final city = salon.city.trim();
+    if (city.isNotEmpty) return city;
+
+    return '';
   }
 
   void _showMessage(String message) {
@@ -1860,6 +1899,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                       context,
                       currentMonth,
                       reservationSalonId,
+                      selectedSalon,
                     ),
                   ),
                 ),
@@ -1997,6 +2037,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     BuildContext context,
     DateTime currentMonth,
     String reservationSalonId,
+    Salon selectedSalon,
   ) {
     switch (_step) {
       case _ReservationStep.barber:
@@ -2008,7 +2049,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       case _ReservationStep.booking:
         return _buildBookingStep(context);
       case _ReservationStep.success:
-        return _buildSuccessStep(context);
+        return _buildSuccessStep(context, selectedSalon);
     }
   }
 
@@ -2506,12 +2547,17 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     );
   }
 
-  Widget _buildSuccessStep(BuildContext context) {
+  Widget _buildSuccessStep(BuildContext context, Salon selectedSalon) {
     final selectedService = _selectedService;
     final selectedDate = _selectedDate;
     final durationMinutes = _selectedServiceDurationMinutes(selectedDate);
     final price = _formatPrice(
       _booking?.priceCents ?? selectedService?.priceCents ?? 2000,
+    );
+    final salonDetailAsync = ref.watch(salonDetailProvider(selectedSalon.id));
+    final practicalInfoLabel = salonDetailAsync.maybeWhen(
+      data: (fullSalon) => _resolveMapsLabel(fullSalon),
+      orElse: () => _resolveMapsLabel(selectedSalon),
     );
 
     return _buildPanelShell(
@@ -2551,8 +2597,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             ),
             const SizedBox(height: 18),
             _PracticalInfoSection(
-              onMapTap: () =>
-                  _showMessage('Démo uniquement : Google Maps non activé.'),
+              address: practicalInfoLabel,
+              onMapTap: () => unawaited(_openMaps(practicalInfoLabel)),
             ),
             const SizedBox(height: 14),
             Text(
@@ -5520,8 +5566,9 @@ class _SuccessActionButton extends StatelessWidget {
 }
 
 class _PracticalInfoSection extends StatelessWidget {
-  const _PracticalInfoSection({required this.onMapTap});
+  const _PracticalInfoSection({required this.address, required this.onMapTap});
 
+  final String address;
   final VoidCallback onMapTap;
 
   @override
@@ -5530,7 +5577,7 @@ class _PracticalInfoSection extends StatelessWidget {
       children: [
         _PracticalInfoCard(
           icon: Icons.location_on_outlined,
-          title: '5 Rue Clôt Bey, 38000 Grenoble',
+          title: address.isNotEmpty ? address : 'Adresse indisponible',
           trailingLabel: 'Ouvrir dans Google Maps',
           onTap: onMapTap,
         ),

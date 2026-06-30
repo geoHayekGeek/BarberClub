@@ -14,10 +14,12 @@ class AdminRedeemScannerScreen extends ConsumerStatefulWidget {
   const AdminRedeemScannerScreen({super.key});
 
   @override
-  ConsumerState<AdminRedeemScannerScreen> createState() => _AdminRedeemScannerScreenState();
+  ConsumerState<AdminRedeemScannerScreen> createState() =>
+      _AdminRedeemScannerScreenState();
 }
 
-class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScreen> {
+class _AdminRedeemScannerScreenState
+    extends ConsumerState<AdminRedeemScannerScreen> {
   static const _scanCooldown = Duration(seconds: 5);
   static const _cameraStartDelay = Duration(milliseconds: 500);
 
@@ -73,7 +75,11 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
       _lastScanAt = DateTime.now();
       setState(() {});
       _startCooldownTimer();
-      await _showRedeemSuccessFullScreen(context, rewardName: rewardName, newBalance: newBalance);
+      await _showRedeemSuccessFullScreen(
+        context,
+        rewardName: rewardName,
+        newBalance: newBalance,
+      );
     } catch (e) {
       if (!mounted) return;
       final isRateLimit = e is DioException && e.response?.statusCode == 429;
@@ -85,7 +91,8 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
         _startCooldownTimer();
       } else {
         final code = e is DioException
-            ? (e.response?.data as Map<String, dynamic>?)?['error']?['code'] as String?
+            ? (e.response?.data as Map<String, dynamic>?)?['error']?['code']
+                  as String?
             : null;
         if (code == 'VOUCHER_ALREADY_USED') {
           message = 'Bon déjà utilisé';
@@ -144,7 +151,10 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
               const SizedBox(height: 8),
               Text(
                 'Solde restant : $newBalance pts',
-                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                ),
               ),
             ],
           ],
@@ -169,10 +179,7 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
       fit: StackFit.expand,
       children: [
         if (_cameraReady)
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          )
+          MobileScanner(controller: _controller, onDetect: _onDetect)
         else
           const ColoredBox(
             color: Colors.black,
@@ -180,7 +187,8 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
               child: CircularProgressIndicator(color: Colors.white),
             ),
           ),
-        if (_cameraReady) const ScannerOverlay(instructionText: 'Scannez le bon du client'),
+        if (_cameraReady)
+          const ScannerOverlay(instructionText: 'Scannez le bon du client'),
         if (_isSubmitting)
           Container(
             color: Colors.black54,
@@ -199,7 +207,9 @@ class _AdminRedeemScannerScreenState extends ConsumerState<AdminRedeemScannerScr
                   const SizedBox(height: 16),
                   Text(
                     'Attendez 5 secondes...',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: Colors.white),
                   ),
                 ],
               ),
