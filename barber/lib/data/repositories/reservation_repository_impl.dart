@@ -273,6 +273,33 @@ class ReservationRepositoryImpl implements ReservationRepository {
   }
 
   @override
+  Future<ReservationBooking> getBookingDetails({
+    required String bookingId,
+    required String cancelToken,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/bookings/$bookingId',
+        queryParameters: {'token': cancelToken},
+      );
+
+      final bookingJson = _extractBookingFromResponse(response.data);
+      if (bookingJson != null) {
+        final booking = ReservationBooking.fromJson(bookingJson);
+        await _cacheBookingCancelToken(booking);
+        return booking;
+      }
+
+      throw const ApiError(
+        code: 'UNKNOWN_ERROR',
+        message: 'Une erreur est survenue. Veuillez reessayer.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
   Future<void> cancelBooking({
     required String bookingId,
     required String cancelToken,

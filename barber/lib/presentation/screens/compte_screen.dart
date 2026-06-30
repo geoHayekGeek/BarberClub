@@ -4262,6 +4262,39 @@ class _CompteScreenShell extends ConsumerWidget {
     return bookingDate.difference(DateTime.now()) >= const Duration(hours: 12);
   }
 
+  Future<ReservationBooking> _resolveBookingForReschedule(
+    ReservationBooking booking,
+    String? salonFilter,
+    ReservationRepository repository,
+  ) async {
+    final hasAvailabilityIds =
+        booking.serviceId.trim().isNotEmpty &&
+        booking.barberId.trim().isNotEmpty;
+    final hasSalonId =
+        booking.salonId.trim().isNotEmpty ||
+        (salonFilter?.trim().isNotEmpty == true);
+
+    if (hasAvailabilityIds && hasSalonId) {
+      if (booking.salonId.trim().isNotEmpty) {
+        return booking;
+      }
+      return booking.copyWith(salonId: salonFilter!.trim());
+    }
+
+    final details = await repository.getBookingDetails(
+      bookingId: booking.id,
+      cancelToken: booking.cancelToken,
+    );
+
+    final resolvedSalonId = booking.salonId.trim().isNotEmpty
+        ? booking.salonId.trim()
+        : (salonFilter?.trim().isNotEmpty == true
+              ? salonFilter!.trim()
+              : details.salonId);
+
+    return details.copyWith(salonId: resolvedSalonId);
+  }
+
   Future<void> _showRescheduleBookingDialog(
     BuildContext context,
     WidgetRef ref,
@@ -4280,6 +4313,27 @@ class _CompteScreenShell extends ConsumerWidget {
     }
 
     final repository = ref.read(reservationRepositoryProvider);
+    late final ReservationBooking bookingForReschedule;
+    try {
+      bookingForReschedule = await _resolveBookingForReschedule(
+        booking,
+        salonFilter,
+        repository,
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+
+      final message = error is ApiError
+          ? error.getFriendlyMessage()
+          : 'Impossible de charger les détails du rendez-vous.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+
+    if (!context.mounted) return;
+
     final rescheduled = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -4287,7 +4341,7 @@ class _CompteScreenShell extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (_) {
         return _RescheduleBookingSheetV2(
-          booking: booking,
+          booking: bookingForReschedule,
           repository: repository,
         );
       },
@@ -4295,11 +4349,10 @@ class _CompteScreenShell extends ConsumerWidget {
 
     if (rescheduled == true) {
       ref.invalidate(reservationClientBookingsProvider(salonFilter));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rendez-vous décalé avec succès.')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rendez-vous décalé avec succès.')),
+      );
     }
   }
 
