@@ -1972,6 +1972,1035 @@ class _RescheduleBookingSheetState extends State<_RescheduleBookingSheet> {
   }
 }
 
+class _RescheduleBookingSheetV2 extends StatefulWidget {
+  const _RescheduleBookingSheetV2({
+    required this.booking,
+    required this.repository,
+  });
+
+  final ReservationBooking booking;
+  final ReservationRepository repository;
+
+  @override
+  State<_RescheduleBookingSheetV2> createState() =>
+      _RescheduleBookingSheetV2State();
+}
+
+class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
+  static const List<String> _monthNames = <String>[
+    'Janvier',
+    'Fevrier',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Aout',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Decembre',
+  ];
+
+  static const List<String> _shortWeekdays = <String>[
+    'Lun.',
+    'Mar.',
+    'Mer.',
+    'Jeu.',
+    'Ven.',
+    'Sam.',
+    'Dim.',
+  ];
+
+  late final DateTime _today;
+  late final DateTime _minMonth;
+  late final DateTime _maxMonth;
+  late DateTime _currentMonth;
+
+  DateTime? _selectedDate;
+  List<ReservationSlot> _slots = const [];
+  Map<String, ReservationMonthAvailability> _monthAvailability = const {};
+  String? _selectedTime;
+  bool _loadingSlots = false;
+  bool _loadingMonthAvailability = false;
+  bool _submitting = false;
+  String? _errorMessage;
+  String? _monthErrorMessage;
+  int _loadSlotsRequestVersion = 0;
+  int _loadMonthRequestVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _today = DateTime(now.year, now.month, now.day);
+    _minMonth = DateTime(now.year, now.month);
+    _maxMonth = DateTime(now.year, now.month + 6);
+    _currentMonth = DateTime(now.year, now.month);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_loadMonthAvailability());
+    });
+  }
+
+  String get _salonId => widget.booking.salonId.trim().isNotEmpty
+      ? widget.booking.salonId.trim()
+      : 'meylan';
+
+  DateTime _normalizeDate(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeMonth(DateTime date) => DateTime(date.year, date.month);
+
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isSameMonth(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month;
+  }
+
+  bool _isMonthBefore(DateTime a, DateTime b) {
+    return a.year < b.year || (a.year == b.year && a.month < b.month);
+  }
+
+  bool _isMonthAfter(DateTime a, DateTime b) {
+    return a.year > b.year || (a.year == b.year && a.month > b.month);
+  }
+
+  String _dateKey(DateTime date) {
+    final normalized = _normalizeDate(date);
+    final year = normalized.year.toString().padLeft(4, '0');
+    final month = normalized.month.toString().padLeft(2, '0');
+    final day = normalized.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  String _shortTime(String value) {
+    return value.length >= 5 ? value.substring(0, 5) : value;
+  }
+
+  String _formatDateFr(DateTime date) {
+    const weekdays = <String>[
+      'Dimanche',
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+    ];
+    const months = <String>[
+      'Janvier',
+      'Fevrier',
+      'Mars',
+      'Avril',
+      'Mai',
+      'Juin',
+      'Juillet',
+      'Aout',
+      'Septembre',
+      'Octobre',
+      'Novembre',
+      'Decembre',
+    ];
+    return '${weekdays[date.weekday % 7]} ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatMonthLabel(DateTime month) {
+    return '${_monthNames[month.month - 1]} ${month.year}';
+  }
+
+  ReservationMonthAvailability? _availabilityFor(DateTime date) {
+    return _monthAvailability[_dateKey(date)];
+  }
+
+  List<ReservationSlot> _dedupeSlots(List<ReservationSlot> slots) {
+    final seenTimes = <String>{};
+    final uniqueSlots = <ReservationSlot>[];
+    for (final slot in slots) {
+      final time = slot.time.trim();
+      if (time.isEmpty || seenTimes.contains(time)) continue;
+      seenTimes.add(time);
+      uniqueSlots.add(slot);
+    }
+    return uniqueSlots;
+  }
+
+  Future<void> _loadMonthAvailability() async {
+    final currentVersion = ++_loadMonthRequestVersion;
+    final month = _normalizeMonth(_currentMonth);
+
+    setState(() {
+      _loadingMonthAvailability = true;
+      _monthErrorMessage = null;
+    });
+
+    try {
+      final availability = await widget.repository.getMonthAvailability(
+        salonId: _salonId,
+        serviceId: widget.booking.serviceId,
+        year: month.year,
+        month: month.month,
+        barberId: widget.booking.barberId,
+        includeAlternatives: true,
+      );
+
+      if (!mounted ||
+          currentVersion != _loadMonthRequestVersion ||
+          !_isSameMonth(_currentMonth, month)) {
+        return;
+      }
+
+      setState(() {
+        _monthAvailability = availability;
+        _loadingMonthAvailability = false;
+      });
+    } catch (error) {
+      if (!mounted || currentVersion != _loadMonthRequestVersion) return;
+
+      setState(() {
+        _loadingMonthAvailability = false;
+        _monthAvailability = const {};
+        _monthErrorMessage = error is ApiError
+            ? error.getFriendlyMessage()
+            : 'Impossible de charger les disponibilites du mois.';
+      });
+    }
+  }
+
+  Future<void> _loadSlots() async {
+    final selectedDate = _selectedDate;
+    if (selectedDate == null) return;
+
+    final currentVersion = ++_loadSlotsRequestVersion;
+
+    setState(() {
+      _loadingSlots = true;
+      _errorMessage = null;
+      _slots = const [];
+    });
+
+    try {
+      final slots = await widget.repository.getAvailability(
+        salonId: _salonId,
+        serviceId: widget.booking.serviceId,
+        date: _dateKey(selectedDate),
+        barberId: widget.booking.barberId,
+      );
+
+      if (!mounted ||
+          currentVersion != _loadSlotsRequestVersion ||
+          _selectedDate == null ||
+          !_isSameDate(_selectedDate!, selectedDate)) {
+        return;
+      }
+
+      setState(() {
+        _slots = _dedupeSlots(slots);
+        _loadingSlots = false;
+      });
+    } catch (error) {
+      if (!mounted || currentVersion != _loadSlotsRequestVersion) return;
+
+      setState(() {
+        _loadingSlots = false;
+        _errorMessage = error is ApiError
+            ? error.getFriendlyMessage()
+            : 'Impossible de charger les creneaux.';
+      });
+    }
+  }
+
+  void _goToMonth(int delta) {
+    final nextMonth = _normalizeMonth(
+      DateTime(_currentMonth.year, _currentMonth.month + delta),
+    );
+    final clamped = _isMonthBefore(nextMonth, _minMonth)
+        ? _minMonth
+        : _isMonthAfter(nextMonth, _maxMonth)
+        ? _maxMonth
+        : nextMonth;
+
+    if (_isSameMonth(clamped, _currentMonth)) {
+      return;
+    }
+
+    setState(() {
+      _currentMonth = clamped;
+      _monthErrorMessage = null;
+    });
+
+    unawaited(_loadMonthAvailability());
+  }
+
+  void _selectDate(DateTime date) {
+    final normalized = _normalizeDate(date);
+    if (normalized.isBefore(_today)) {
+      return;
+    }
+
+    final sameDate =
+        _selectedDate != null && _isSameDate(_selectedDate!, normalized);
+
+    setState(() {
+      _selectedDate = normalized;
+      _currentMonth = _normalizeMonth(normalized);
+      if (!sameDate) {
+        _selectedTime = null;
+      }
+      _errorMessage = null;
+      _slots = const [];
+      _loadingSlots = true;
+    });
+
+    unawaited(_loadSlots());
+  }
+
+  Future<void> _confirmReschedule() async {
+    if (_selectedDate == null || _selectedTime == null || _submitting) return;
+
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await widget.repository.rescheduleBooking(
+        bookingId: widget.booking.id,
+        cancelToken: widget.booking.cancelToken,
+        date: _dateKey(_selectedDate!),
+        startTime: _selectedTime!,
+        salonId: _salonId,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _submitting = false;
+        _errorMessage = error is ApiError
+            ? error.getFriendlyMessage()
+            : 'Impossible de deplacer le rendez-vous.';
+      });
+    }
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.9,
+      ),
+    );
+  }
+
+  Widget _buildPanelCard({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _CompteScreenShell._cardBackground,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    final bookingDate = DateTime.tryParse('${widget.booking.date}T00:00:00');
+    return _buildPanelCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Rendez-vous actuel',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            widget.booking.serviceName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.booking.barberName,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildInfoRow(
+            icon: Icons.calendar_month_outlined,
+            label: 'Date',
+            value: bookingDate == null
+                ? widget.booking.date
+                : _formatDateFr(bookingDate),
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Icons.schedule_rounded,
+            label: 'Horaire',
+            value:
+                '${_shortTime(widget.booking.startTime)} - ${_shortTime(widget.booking.endTime)}',
+          ),
+          if (widget.booking.rescheduled) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Ce rendez-vous a deja ete decale une fois.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.white70),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.42),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarHeader() {
+    return Row(
+      children: [
+        _CalendarNavButton(
+          icon: Icons.chevron_left_rounded,
+          onTap: _isMonthAfter(_currentMonth, _minMonth)
+              ? () => _goToMonth(-1)
+              : null,
+        ),
+        Expanded(
+          child: Column(
+            children: [
+              Text(
+                _formatMonthLabel(_currentMonth),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.06,
+                ),
+              ),
+              if (_loadingMonthAvailability) ...[
+                const SizedBox(height: 5),
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.8,
+                    color: Colors.white.withValues(alpha: 0.45),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        _CalendarNavButton(
+          icon: Icons.chevron_right_rounded,
+          onTap: _isMonthBefore(_currentMonth, _maxMonth)
+              ? () => _goToMonth(1)
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeekdaysRow() {
+    return Row(
+      children: List.generate(_shortWeekdays.length, (index) {
+        return Expanded(
+          child: Center(
+            child: Text(
+              _shortWeekdays[index],
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.05,
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  List<_RescheduleCalendarDay> _calendarDays() {
+    final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
+    final startDow = firstDay.weekday - 1;
+    final days = <_RescheduleCalendarDay>[];
+
+    for (var i = 0; i < startDow; i++) {
+      days.add(const _RescheduleCalendarDay.empty());
+    }
+
+    for (var day = 1; day <= lastDay.day; day++) {
+      final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+      days.add(
+        _RescheduleCalendarDay(
+          date: date,
+          isPast: date.isBefore(_today),
+          isToday: _isSameDate(date, _today),
+          isSelected:
+              _selectedDate != null && _isSameDate(date, _selectedDate!),
+          availability: _availabilityFor(date),
+        ),
+      );
+    }
+
+    return days;
+  }
+
+  Color? _dotColorForDay(_RescheduleCalendarDay day) {
+    if (day.date == null || day.isPast || day.isSelected) {
+      return null;
+    }
+
+    final availability = day.availability;
+    if (availability == null) {
+      return null;
+    }
+
+    final status = availability.status.trim().toLowerCase();
+    if (availability.total > 0) {
+      if (status == 'low') {
+        return const Color(0xFFFB923C).withValues(alpha: 0.8);
+      }
+      return const Color(0xFF22C55E).withValues(alpha: 0.7);
+    }
+
+    if (status == 'low') {
+      return const Color(0xFFFB923C).withValues(alpha: 0.8);
+    }
+
+    return const Color(0xFFFFFFFF).withValues(alpha: 0.15);
+  }
+
+  Widget _buildSlotsSection() {
+    if (_selectedDate == null) {
+      return _buildMessageCard(
+        'Sélectionnez une date pour voir les créneaux disponibles.',
+      );
+    }
+
+    if (_loadingSlots) {
+      return _buildCenteredCard(
+        child: const CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return _buildMessageCard(_errorMessage!);
+    }
+
+    if (_slots.isEmpty) {
+      return _buildMessageCard(
+        'Aucun créneau disponible pour ${_formatDateFr(_selectedDate!)}.\nEssayez une autre date.',
+      );
+    }
+
+    return _buildPanelCard(
+      child: _RescheduleSlotsGrid(
+        slots: _slots,
+        selectedTime: _selectedTime,
+        onTap: (slot) {
+          setState(() {
+            _selectedTime = slot.time;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildCenteredCard({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      decoration: BoxDecoration(
+        color: _CompteScreenShell._cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Center(child: child),
+    );
+  }
+
+  Widget _buildMessageCard(String message) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _CompteScreenShell._cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(color: Colors.white70, height: 1.45),
+      ),
+    );
+  }
+
+  String _selectedSlotMessage() {
+    if (_selectedDate == null || _selectedTime == null) {
+      return 'Choisissez un créneau pour confirmer.';
+    }
+    return 'Créneau sélectionné: ${_shortTime(_selectedTime!)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isActionDisabled =
+        _loadingSlots ||
+        _submitting ||
+        _selectedDate == null ||
+        _selectedTime == null;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final calendarDays = _calendarDays();
+
+    return FractionallySizedBox(
+      heightFactor: 0.94,
+      child: Material(
+        color: _CompteScreenShell._pageBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 46,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Décaler le rendez-vous',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).pop(false),
+                      icon: const Icon(Icons.close_rounded),
+                      color: Colors.white70,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(18, 0, 18, 18 + bottomInset),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSummaryCard(),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Choisir une nouvelle date'),
+                      const SizedBox(height: 10),
+                      _buildPanelCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildCalendarHeader(),
+                            if (_monthErrorMessage != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                _monthErrorMessage!,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  fontSize: 12,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            _buildWeekdaysRow(),
+                            const SizedBox(height: 8),
+                            GridView.builder(
+                              itemCount: calendarDays.length,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 7,
+                                    mainAxisSpacing: 4,
+                                    crossAxisSpacing: 4,
+                                    mainAxisExtent: 44,
+                                  ),
+                              itemBuilder: (context, index) {
+                                final day = calendarDays[index];
+                                return _RescheduleCalendarDayCell(
+                                  day: day,
+                                  dotColor: _dotColorForDay(day),
+                                  onTap: day.isSelectable
+                                      ? () => _selectDate(day.date!)
+                                      : null,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Créneaux disponibles'),
+                      const SizedBox(height: 10),
+                      _buildSlotsSection(),
+                      if (_selectedDate != null &&
+                          _errorMessage == null &&
+                          _slots.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          _selectedSlotMessage(),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                      if (widget.booking.rescheduled) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          'Un seul déplacement est autorisé par rendez-vous.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 50,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isActionDisabled
+                              ? null
+                              : _confirmReschedule,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            disabledBackgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
+                            disabledForegroundColor: Colors.white.withValues(
+                              alpha: 0.35,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _submitting
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : const Text(
+                                  'Confirmer le nouveau créneau',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RescheduleCalendarDay {
+  const _RescheduleCalendarDay({
+    required this.date,
+    required this.isPast,
+    required this.isToday,
+    required this.isSelected,
+    this.availability,
+  });
+
+  const _RescheduleCalendarDay.empty()
+    : date = null,
+      isPast = false,
+      isToday = false,
+      isSelected = false,
+      availability = null;
+
+  final DateTime? date;
+  final bool isPast;
+  final bool isToday;
+  final bool isSelected;
+  final ReservationMonthAvailability? availability;
+
+  bool get isSelectable => date != null && !isPast;
+}
+
+class _CalendarNavButton extends StatelessWidget {
+  const _CalendarNavButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: onTap == null
+                ? Colors.white.withValues(alpha: 0.2)
+                : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RescheduleCalendarDayCell extends StatelessWidget {
+  const _RescheduleCalendarDayCell({
+    required this.day,
+    required this.dotColor,
+    required this.onTap,
+  });
+
+  final _RescheduleCalendarDay day;
+  final Color? dotColor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (day.date == null) {
+      return const SizedBox.shrink();
+    }
+
+    final selected = day.isSelected;
+    final availability = day.availability;
+    final isFull = availability != null && availability.total <= 0;
+    final dayTextColor = selected
+        ? Colors.black
+        : day.isPast
+        ? Colors.white.withValues(alpha: 0.18)
+        : Colors.white.withValues(alpha: 0.82);
+    final textDecoration = isFull && !selected
+        ? TextDecoration.lineThrough
+        : TextDecoration.none;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: selected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: day.isToday && !selected
+                    ? Border.all(color: Colors.white.withValues(alpha: 0.4))
+                    : null,
+              ),
+              child: Center(
+                child: Text(
+                  '${day.date!.day}',
+                  style: TextStyle(
+                    color: dayTextColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    decoration: textDecoration,
+                    decorationColor: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 1),
+            if (!selected && dotColor != null)
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else
+              const SizedBox(height: 3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RescheduleSlotsGrid extends StatelessWidget {
+  const _RescheduleSlotsGrid({
+    required this.slots,
+    required this.selectedTime,
+    required this.onTap,
+  });
+
+  final List<ReservationSlot> slots;
+  final String? selectedTime;
+  final ValueChanged<ReservationSlot> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      itemCount: slots.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        mainAxisExtent: 42,
+      ),
+      itemBuilder: (context, index) {
+        final slot = slots[index];
+        final selected = slot.time == selectedTime;
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onTap(slot),
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              height: 42,
+              decoration: BoxDecoration(
+                color: selected ? Colors.white : const Color(0xFF111111),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  slot.time.length >= 5 ? slot.time.substring(0, 5) : slot.time,
+                  style: TextStyle(
+                    color: selected ? Colors.black : Colors.white,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _CompteScreenShell extends ConsumerWidget {
   const _CompteScreenShell({
     required this.onChangeAvatar,
@@ -3257,7 +4286,7 @@ class _CompteScreenShell extends ConsumerWidget {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) {
-        return _RescheduleBookingSheet(
+        return _RescheduleBookingSheetV2(
           booking: booking,
           repository: repository,
         );
