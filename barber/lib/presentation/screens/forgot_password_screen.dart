@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ui/app_snackbar.dart';
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
@@ -72,14 +73,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         _didRequestCode = false;
         final email = _emailController.text.trim();
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Si l\'adresse existe, un code a été envoyé.',
-              ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
+          AppSnackBar.show(
+            context,
+            'Si l\'adresse existe, un code a été envoyé.',
+            backgroundColor: Colors.green,
+            icon: Icons.mark_email_read_outlined,
+            duration: const Duration(seconds: 2),
           );
           if (!mounted) return;
           context.push('/reset-password', extra: email);
@@ -90,11 +89,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (hasError && !isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _didRequestCode = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_getErrorMessage(authState.errorMessage!)),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        AppSnackBar.show(
+          context,
+          _getErrorMessage(authState.errorMessage!),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          foregroundColor: Colors.white,
+          icon: Icons.error_outline_rounded,
         );
         ref.read(authStateProvider.notifier).clearError();
       });

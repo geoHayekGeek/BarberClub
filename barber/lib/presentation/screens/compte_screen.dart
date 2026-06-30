@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import '../../core/config/app_config.dart';
+import '../../core/ui/app_snackbar.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/reservation_models.dart';
 import '../../domain/models/reservation_session.dart';
@@ -174,16 +175,20 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
           .updateAvatar(imageBytes: compressedBytes, mimeType: 'image/jpeg');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo de profil mise a jour.')),
+      AppSnackBar.show(
+        context,
+        'Photo de profil mise a jour.',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline_rounded,
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_avatarUploadErrorMessage(error)),
-          backgroundColor: Colors.redAccent,
-        ),
+      AppSnackBar.show(
+        context,
+        _avatarUploadErrorMessage(error),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        foregroundColor: Colors.white,
+        icon: Icons.error_outline_rounded,
       );
     } finally {
       if (mounted) {
@@ -954,15 +959,12 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                                 .toString()
                                 .replaceAll('Exception:', '')
                                 .trim();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  message.isEmpty
-                                      ? 'Impossible de supprimer le compte. Veuillez réessayer.'
-                                      : message,
-                                ),
-                                backgroundColor: Colors.redAccent,
-                              ),
+                            AppSnackBar.show(
+                              context,
+                              message,
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              foregroundColor: Colors.white,
+                              icon: Icons.error_outline_rounded,
                             );
                           }
                         },
@@ -992,10 +994,11 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
     if (deleted == true) {
       if (!context.mounted) return;
       context.go('/home');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Votre compte a été supprimé avec succès.'),
-        ),
+      AppSnackBar.show(
+        context,
+        'Votre compte a été supprimé avec succès.',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline_rounded,
       );
     }
   }
@@ -1170,19 +1173,21 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                                 phoneNumber: completePhoneNumber,
                               );
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Profil mis à jour'),
-                              ),
+                            AppSnackBar.show(
+                              context,
+                              'Profil mis à jour',
+                              backgroundColor: Colors.green,
+                              icon: Icons.check_circle_outline_rounded,
                             );
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Erreur: $e'),
-                                backgroundColor: Colors.red,
-                              ),
+                            AppSnackBar.show(
+                              context,
+                              'Erreur: $e',
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              foregroundColor: Colors.white,
+                              icon: Icons.error_outline_rounded,
                             );
                           }
                         }
@@ -1331,13 +1336,11 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
                                     return;
                                   }
                                   Navigator.of(ctx, rootNavigator: true).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Mot de passe modifié avec succès',
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
+                                  AppSnackBar.show(
+                                    context,
+                                    'Mot de passe modifié avec succès',
+                                    backgroundColor: Colors.green,
+                                    icon: Icons.check_circle_outline_rounded,
                                   );
                                 }
                               } catch (e) {
@@ -4302,12 +4305,9 @@ class _CompteScreenShell extends ConsumerWidget {
     String? salonFilter,
   ) async {
     if (!_canModifyBooking(booking)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Les modifications sont possibles au moins 12 heures avant le rendez-vous.',
-          ),
-        ),
+      AppSnackBar.show(
+        context,
+        'Les modifications sont possibles au moins 12 heures avant le rendez-vous.',
       );
       return;
     }
@@ -4326,9 +4326,13 @@ class _CompteScreenShell extends ConsumerWidget {
       final message = error is ApiError
           ? error.getFriendlyMessage()
           : 'Impossible de charger les détails du rendez-vous.';
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+        message,
+        backgroundColor: Theme.of(context).colorScheme.error,
+        foregroundColor: Colors.white,
+        icon: Icons.error_outline_rounded,
+      );
       return;
     }
 
@@ -4350,8 +4354,11 @@ class _CompteScreenShell extends ConsumerWidget {
     if (rescheduled == true) {
       ref.invalidate(reservationClientBookingsProvider(salonFilter));
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rendez-vous décalé avec succès.')),
+      AppSnackBar.show(
+        context,
+        'Rendez-vous décalé avec succès.',
+        backgroundColor: Colors.green,
+        icon: Icons.check_circle_outline_rounded,
       );
     }
   }
@@ -4363,12 +4370,9 @@ class _CompteScreenShell extends ConsumerWidget {
     String? salonFilter,
   ) async {
     if (!_canModifyBooking(booking)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Les annulations sont possibles au moins 12 heures avant le rendez-vous.',
-          ),
-        ),
+      AppSnackBar.show(
+        context,
+        'Les annulations sont possibles au moins 12 heures avant le rendez-vous.',
       );
       return;
     }
@@ -4418,11 +4422,12 @@ class _CompteScreenShell extends ConsumerWidget {
                               final message = error is ApiError
                                   ? error.getFriendlyMessage()
                                   : 'Impossible d\'annuler le rendez-vous.';
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(message),
-                                  backgroundColor: Colors.redAccent,
-                                ),
+                              AppSnackBar.show(
+                                context,
+                                message,
+                                backgroundColor: Theme.of(context).colorScheme.error,
+                                foregroundColor: Colors.white,
+                                icon: Icons.error_outline_rounded,
                               );
                             }
                           }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/ui/app_snackbar.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/reservation_models.dart';
 import '../../domain/models/reservation_session.dart';
@@ -509,11 +510,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFF1A1A1A),
-      ),
+    AppSnackBar.show(
+      context,
+      message,
+      backgroundColor: const Color(0xFF1A1A1A),
+      foregroundColor: Colors.white,
+      icon: Icons.info_outline_rounded,
     );
   }
 

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../core/ui/app_snackbar.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/scanner_overlay.dart';
 
@@ -103,11 +104,11 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
 
       if (mounted) {
         _lastScanAt = DateTime.now();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(successMessage),
-            backgroundColor: Colors.green,
-          ),
+        AppSnackBar.show(
+          context,
+          successMessage,
+          backgroundColor: Colors.green,
+          icon: Icons.check_circle_outline_rounded,
         );
         setState(() {});
         _startCooldownTimer();
@@ -116,11 +117,12 @@ class _AdminScannerScreenState extends ConsumerState<AdminScannerScreen> {
       if (mounted) {
         final isRateLimit = e is DioException && e.response?.statusCode == 429;
         final message = isRateLimit ? 'Attendez 5 secondes entre chaque scan' : 'QR invalide';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.show(
+          context,
+          message,
+          backgroundColor: Theme.of(context).colorScheme.error,
+          foregroundColor: Colors.white,
+          icon: Icons.error_outline_rounded,
         );
         if (isRateLimit) {
           _lastScanAt = DateTime.now();
