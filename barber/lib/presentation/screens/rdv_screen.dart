@@ -2542,24 +2542,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             ),
             const SizedBox(height: 18),
             _SuccessActionButton(
-              icon: Icons.calendar_month_outlined,
-              label: 'Ajouter à Google Agenda',
-              primary: true,
-              onTap: () => _showMessage(
-                'Démo uniquement : lien Google Agenda non activé.',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _SuccessActionButton(
-              icon: Icons.calendar_today_outlined,
-              label: 'Ajouter au Calendrier',
-              primary: false,
-              onTap: () => _showMessage(
-                'Démo uniquement : export calendrier non activé.',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _SuccessActionButton(
               icon: Icons.home_outlined,
               label: 'Retour à l’accueil',
               primary: false,

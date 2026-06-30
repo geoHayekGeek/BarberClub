@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -11,12 +11,12 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/app_config.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/reservation_models.dart';
 import '../../domain/models/reservation_session.dart';
 import '../../domain/models/user.dart';
+import '../../domain/repositories/reservation_repository.dart';
 import '../providers/auth_providers.dart';
 import '../providers/reservation_auth_providers.dart';
 import '../providers/reservation_providers.dart';
@@ -379,8 +379,7 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
       '${booking.date}T${booking.startTime}',
     );
     if (bookingDate == null) return false;
-    return bookingDate.difference(DateTime.now()) >=
-        const Duration(hours: 12);
+    return bookingDate.difference(DateTime.now()) >= const Duration(hours: 12);
   }
 
   Uri _buildManageBookingUri(ReservationBooking booking) {
@@ -1380,6 +1379,599 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
   }
 }
 
+class _RescheduleBookingSheet extends StatefulWidget {
+  const _RescheduleBookingSheet({
+    required this.booking,
+    required this.repository,
+  });
+
+  final ReservationBooking booking;
+  final ReservationRepository repository;
+
+  @override
+  State<_RescheduleBookingSheet> createState() =>
+      _RescheduleBookingSheetState();
+}
+
+class _RescheduleBookingSheetState extends State<_RescheduleBookingSheet> {
+  late final DateTime _firstDate;
+  late final DateTime _lastDate;
+  late DateTime _selectedDate;
+
+  List<ReservationSlot> _slots = const [];
+  String? _selectedTime;
+  bool _loadingSlots = false;
+  bool _submitting = false;
+  String? _errorMessage;
+  int _loadRequestVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _firstDate = DateTime(now.year, now.month, now.day);
+    _lastDate = DateTime(now.year, now.month + 6, now.day);
+
+    final bookingDate = DateTime.tryParse('${widget.booking.date}T00:00:00');
+    _selectedDate = _clampDate(bookingDate ?? _firstDate);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_loadSlots());
+    });
+  }
+
+  DateTime _clampDate(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    if (normalized.isBefore(_firstDate)) return _firstDate;
+    if (normalized.isAfter(_lastDate)) return _lastDate;
+    return normalized;
+  }
+
+  String _dateKey(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    final year = normalized.year.toString().padLeft(4, '0');
+    final month = normalized.month.toString().padLeft(2, '0');
+    final day = normalized.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  String _shortTime(String value) {
+    return value.length >= 5 ? value.substring(0, 5) : value;
+  }
+
+  String _formatDateFr(DateTime date) {
+    const weekdays = <String>[
+      'Dimanche',
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+    ];
+    const months = <String>[
+      'Janvier',
+      'Fevrier',
+      'Mars',
+      'Avril',
+      'Mai',
+      'Juin',
+      'Juillet',
+      'Aout',
+      'Septembre',
+      'Octobre',
+      'Novembre',
+      'Decembre',
+    ];
+    return '${weekdays[date.weekday % 7]} ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatDateShort(DateTime date) {
+    const weekdays = <String>[
+      'Dim.',
+      'Lun.',
+      'Mar.',
+      'Mer.',
+      'Jeu.',
+      'Ven.',
+      'Sam.',
+    ];
+    const months = <String>[
+      'Jan',
+      'Fev',
+      'Mars',
+      'Avr',
+      'Mai',
+      'Juin',
+      'Juil',
+      'Aout',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${weekdays[date.weekday % 7]} ${date.day} ${months[date.month - 1]}';
+  }
+
+  List<ReservationSlot> _dedupeSlots(List<ReservationSlot> slots) {
+    final seenTimes = <String>{};
+    final uniqueSlots = <ReservationSlot>[];
+    for (final slot in slots) {
+      final time = slot.time.trim();
+      if (time.isEmpty || seenTimes.contains(time)) continue;
+      seenTimes.add(time);
+      uniqueSlots.add(slot);
+    }
+    return uniqueSlots;
+  }
+
+  Future<void> _loadSlots() async {
+    final currentVersion = ++_loadRequestVersion;
+    final salonId = widget.booking.salonId.trim().isNotEmpty
+        ? widget.booking.salonId.trim()
+        : 'meylan';
+
+    setState(() {
+      _loadingSlots = true;
+      _errorMessage = null;
+      _slots = const [];
+      _selectedTime = null;
+    });
+
+    try {
+      final slots = await widget.repository.getAvailability(
+        salonId: salonId,
+        serviceId: widget.booking.serviceId,
+        date: _dateKey(_selectedDate),
+        barberId: widget.booking.barberId,
+      );
+
+      if (!mounted || currentVersion != _loadRequestVersion) return;
+
+      setState(() {
+        _slots = _dedupeSlots(slots);
+        _loadingSlots = false;
+      });
+    } catch (error) {
+      if (!mounted || currentVersion != _loadRequestVersion) return;
+
+      setState(() {
+        _loadingSlots = false;
+        _errorMessage = error is ApiError
+            ? error.getFriendlyMessage()
+            : 'Impossible de charger les créneaux.';
+      });
+    }
+  }
+
+  Future<void> _onDateChanged(DateTime date) async {
+    final normalized = _clampDate(date);
+    if (normalized == _selectedDate) {
+      return;
+    }
+
+    setState(() {
+      _selectedDate = normalized;
+    });
+
+    await _loadSlots();
+  }
+
+  Future<void> _confirmReschedule() async {
+    if (_selectedTime == null || _loadingSlots || _submitting) return;
+
+    final salonId = widget.booking.salonId.trim().isNotEmpty
+        ? widget.booking.salonId.trim()
+        : 'meylan';
+
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await widget.repository.rescheduleBooking(
+        bookingId: widget.booking.id,
+        cancelToken: widget.booking.cancelToken,
+        date: _dateKey(_selectedDate),
+        startTime: _selectedTime!,
+        salonId: salonId,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _submitting = false;
+        _errorMessage = error is ApiError
+            ? error.getFriendlyMessage()
+            : 'Impossible de déplacer le rendez-vous.';
+      });
+    }
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.9,
+      ),
+    );
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.white70),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.42),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    final bookingDate = DateTime.tryParse('${widget.booking.date}T00:00:00');
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _CompteScreenShell._cardBackground,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Rendez-vous actuel',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            widget.booking.serviceName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.booking.barberName,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildInfoChip(
+            icon: Icons.calendar_month_outlined,
+            label: 'Date',
+            value: bookingDate == null
+                ? widget.booking.date
+                : _formatDateFr(bookingDate),
+          ),
+          const SizedBox(height: 10),
+          _buildInfoChip(
+            icon: Icons.schedule_rounded,
+            label: 'Horaire',
+            value:
+                '${_shortTime(widget.booking.startTime)} - ${_shortTime(widget.booking.endTime)}',
+          ),
+          if (widget.booking.rescheduled) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Ce rendez-vous a déjà été décalé une fois.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSlotButton(ReservationSlot slot) {
+    final isSelected = _selectedTime == slot.time;
+    return ChoiceChip(
+      label: Text(
+        _shortTime(slot.time),
+        style: TextStyle(
+          color: isSelected ? Colors.black : Colors.white,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: _submitting
+          ? null
+          : (_) {
+              setState(() {
+                _selectedTime = slot.time;
+              });
+            },
+      selectedColor: Colors.white,
+      backgroundColor: Colors.white.withValues(alpha: 0.06),
+      side: BorderSide(
+        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
+      ),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isActionDisabled =
+        _loadingSlots || _submitting || _selectedTime == null;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return FractionallySizedBox(
+      heightFactor: 0.94,
+      child: Material(
+        color: _CompteScreenShell._pageBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 46,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Décaler le rendez-vous',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).pop(false),
+                      icon: const Icon(Icons.close_rounded),
+                      color: Colors.white70,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(18, 0, 18, 18 + bottomInset),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSummaryCard(),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Choisir une nouvelle date'),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Container(
+                          color: _CompteScreenShell._cardBackground,
+                          padding: const EdgeInsets.all(8),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: Theme.of(context).colorScheme
+                                  .copyWith(
+                                    primary: Colors.white,
+                                    onPrimary: Colors.black,
+                                    surface: _CompteScreenShell._cardBackground,
+                                    onSurface: Colors.white,
+                                  ),
+                            ),
+                            child: CalendarDatePicker(
+                              initialDate: _selectedDate,
+                              firstDate: _firstDate,
+                              lastDate: _lastDate,
+                              onDateChanged: _onDateChanged,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Créneaux disponibles'),
+                      const SizedBox(height: 10),
+                      if (_loadingSlots)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          decoration: BoxDecoration(
+                            color: _CompteScreenShell._cardBackground,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      else if (_errorMessage != null)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _CompteScreenShell._cardBackground,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              height: 1.45,
+                            ),
+                          ),
+                        )
+                      else if (_slots.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _CompteScreenShell._cardBackground,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Text(
+                            'Aucun créneau disponible pour ${_formatDateShort(_selectedDate)}. Essayez une autre date.',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              height: 1.45,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _CompteScreenShell._cardBackground,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _slots.map(_buildSlotButton).toList(),
+                          ),
+                        ),
+                      if (_errorMessage == null && _slots.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          _selectedTime == null
+                              ? 'Choisissez un créneau pour confirmer.'
+                              : 'Créneau sélectionné: ${_shortTime(_selectedTime!)}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                      if (widget.booking.rescheduled) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          'Un seul déplacement est autorisé par rendez-vous.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 50,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isActionDisabled
+                              ? null
+                              : _confirmReschedule,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            disabledBackgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
+                            disabledForegroundColor: Colors.white.withValues(
+                              alpha: 0.35,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _submitting
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : const Text(
+                                  'Confirmer le nouveau créneau',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CompteScreenShell extends ConsumerWidget {
   const _CompteScreenShell({
     required this.onChangeAvatar,
@@ -1828,6 +2420,7 @@ class _CompteScreenShell extends ConsumerWidget {
       booking.barberName.isNotEmpty ? booking.barberName : booking.serviceName,
     );
     final canCancel = _canModifyBooking(booking);
+    final canReschedule = canCancel && !booking.rescheduled;
 
     return Container(
       width: double.infinity,
@@ -1928,14 +2521,16 @@ class _CompteScreenShell extends ConsumerWidget {
             runSpacing: 10,
             children: [
               _buildActionButton(
-                label: 'Decaler',
-                icon: Icons.open_in_new_rounded,
-                onPressed: () async {
-                  await launchUrl(
-                    _buildManageBookingUri(booking),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
+                label: 'Décaler',
+                icon: Icons.edit_calendar_outlined,
+                onPressed: canReschedule
+                    ? () => _showRescheduleBookingDialog(
+                        context,
+                        ref,
+                        booking,
+                        salonFilter,
+                      )
+                    : null,
               ),
               _buildActionButton(
                 label: 'Annuler',
@@ -1949,18 +2544,19 @@ class _CompteScreenShell extends ConsumerWidget {
                       )
                     : null,
               ),
-              _buildActionButton(
-                label: 'Calendrier',
-                icon: Icons.calendar_month_outlined,
-                onPressed: () async {
-                  await launchUrl(
-                    _buildBookingIcsUri(booking),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
-              ),
             ],
           ),
+          if (booking.rescheduled) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Ce rendez-vous a déjà été décalé une fois.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -2634,23 +3230,48 @@ class _CompteScreenShell extends ConsumerWidget {
       '${booking.date}T${booking.startTime}',
     );
     if (bookingDate == null) return false;
-    return bookingDate.difference(DateTime.now()) >=
-        const Duration(hours: 12);
+    return bookingDate.difference(DateTime.now()) >= const Duration(hours: 12);
   }
 
-  Uri _buildManageBookingUri(ReservationBooking booking) {
-    final salonId = booking.salonId.trim().isNotEmpty
-        ? booking.salonId.trim()
-        : 'meylan';
-    return Uri.parse(
-      '${AppConfig.publicSiteBaseUrl}/pages/$salonId/mon-rdv.html?id=${Uri.encodeComponent(booking.id)}&token=${Uri.encodeComponent(booking.cancelToken)}',
-    );
-  }
+  Future<void> _showRescheduleBookingDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ReservationBooking booking,
+    String? salonFilter,
+  ) async {
+    if (!_canModifyBooking(booking)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Les modifications sont possibles au moins 12 heures avant le rendez-vous.',
+          ),
+        ),
+      );
+      return;
+    }
 
-  Uri _buildBookingIcsUri(ReservationBooking booking) {
-    return Uri.parse(
-      '${AppConfig.reservationApiBaseUrl}/bookings/${Uri.encodeComponent(booking.id)}/ics?token=${Uri.encodeComponent(booking.cancelToken)}',
+    final repository = ref.read(reservationRepositoryProvider);
+    final rescheduled = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return _RescheduleBookingSheet(
+          booking: booking,
+          repository: repository,
+        );
+      },
     );
+
+    if (rescheduled == true) {
+      ref.invalidate(reservationClientBookingsProvider(salonFilter));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rendez-vous décalé avec succès.')),
+        );
+      }
+    }
   }
 
   Future<void> _showCancelBookingDialog(
