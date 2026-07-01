@@ -12,6 +12,7 @@ import { hashPassword, hashWebsitePassword } from './utils/password';
 import { hashToken } from './utils/token';
 import { emailProvider } from '../notifications';
 import { logger } from '../../utils/logger';
+import { syncAppUserToWebsiteNow } from './websiteSync';
 
 /** Resend cooldown in seconds - do not send new code within this window */
 const RESEND_COOLDOWN_SECONDS = process.env.NODE_ENV === 'test' ? 0 : 60;
@@ -194,6 +195,13 @@ export class PasswordResetService {
         await tx.refreshToken.updateMany({
           where: { userId: user.id, revokedAt: null },
           data: { revokedAt: new Date() },
+        });
+      });
+
+      await syncAppUserToWebsiteNow(user.id).catch((error) => {
+        logger.warn('Immediate website sync failed after password reset', {
+          userId: user.id,
+          error: error instanceof Error ? error.message : error,
         });
       });
 

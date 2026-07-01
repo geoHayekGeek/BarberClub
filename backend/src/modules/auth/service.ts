@@ -17,6 +17,7 @@ import { generateAccessToken, generateRefreshToken, verifyToken, hashToken } fro
 import { validatePhoneNumber } from './utils/phone';
 import { logger } from '../../utils/logger';
 import { clientOffersService } from '../client_offers/service';
+import { syncAppUserToWebsiteNow } from './websiteSync';
 
 export interface RegisterInput {
   email: string;
@@ -117,6 +118,13 @@ export class AuthService {
           tokenHash: refreshTokenHash,
           expiresAt,
         },
+      });
+
+      await syncAppUserToWebsiteNow(user.id).catch((error) => {
+        logger.warn('Immediate website sync failed after registration', {
+          userId: user.id,
+          error: error instanceof Error ? error.message : error,
+        });
       });
 
       try {
@@ -507,6 +515,13 @@ export class AuthService {
       },
     });
 
+    await syncAppUserToWebsiteNow(updatedUser.id).catch((error) => {
+      logger.warn('Immediate website sync failed after profile update', {
+        userId: updatedUser.id,
+        error: error instanceof Error ? error.message : error,
+      });
+    });
+
     return updatedUser;
   }
 
@@ -553,6 +568,13 @@ export class AuthService {
         data: { revokedAt: now },
       }),
     ]);
+
+    await syncAppUserToWebsiteNow(userId).catch((error) => {
+      logger.warn('Immediate website sync failed after password change', {
+        userId,
+        error: error instanceof Error ? error.message : error,
+      });
+    });
 
     logger.info('Password changed', { userId });
   }
