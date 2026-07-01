@@ -11,6 +11,7 @@ class User with _$User {
     required String phoneNumber,
     String? fullName,
     String? avatarUrl,
+    DateTime? createdAt,
     @Default('USER') String role,
   }) = _User;
 

@@ -26,6 +26,7 @@ mixin _$User {
   String get phoneNumber => throw _privateConstructorUsedError;
   String? get fullName => throw _privateConstructorUsedError;
   String? get avatarUrl => throw _privateConstructorUsedError;
+  DateTime? get createdAt => throw _privateConstructorUsedError;
   String get role => throw _privateConstructorUsedError;
 
   /// Serializes this User to a JSON map.
@@ -48,6 +49,7 @@ abstract class $UserCopyWith<$Res> {
     String phoneNumber,
     String? fullName,
     String? avatarUrl,
+    DateTime? createdAt,
     String role,
   });
 }
@@ -72,6 +74,7 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
     Object? phoneNumber = null,
     Object? fullName = freezed,
     Object? avatarUrl = freezed,
+    Object? createdAt = freezed,
     Object? role = null,
   }) {
     return _then(
@@ -96,6 +99,10 @@ class _$UserCopyWithImpl<$Res, $Val extends User>
                 ? _value.avatarUrl
                 : avatarUrl // ignore: cast_nullable_to_non_nullable
                       as String?,
+            createdAt: freezed == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             role: null == role
                 ? _value.role
                 : role // ignore: cast_nullable_to_non_nullable
@@ -120,6 +127,7 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
     String phoneNumber,
     String? fullName,
     String? avatarUrl,
+    DateTime? createdAt,
     String role,
   });
 }
@@ -141,6 +149,7 @@ class __$$UserImplCopyWithImpl<$Res>
     Object? phoneNumber = null,
     Object? fullName = freezed,
     Object? avatarUrl = freezed,
+    Object? createdAt = freezed,
     Object? role = null,
   }) {
     return _then(
@@ -165,6 +174,10 @@ class __$$UserImplCopyWithImpl<$Res>
             ? _value.avatarUrl
             : avatarUrl // ignore: cast_nullable_to_non_nullable
                   as String?,
+        createdAt: freezed == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         role: null == role
             ? _value.role
             : role // ignore: cast_nullable_to_non_nullable
@@ -183,6 +196,7 @@ class _$UserImpl implements _User {
     required this.phoneNumber,
     this.fullName,
     this.avatarUrl,
+    this.createdAt,
     this.role = 'USER',
   });
 
@@ -200,12 +214,14 @@ class _$UserImpl implements _User {
   @override
   final String? avatarUrl;
   @override
+  final DateTime? createdAt;
+  @override
   @JsonKey()
   final String role;
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, phoneNumber: $phoneNumber, fullName: $fullName, avatarUrl: $avatarUrl, role: $role)';
+    return 'User(id: $id, email: $email, phoneNumber: $phoneNumber, fullName: $fullName, avatarUrl: $avatarUrl, createdAt: $createdAt, role: $role)';
   }
 
   @override
@@ -221,6 +237,8 @@ class _$UserImpl implements _User {
                 other.fullName == fullName) &&
             (identical(other.avatarUrl, avatarUrl) ||
                 other.avatarUrl == avatarUrl) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
             (identical(other.role, role) || other.role == role));
   }
 
@@ -233,6 +251,7 @@ class _$UserImpl implements _User {
     phoneNumber,
     fullName,
     avatarUrl,
+    createdAt,
     role,
   );
 
@@ -257,6 +276,7 @@ abstract class _User implements User {
     required final String phoneNumber,
     final String? fullName,
     final String? avatarUrl,
+    final DateTime? createdAt,
     final String role,
   }) = _$UserImpl;
 
@@ -272,6 +292,8 @@ abstract class _User implements User {
   String? get fullName;
   @override
   String? get avatarUrl;
+  @override
+  DateTime? get createdAt;
   @override
   String get role;
 

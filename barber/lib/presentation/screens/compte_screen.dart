@@ -3072,8 +3072,12 @@ class _CompteScreenShell extends ConsumerWidget {
         : bookingsData.past
               .where((booking) => booking.status == 'completed')
               .length;
-    final memberSince = _formatMemberSince(reservationUser?.createdAt);
-    final memberDuration = _formatMemberDuration(reservationUser?.createdAt);
+    final memberSince = _formatMemberSince(
+      reservationUser?.createdAt ?? appUser?.createdAt,
+    );
+    final memberDuration = _formatMemberDuration(
+      reservationUser?.createdAt ?? appUser?.createdAt,
+    );
 
     return Scaffold(
       backgroundColor: _pageBackground,
@@ -3729,7 +3733,11 @@ class _CompteScreenShell extends ConsumerWidget {
               ? appUser!.fullName!.trim()
               : 'Utilisateur');
     final initials = _initials(displayName);
-    final memberSince = _formatMemberSince(reservationUser?.createdAt);
+    final memberSince = _formatMemberSince(
+      reservationUser?.createdAt ?? appUser?.createdAt,
+    );
+    final displayPhone = appUser?.phoneNumber.trim() ?? '';
+    final reservationPhone = reservationUser?.phone.trim() ?? '';
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -3796,12 +3804,16 @@ class _CompteScreenShell extends ConsumerWidget {
                 _buildProfileRow(
                   icon: Icons.phone_outlined,
                   label: 'Telephone',
-                  value: reservationUser?.phone ?? '—',
+                  value: displayPhone.isNotEmpty
+                      ? displayPhone
+                      : (reservationPhone.isNotEmpty ? reservationPhone : '—'),
                 ),
                 _buildProfileRow(
                   icon: Icons.email_outlined,
                   label: 'Email',
-                  value: reservationUser?.email ?? '—',
+                  value: reservationUser?.email.trim().isNotEmpty == true
+                      ? reservationUser!.email.trim()
+                      : (appUser?.email ?? '—'),
                 ),
                 _buildProfileRow(
                   icon: Icons.verified_outlined,

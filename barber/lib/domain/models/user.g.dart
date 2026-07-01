@@ -12,6 +12,9 @@ _$UserImpl _$$UserImplFromJson(Map<String, dynamic> json) => _$UserImpl(
   phoneNumber: json['phoneNumber'] as String,
   fullName: json['fullName'] as String?,
   avatarUrl: json['avatarUrl'] as String?,
+  createdAt: json['createdAt'] == null
+      ? null
+      : DateTime.parse(json['createdAt'] as String),
   role: json['role'] as String? ?? 'USER',
 );
 
@@ -22,5 +25,6 @@ Map<String, dynamic> _$$UserImplToJson(_$UserImpl instance) =>
       'phoneNumber': instance.phoneNumber,
       'fullName': instance.fullName,
       'avatarUrl': instance.avatarUrl,
+      'createdAt': instance.createdAt?.toIso8601String(),
       'role': instance.role,
     };

@@ -2463,7 +2463,6 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               _ConnectedPanel(
                 name: _connectedClientName ?? 'Client BarberClub',
                 loading: authBusy,
-                onLogout: _resetToAuthChoice,
                 onConfirm: () async {
                   await _completeReservation();
                 },
@@ -4946,13 +4945,11 @@ class _ConnectedPanel extends StatelessWidget {
   const _ConnectedPanel({
     required this.name,
     required this.loading,
-    required this.onLogout,
     required this.onConfirm,
   });
 
   final String name;
   final bool loading;
-  final VoidCallback onLogout;
   final VoidCallback onConfirm;
 
   @override
@@ -5007,14 +5004,6 @@ class _ConnectedPanel extends StatelessWidget {
                 label: 'RÉSERVER MON CRÉNEAU',
                 loading: loading,
                 onTap: onConfirm,
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: onLogout,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white.withValues(alpha: 0.38),
-                ),
-                child: const Text('Se déconnecter'),
               ),
             ],
           ),

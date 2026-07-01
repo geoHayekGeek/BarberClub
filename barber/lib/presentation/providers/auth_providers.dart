@@ -366,6 +366,7 @@ class AuthController extends StateNotifier<AuthState> {
       email: profile.email,
       phoneNumber: profile.phone,
       fullName: fullName.isEmpty ? null : fullName,
+      createdAt: profile.createdAt,
     );
   }
 
@@ -376,11 +377,13 @@ class AuthController extends StateNotifier<AuthState> {
     final fullName = profile.fullName.trim();
     final email = profile.email.trim();
     final phone = profile.phone.trim();
+    final appPhone = appUser.phoneNumber.trim();
 
     return appUser.copyWith(
       email: email.isEmpty ? appUser.email : email,
-      phoneNumber: phone.isEmpty ? appUser.phoneNumber : phone,
+      phoneNumber: appPhone.isNotEmpty ? appPhone : phone,
       fullName: fullName.isEmpty ? appUser.fullName : fullName,
+      createdAt: profile.createdAt ?? appUser.createdAt,
     );
   }
 
@@ -539,34 +542,62 @@ class AuthController extends StateNotifier<AuthState> {
       );
 
       User effectiveUser = updatedUser;
+      final reservationController = _ref.read(reservationSessionProvider.notifier);
+      final reservationState = _ref.read(reservationSessionProvider);
+      final currentReservationUser = reservationState.user;
+      final hasEmailChange = email != null && email.trim().isNotEmpty;
+      final hasPhoneChange = phoneNumber != null && phoneNumber.trim().isNotEmpty;
 
       final nameParts = _splitFullName(updatedUser.fullName);
-      if (nameParts != null || (email != null && email.trim().isNotEmpty)) {
-        try {
-          final updatedReservationUser = await _reservationAuthRepository
-              .updateProfile(
-                firstName: nameParts?.$1,
-                lastName: nameParts?.$2,
-                email: updatedUser.email,
-              );
-          final syncedReservationUser = ReservationClientProfile(
-            id: updatedReservationUser.id,
-            firstName: updatedReservationUser.firstName,
-            lastName: updatedReservationUser.lastName,
+      if (currentReservationUser != null &&
+          (nameParts != null || hasEmailChange || hasPhoneChange)) {
+        ReservationClientProfile reservationUserToApply = currentReservationUser;
+
+        if (nameParts != null || hasEmailChange) {
+          try {
+            final updatedReservationUser = await _reservationAuthRepository
+                .updateProfile(
+                  firstName: nameParts?.$1,
+                  lastName: nameParts?.$2,
+                  email: hasEmailChange ? updatedUser.email : null,
+                );
+            reservationUserToApply = ReservationClientProfile(
+              id: updatedReservationUser.id,
+              firstName: nameParts?.$1 ?? updatedReservationUser.firstName,
+              lastName: nameParts?.$2 ?? updatedReservationUser.lastName,
+              phone: updatedUser.phoneNumber,
+              email: hasEmailChange
+                  ? updatedUser.email
+                  : updatedReservationUser.email,
+              createdAt:
+                  updatedReservationUser.createdAt ?? currentReservationUser.createdAt,
+            );
+          } catch (_) {
+            reservationUserToApply = ReservationClientProfile(
+              id: currentReservationUser.id,
+              firstName: nameParts?.$1 ?? currentReservationUser.firstName,
+              lastName: nameParts?.$2 ?? currentReservationUser.lastName,
+              phone: updatedUser.phoneNumber,
+              email: hasEmailChange ? updatedUser.email : currentReservationUser.email,
+              createdAt: currentReservationUser.createdAt,
+            );
+          }
+        } else {
+          reservationUserToApply = ReservationClientProfile(
+            id: currentReservationUser.id,
+            firstName: currentReservationUser.firstName,
+            lastName: currentReservationUser.lastName,
             phone: updatedUser.phoneNumber,
-            email: updatedReservationUser.email,
-            createdAt: updatedReservationUser.createdAt,
+            email: currentReservationUser.email,
+            createdAt: currentReservationUser.createdAt,
           );
-          _ref
-              .read(reservationSessionProvider.notifier)
-              .updateUser(syncedReservationUser);
-          effectiveUser = _mergeReservationProfile(
-            updatedUser,
-            syncedReservationUser,
-          );
-        } catch (_) {
-          // Website profile sync is best effort for secondary edits.
         }
+
+        reservationController.updateUser(reservationUserToApply);
+        effectiveUser = _mergeReservationProfile(
+          updatedUser,
+          reservationUserToApply,
+        );
       }
 
       // Immediately update local state with the freshest available user info.

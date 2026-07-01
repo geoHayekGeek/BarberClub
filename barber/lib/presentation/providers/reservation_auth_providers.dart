@@ -108,9 +108,17 @@ class ReservationSessionController
   }
 
   void updateUser(ReservationClientProfile user) {
+    final createdAt = user.createdAt ?? state.user?.createdAt;
     state = ReservationSessionState(
       status: ReservationSessionStatus.authenticated,
-      user: user,
+      user: ReservationClientProfile(
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        email: user.email,
+        createdAt: createdAt,
+      ),
     );
   }
 
