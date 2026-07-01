@@ -38,6 +38,19 @@ abstract class ReservationRepository {
 
   Future<ReservationClientBookingsPage> getClientBookings({String? salonId});
 
+  Future<ReservationBooking> getBookingDetails({
+    required String bookingId,
+    required String cancelToken,
+  });
+
+  Future<ReservationBooking> rescheduleBooking({
+    required String bookingId,
+    required String cancelToken,
+    required String date,
+    required String startTime,
+    String? salonId,
+  });
+
   Future<void> cancelBooking({
     required String bookingId,
     required String cancelToken,

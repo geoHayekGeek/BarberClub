@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
+import '../../core/ui/app_snackbar.dart';
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
@@ -94,11 +95,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     if (authState.errorMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authState.errorMessage!),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        AppSnackBar.show(
+          context,
+          authState.errorMessage!,
+          backgroundColor: Theme.of(context).colorScheme.error,
+          foregroundColor: Colors.white,
+          icon: Icons.error_outline_rounded,
         );
         ref.read(authStateProvider.notifier).clearError();
       });

@@ -273,6 +273,33 @@ class ReservationRepositoryImpl implements ReservationRepository {
   }
 
   @override
+  Future<ReservationBooking> getBookingDetails({
+    required String bookingId,
+    required String cancelToken,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/bookings/$bookingId',
+        queryParameters: {'token': cancelToken},
+      );
+
+      final bookingJson = _extractBookingFromResponse(response.data);
+      if (bookingJson != null) {
+        final booking = ReservationBooking.fromJson(bookingJson);
+        await _cacheBookingCancelToken(booking);
+        return booking;
+      }
+
+      throw const ApiError(
+        code: 'UNKNOWN_ERROR',
+        message: 'Une erreur est survenue. Veuillez reessayer.',
+      );
+    } on DioException catch (error) {
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
   Future<void> cancelBooking({
     required String bookingId,
     required String cancelToken,
@@ -304,6 +331,50 @@ class ReservationRepositoryImpl implements ReservationRepository {
           return;
         }
       }
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
+  Future<ReservationBooking> rescheduleBooking({
+    required String bookingId,
+    required String cancelToken,
+    required String date,
+    required String startTime,
+    String? salonId,
+  }) async {
+    final resolvedToken = await _resolveCancelToken(
+      bookingId: bookingId,
+      cancelToken: cancelToken,
+    );
+    final body = <String, dynamic>{
+      'token': resolvedToken,
+      'date': date,
+      'start_time': startTime,
+    };
+    final normalizedSalonId = salonId?.trim();
+    if (normalizedSalonId != null && normalizedSalonId.isNotEmpty) {
+      body['salon_id'] = normalizedSalonId;
+    }
+
+    try {
+      final response = await _dio.post(
+        '/bookings/$bookingId/reschedule',
+        data: body,
+      );
+
+      final bookingJson = _extractBookingFromResponse(response.data);
+      if (bookingJson != null) {
+        final booking = ReservationBooking.fromJson(bookingJson);
+        await _cacheBookingCancelToken(booking);
+        return booking;
+      }
+
+      throw const ApiError(
+        code: 'UNKNOWN_ERROR',
+        message: 'Une erreur est survenue. Veuillez reessayer.',
+      );
+    } on DioException catch (error) {
       throw _mapDioError(error);
     }
   }
@@ -398,6 +469,27 @@ class ReservationRepositoryImpl implements ReservationRepository {
       }
     }
     return const [];
+  }
+
+  Map<String, dynamic>? _extractBookingFromResponse(dynamic data) {
+    if (data is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final topLevelBooking = data['booking'];
+    if (topLevelBooking is Map<String, dynamic>) {
+      final nestedBooking = topLevelBooking['booking'];
+      if (nestedBooking is Map<String, dynamic>) {
+        return nestedBooking;
+      }
+      return topLevelBooking;
+    }
+
+    if (data['id'] is String) {
+      return data;
+    }
+
+    return null;
   }
 
   ApiError _mapDioError(DioException error) {

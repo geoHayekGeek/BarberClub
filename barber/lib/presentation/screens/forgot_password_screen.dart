@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ui/app_snackbar.dart';
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
@@ -29,12 +30,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
 
     _didRequestCode = true;
-    await ref.read(authStateProvider.notifier).forgotPassword(
-          _emailController.text.trim(),
-        );
+    await ref
+        .read(authStateProvider.notifier)
+        .forgotPassword(_emailController.text.trim());
   }
 
-  InputDecoration _buildInputDecoration({required String label, required String hint, required IconData icon}) {
+  InputDecoration _buildInputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -53,7 +58,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white54), // Hardcoded to grey/white
+        borderSide: const BorderSide(
+          color: Colors.white54,
+        ), // Hardcoded to grey/white
       ),
     );
   }
@@ -72,14 +79,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         _didRequestCode = false;
         final email = _emailController.text.trim();
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Si l\'adresse existe, un code a été envoyé.',
-              ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
+          AppSnackBar.show(
+            context,
+            'Si l\'adresse existe, un code a été envoyé.',
+            backgroundColor: Colors.green,
+            icon: Icons.mark_email_read_outlined,
+            duration: const Duration(seconds: 2),
           );
           if (!mounted) return;
           context.push('/reset-password', extra: email);
@@ -90,11 +95,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (hasError && !isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _didRequestCode = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_getErrorMessage(authState.errorMessage!)),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        AppSnackBar.show(
+          context,
+          _getErrorMessage(authState.errorMessage!),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          foregroundColor: Colors.white,
+          icon: Icons.error_outline_rounded,
         );
         ref.read(authStateProvider.notifier).clearError();
       });
@@ -128,9 +134,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   Text(
                     'Mot de passe oublié',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -161,7 +167,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white12, // Dark Grey
-                        foregroundColor: Colors.white,   // White Text
+                        foregroundColor: Colors.white, // White Text
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -173,19 +179,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Text(
                               'Envoyer le code',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
-                    style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
                     onPressed: isLoading ? null : () => context.pop(),
                     child: const Text('Retour'),
                   ),

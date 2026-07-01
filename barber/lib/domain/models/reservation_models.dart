@@ -191,6 +191,7 @@ class ReservationBooking {
     required this.endTime,
     required this.priceCents,
     required this.status,
+    required this.rescheduled,
     required this.cancelToken,
     required this.source,
     required this.createdAt,
@@ -221,6 +222,7 @@ class ReservationBooking {
       endTime: json['end_time'] as String? ?? json['endTime'] as String? ?? '',
       priceCents: _asInt(json['price']) ?? 0,
       status: json['status'] as String? ?? 'confirmed',
+      rescheduled: _asBool(json['rescheduled']) ?? false,
       cancelToken:
           json['cancel_token'] as String? ??
           json['cancelToken'] as String? ??
@@ -247,6 +249,7 @@ class ReservationBooking {
     String? endTime,
     int? priceCents,
     String? status,
+    bool? rescheduled,
     String? cancelToken,
     String? source,
     String? createdAt,
@@ -266,6 +269,7 @@ class ReservationBooking {
       endTime: endTime ?? this.endTime,
       priceCents: priceCents ?? this.priceCents,
       status: status ?? this.status,
+      rescheduled: rescheduled ?? this.rescheduled,
       cancelToken: cancelToken ?? this.cancelToken,
       source: source ?? this.source,
       createdAt: createdAt ?? this.createdAt,
@@ -286,6 +290,7 @@ class ReservationBooking {
   final String endTime;
   final int priceCents;
   final String status;
+  final bool rescheduled;
   final String cancelToken;
   final String source;
   final String createdAt;

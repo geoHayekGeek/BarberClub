@@ -3,16 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/ui/app_snackbar.dart';
 import '../providers/auth_providers.dart';
 import '../../core/validators/auth_validators.dart';
 
 const int _resendCooldownSeconds = 60;
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
-  const ResetPasswordScreen({
-    super.key,
-    required this.email,
-  });
+  const ResetPasswordScreen({super.key, required this.email});
 
   final String email;
 
@@ -66,7 +64,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     _didSubmitReset = true;
-    await ref.read(authStateProvider.notifier).resetPassword(
+    await ref
+        .read(authStateProvider.notifier)
+        .resetPassword(
           email: widget.email,
           code: _codeController.text.trim(),
           newPassword: _passwordController.text,
@@ -79,11 +79,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     await ref.read(authStateProvider.notifier).forgotPassword(widget.email);
     _startResendCooldown();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Si l\'adresse existe, un code a été envoyé.'),
-        backgroundColor: Colors.green,
-      ),
+    AppSnackBar.show(
+      context,
+      'Si l\'adresse existe, un code a été envoyé.',
+      backgroundColor: Colors.green,
+      icon: Icons.mark_email_read_outlined,
     );
   }
 
@@ -111,7 +111,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     );
   }
 
-  InputDecoration _buildInputDecoration({required String label, required String hint, required IconData icon, Widget? suffix}) {
+  InputDecoration _buildInputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -131,7 +136,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white54), // Hardcoded to grey/white
+        borderSide: const BorderSide(
+          color: Colors.white54,
+        ), // Hardcoded to grey/white
       ),
     );
   }
@@ -157,11 +164,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (hasError && !isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _didSubmitReset = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authState.errorMessage!),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        AppSnackBar.show(
+          context,
+          authState.errorMessage!,
+          backgroundColor: Theme.of(context).colorScheme.error,
+          foregroundColor: Colors.white,
+          icon: Icons.error_outline_rounded,
         );
         ref.read(authStateProvider.notifier).clearError();
       });
@@ -198,7 +206,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'Nouveau mot de passe',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
@@ -230,7 +239,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       ),
                       const SizedBox(height: 8),
                       TextButton(
-                        style: TextButton.styleFrom(foregroundColor: Colors.white),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                        ),
                         onPressed: _resendCooldown > 0 || isLoading
                             ? null
                             : _handleResendCode,
@@ -256,7 +267,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                               color: Colors.white54,
                             ),
                             onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
+                              setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              );
                             },
                           ),
                         ),
@@ -283,8 +296,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                             ),
                             onPressed: () {
                               setState(
-                                  () => _obscureConfirmPassword =
-                                      !_obscureConfirmPassword);
+                                () => _obscureConfirmPassword =
+                                    !_obscureConfirmPassword,
+                              );
                             },
                           ),
                         ),
@@ -294,9 +308,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         onFieldSubmitted: (_) => _handleSubmit(),
                         validator: (value) =>
                             AuthValidators.validatePasswordConfirmation(
-                          value,
-                          _passwordController.text,
-                        ),
+                              value,
+                              _passwordController.text,
+                            ),
                         enabled: !isLoading,
                       ),
                       const SizedBox(height: 24),
@@ -305,7 +319,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white12, // Dark Grey
-                            foregroundColor: Colors.white,   // White Text
+                            foregroundColor: Colors.white, // White Text
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -317,13 +331,17 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Text(
                                   'Réinitialiser le mot de passe',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                         ),
                       ),
@@ -334,8 +352,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 Align(
                   alignment: Alignment.center,
                   child: TextButton(
-                    style: TextButton.styleFrom(foregroundColor: Colors.white70),
-                    onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                    onPressed: isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Retour'),
                   ),
                 ),

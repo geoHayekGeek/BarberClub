@@ -5,32 +5,24 @@
 
 import config from '../../config';
 import { devEmailProvider } from './devEmailProvider';
-import { smtpEmailProvider } from './smtpEmailProvider';
+import { brevoEmailProvider, isBrevoConfigured } from './brevoEmailProvider';
+import { smtpEmailProvider, isSMTPConfigured } from './smtpEmailProvider';
 import { EmailProvider } from './emailProvider';
-
-function isSMTPConfigured(): boolean {
-  return !!(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_PORT &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASSWORD &&
-    process.env.SMTP_FROM
-  );
-}
 
 let emailProvider: EmailProvider;
 
-// Test: always use DevEmailProvider (tests need to access emails programmatically)
-// Development without SMTP: use DevEmailProvider so forgot-password etc. "send" to in-memory store
-// Development with SMTP or production: use SMTP (production should have SMTP configured for real emails)
+// Test and development: always use DevEmailProvider so tests and local work stay in-memory.
+// Production: prefer Brevo when configured, otherwise fall back to SMTP.
 if (config.NODE_ENV === 'test') {
   emailProvider = devEmailProvider;
-} else if (isSMTPConfigured()) {
-  emailProvider = smtpEmailProvider;
 } else if (config.NODE_ENV === 'development') {
   emailProvider = devEmailProvider;
-} else {
+} else if (isBrevoConfigured()) {
+  emailProvider = brevoEmailProvider;
+} else if (isSMTPConfigured()) {
   emailProvider = smtpEmailProvider;
+} else {
+  emailProvider = brevoEmailProvider;
 }
 
 export { emailProvider, devEmailProvider };

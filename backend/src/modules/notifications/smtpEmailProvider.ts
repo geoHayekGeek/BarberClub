@@ -8,21 +8,21 @@ import nodemailer from 'nodemailer';
 import { EmailProvider, EmailOptions } from './emailProvider';
 import { logger } from '../../utils/logger';
 
+export function isSMTPConfigured(): boolean {
+  return !!(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_PORT &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASSWORD &&
+    process.env.SMTP_FROM
+  );
+}
+
 class SMTPEmailProvider implements EmailProvider {
   private transporter: nodemailer.Transporter | null = null;
 
-  private isConfigured(): boolean {
-    return !!(
-      process.env.SMTP_HOST &&
-      process.env.SMTP_PORT &&
-      process.env.SMTP_USER &&
-      process.env.SMTP_PASSWORD &&
-      process.env.SMTP_FROM
-    );
-  }
-
   private getTransporter(): nodemailer.Transporter {
-    if (!this.isConfigured()) {
+    if (!isSMTPConfigured()) {
       throw new Error('SMTP not configured');
     }
 
@@ -49,12 +49,12 @@ class SMTPEmailProvider implements EmailProvider {
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
-    if (!this.isConfigured()) {
+    if (!isSMTPConfigured()) {
       logger.warn('SMTP not configured, email not sent', {
         to: options.to,
         subject: options.subject,
       });
-      return;
+      throw new Error('SMTP not configured');
     }
 
     try {
