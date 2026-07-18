@@ -36,6 +36,17 @@ abstract class ReservationRepository {
     required String email,
   });
 
+  Future<void> requestWaitlist({
+    required String salonId,
+    required String barberId,
+    required String serviceId,
+    required String preferredDate,
+    String? preferredTimeStart,
+    String? preferredTimeEnd,
+    String? clientName,
+    String? clientPhone,
+  });
+
   Future<ReservationClientBookingsPage> getClientBookings({String? salonId});
 
   Future<ReservationBooking> getBookingDetails({

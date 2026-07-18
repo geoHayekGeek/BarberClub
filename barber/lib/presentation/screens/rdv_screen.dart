@@ -102,6 +102,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   DateTime? _calendarMonth;
   String? _connectedClientName;
   ReservationBooking? _booking;
+  bool _waitlistMode = false;
+  bool _waitlistCustomExpanded = false;
+  String? _waitlistTimeStart;
+  String? _waitlistTimeEnd;
 
   @override
   void initState() {
@@ -204,6 +208,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _guestConsent = false;
     _signupConsent = true;
     _booking = null;
+    _waitlistMode = false;
+    _waitlistCustomExpanded = false;
+    _waitlistTimeStart = null;
+    _waitlistTimeEnd = null;
     _barbers = const [];
     _services = const [];
     _availableSlots = const [];
@@ -221,6 +229,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _loadedBarbersReservationSalonId = null;
     _step = _ReservationStep.barber;
     FocusScope.of(context).unfocus();
+  }
+
+  void _resetWaitlistState() {
+    _waitlistMode = false;
+    _waitlistCustomExpanded = false;
+    _waitlistTimeStart = null;
+    _waitlistTimeEnd = null;
   }
 
   void _selectSalon(Salon salon) {
@@ -711,6 +726,20 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       return booking.startTime.length >= 5
           ? booking.startTime.substring(0, 5)
           : booking.startTime;
+    }
+    if (_waitlistMode) {
+      final start = _waitlistTimeStart;
+      final end = _waitlistTimeEnd;
+      if (start == '09:00' && end == '12:00') {
+        return "Liste d'attente - Matin (9h-12h)";
+      }
+      if (start == '14:00' && end == '19:00') {
+        return "Liste d'attente - Après-midi (14h-19h)";
+      }
+      if (start != null && end != null) {
+        return "Liste d'attente - $start - $end";
+      }
+      return "Liste d'attente - Toute la journée";
     }
     return _selectedSlot?.time ?? 'A selectionner';
   }
@@ -1257,6 +1286,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _selectedService = null;
       _selectedDate = null;
       _selectedSlot = null;
+      _resetWaitlistState();
       _calendarMonth = DateTime(_today.year, _today.month);
       _authMode = _AuthMode.choice;
       _services = const [];
@@ -1280,6 +1310,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _selectedService = option;
       _selectedDate = null;
       _selectedSlot = null;
+      _resetWaitlistState();
       _calendarMonth = DateTime(_today.year, _today.month);
       _authMode = _AuthMode.choice;
       _availableSlots = const [];
@@ -1301,6 +1332,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       _selectedDate = date;
       if (!sameDate) {
         _selectedSlot = null;
+        _resetWaitlistState();
       }
       _calendarMonth = DateTime(date.year, date.month);
       _availableSlots = const [];
@@ -1348,11 +1380,22 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     }
 
     if (_step == _ReservationStep.date) {
-      if (_selectedDate == null || _selectedSlot == null) {
-        _showMessage('Choisissez une date et un créneau.');
+      if (_selectedDate == null) {
+        _showMessage('Choisissez une date pour continuer.');
         return;
       }
-      _setStep(_ReservationStep.booking);
+
+      if (_selectedSlot != null) {
+        _setStep(_ReservationStep.booking);
+        return;
+      }
+
+      if (_selectedDateHasWaitlistAvailability()) {
+        _beginWaitlistFlow();
+        return;
+      }
+
+      _showMessage('Choisissez une date et un creneau.');
     }
   }
 
@@ -1413,25 +1456,153 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     });
   }
 
+  ReservationMonthAvailability? _selectedDateAvailability() {
+    final date = _selectedDate;
+    if (date == null) return null;
+    return _monthAvailabilityFor(date);
+  }
+
+  bool _selectedDateHasWaitlistAvailability() {
+    final availability = _selectedDateAvailability();
+    return availability != null &&
+        (availability.isFull || availability.total <= 0);
+  }
+
+  void _beginWaitlistFlow() {
+    final barber = _selectedBarber;
+    final service = _selectedService;
+    final date = _selectedDate;
+    if (barber == null || service == null || date == null) {
+      _showMessage('Choisissez un barber, une prestation et une date.');
+      return;
+    }
+
+    setState(() {
+      _waitlistMode = true;
+      _authMode = _AuthMode.choice;
+    });
+
+    _setStep(_ReservationStep.booking);
+  }
+
+  void _selectWaitlistPreset(String? start, String? end) {
+    setState(() {
+      _waitlistTimeStart = start;
+      _waitlistTimeEnd = end;
+      _waitlistCustomExpanded = false;
+    });
+  }
+
+  void _toggleWaitlistCustom() {
+    setState(() {
+      _waitlistCustomExpanded = !_waitlistCustomExpanded;
+      if (_waitlistCustomExpanded) {
+        _waitlistTimeStart ??= '09:00';
+        _waitlistTimeEnd ??= '19:00';
+      }
+    });
+  }
+
+  void _updateWaitlistCustomStart(String start) {
+    setState(() {
+      _waitlistTimeStart = start;
+      _waitlistTimeEnd = _waitlistTimeEnd == null ||
+              _waitlistTimeEnd!.compareTo(start) <= 0
+          ? _incrementWaitlistTime(start)
+          : _waitlistTimeEnd;
+    });
+  }
+
+  void _updateWaitlistCustomEnd(String end) {
+    setState(() {
+      final start = _waitlistTimeStart ?? '09:00';
+      _waitlistTimeEnd = end.compareTo(start) <= 0
+          ? _incrementWaitlistTime(start)
+          : end;
+    });
+  }
+
+  String _incrementWaitlistTime(String time) {
+    final parts = time.split(':');
+    if (parts.length != 2) return '19:00';
+    final hour = int.tryParse(parts[0]) ?? 9;
+    final minute = int.tryParse(parts[1]) ?? 0;
+    final current = DateTime(_today.year, _today.month, _today.day, hour, minute);
+    final next = current.add(const Duration(minutes: 60));
+    final clamped = DateTime(_today.year, _today.month, _today.day, 19, 0);
+    final resolved = next.isAfter(clamped) ? clamped : next;
+    return '${resolved.hour.toString().padLeft(2, '0')}:${resolved.minute.toString().padLeft(2, '0')}';
+  }
+
+  List<String> _waitlistTimeOptions() {
+    return const [
+      '09:00',
+      '09:30',
+      '10:00',
+      '10:30',
+      '11:00',
+      '11:30',
+      '12:00',
+      '12:30',
+      '13:00',
+      '13:30',
+      '14:00',
+      '14:30',
+      '15:00',
+      '15:30',
+      '16:00',
+      '16:30',
+      '17:00',
+      '17:30',
+      '18:00',
+      '18:30',
+      '19:00',
+    ];
+  }
+
+  _BarberOption? _barberOptionById(String barberId) {
+    for (final barber in _barbers) {
+      if (barber.id == barberId) {
+        return barber;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _switchToAlternativeBarber(String barberId) async {
+    final barber = _barberOptionById(barberId);
+    if (barber == null) {
+      _showMessage('Impossible de changer de barber.');
+      return;
+    }
+    if (_selectedDate == null || _selectedService == null) {
+      _showMessage('Choisissez une prestation avant de changer de barber.');
+      return;
+    }
+
+    setState(() {
+      _selectedBarber = barber;
+      _selectedSlot = null;
+      _waitlistMode = false;
+      _waitlistCustomExpanded = false;
+      _waitlistTimeStart = null;
+      _waitlistTimeEnd = null;
+      _availableSlots = const [];
+      _slotsError = null;
+      _slotsLoading = true;
+      _quickSuggestions = const [];
+      _quickSuggestionsError = null;
+      _quickSuggestionsLoading = true;
+      _monthAvailabilityLoading = true;
+      _authMode = _AuthMode.choice;
+    });
+
+    unawaited(_loadMonthAvailability());
+    unawaited(_loadSlotsForSelectedDate());
+  }
+
   List<_QuickSuggestion> _visibleQuickSuggestions() {
     return _quickSuggestions;
-
-    final result = <_QuickSuggestion>[];
-    final daysShort = <String>['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-    for (var offset = 1; offset <= 3; offset++) {
-      final date = DateTime(_today.year, _today.month, _today.day + offset);
-      final label = offset == 1
-          ? 'Demain'
-          : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
-      result.add(
-        _QuickSuggestion(
-          date: date,
-          dayLabel: daysShort[date.weekday % 7],
-          label: label,
-        ),
-      );
-    }
-    return result;
   }
 
   List<_CalendarDay> _calendarDays() {
@@ -1564,7 +1735,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       case _ReservationStep.service:
         return _selectedService != null;
       case _ReservationStep.date:
-        return _selectedDate != null && _selectedSlot != null;
+        return _selectedDate != null &&
+            (_selectedSlot != null || _selectedDateHasWaitlistAvailability());
       case _ReservationStep.booking:
       case _ReservationStep.success:
         return false;
@@ -1574,9 +1746,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   String get _actionLabel {
     switch (_step) {
       case _ReservationStep.barber:
-      case _ReservationStep.service:
-      case _ReservationStep.date:
         return 'CONTINUER';
+      case _ReservationStep.service:
+        return 'CONTINUER';
+      case _ReservationStep.date:
+        return _selectedDateHasWaitlistAvailability() && _selectedSlot == null
+            ? 'ETRE PREVENU'
+            : 'CONTINUER';
       case _ReservationStep.booking:
       case _ReservationStep.success:
         return 'CONTINUER';
@@ -1587,6 +1763,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     if (!_guestFormKey.currentState!.validate()) return;
     if (!_guestConsent) {
       _showMessage('Vous devez accepter pour continuer.');
+      return;
+    }
+    if (_waitlistMode) {
+      await _completeWaitlist();
       return;
     }
     await _completeReservation();
@@ -1673,6 +1853,95 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _showMessage(
       'Si un compte existe avec cet email, un lien de réinitialisation fictif a été envoyé.',
     );
+  }
+
+  Future<void> _completeWaitlist() async {
+    if (_bookingBusy) return;
+
+    final selectedReservationSalonId = _currentReservationSalonId();
+    final barber = _selectedBarber;
+    final service = _selectedService;
+    final date = _selectedDate;
+
+    if (selectedReservationSalonId == null ||
+        barber == null ||
+        service == null ||
+        date == null) {
+      _showMessage('Choisissez le barber, la prestation et la date.');
+      return;
+    }
+
+    final barberIds = barber.isAny
+        ? _barbers.map((option) => option.id).toList(growable: false)
+        : <String>[barber.id];
+    if (barberIds.isEmpty) {
+      _showMessage('Impossible de determiner le barber de la liste d\'attente.');
+      return;
+    }
+
+    final isConnected =
+        _reservationSessionApplied && !_reservationSessionOverride;
+    String? clientName;
+    String? clientPhone;
+    if (!isConnected) {
+      final firstName = _guestFirstNameController.text.trim();
+      final lastName = _guestLastNameController.text.trim();
+      final phone = _guestPhoneController.text.trim();
+      if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty) {
+        _showMessage('Veuillez completer vos coordonnees.');
+        return;
+      }
+      clientName = '$firstName $lastName'.trim();
+      clientPhone = phone;
+    }
+
+    setState(() {
+      _bookingBusy = true;
+    });
+
+    try {
+      final repository = ref.read(reservationRepositoryProvider);
+      var anySuccess = false;
+      for (final barberId in barberIds) {
+        try {
+          await repository.requestWaitlist(
+            salonId: selectedReservationSalonId,
+            barberId: barberId,
+            serviceId: service.id,
+            preferredDate: _dateKey(date),
+            preferredTimeStart: _waitlistTimeStart,
+            preferredTimeEnd: _waitlistTimeEnd,
+            clientName: clientName,
+            clientPhone: clientPhone,
+          );
+          anySuccess = true;
+        } catch (_) {
+          // Keep trying other barbers when "Peu importe" is selected.
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _bookingBusy = false;
+      });
+
+      if (anySuccess) {
+        _showMessage('Vous serez prevenu par SMS si une place se libere !');
+        setState(_resetReservationFlow);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToTop();
+        });
+        return;
+      }
+
+      _showMessage('Erreur reseau');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _bookingBusy = false;
+      });
+      _showMessage(_friendlyErrorMessage(error));
+    }
   }
 
   Future<void> _completeReservation() async {
@@ -2281,9 +2550,16 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     final quickSuggestions = _visibleQuickSuggestions();
     final calendarDays = _calendarDays();
     final selectedDate = _selectedDate;
+    final selectedAvailability = _selectedDateAvailability();
     final availableSlots = selectedDate == null
         ? const <_SlotOption>[]
         : _availableSlotsForDate(selectedDate);
+    final showWaitlistCard =
+        selectedDate != null &&
+        !_slotsLoading &&
+        availableSlots.isEmpty &&
+        selectedAvailability != null &&
+        selectedAvailability.total <= 0;
 
     return _buildPanelShell(
       child: Padding(
@@ -2412,6 +2688,38 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                   ),
                 ),
               )
+            else if (_slotsLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.1,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+              )
+            else if (showWaitlistCard)
+              _WaitlistPanel(
+                barberTitle: _selectedBarber != null && !_selectedBarber!.isAny
+                    ? _selectedBarber!.name
+                    : '',
+                dateLabel: _formatLongDate(selectedDate),
+                currentTimeStart: _waitlistTimeStart,
+                currentTimeEnd: _waitlistTimeEnd,
+                customExpanded: _waitlistCustomExpanded,
+                timeOptions: _waitlistTimeOptions(),
+                alternatives: selectedAvailability?.alternatives ?? const [],
+                onSelectPreset: _selectWaitlistPreset,
+                onToggleCustom: _toggleWaitlistCustom,
+                onCustomStartChanged: _updateWaitlistCustomStart,
+                onCustomEndChanged: _updateWaitlistCustomEnd,
+                onProceed: _beginWaitlistFlow,
+                onSwitchToBarber: _switchToAlternativeBarber,
+              )
             else ...[
               Text(
                 '${availableSlots.length} CRÉNEAUX DISPONIBLES',
@@ -2441,6 +2749,11 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         ref.watch(authStateProvider).status == AuthStatus.authenticating;
     final showConnectedReservationPanel =
         _reservationSessionApplied && !_reservationSessionOverride;
+    final isWaitlist = _waitlistMode;
+    final headerTitle = isWaitlist ? 'Liste d\'attente' : 'Réservation';
+    final headerSubtitle = isWaitlist
+        ? 'Finalisez votre demande de rappel'
+        : 'Finalisez votre rendez-vous';
 
     return _buildPanelShell(
       child: Padding(
@@ -2448,7 +2761,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Réservation', 'Finalisez votre rendez-vous'),
+            _buildSectionHeader(headerTitle, headerSubtitle),
             const SizedBox(height: 18),
             _SummaryCard(
               barber: _summaryBarberName,
@@ -2462,8 +2775,21 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             if (showConnectedReservationPanel) ...[
               _ConnectedPanel(
                 name: _connectedClientName ?? 'Client BarberClub',
-                loading: authBusy,
+                title: isWaitlist
+                    ? 'Prêt pour la liste d\'attente'
+                    : 'Prêt à réserver',
+                subtitle: isWaitlist
+                    ? 'Votre compte est prêt. Vous pouvez être prévenu maintenant.'
+                    : 'Votre compte est prêt. Vous pouvez confirmer votre rendez-vous maintenant.',
+                buttonLabel: isWaitlist
+                    ? 'Me prévenir par SMS'
+                    : 'Réserver mon créneau',
+                loading: authBusy || _bookingBusy,
                 onConfirm: () async {
+                  if (_waitlistMode) {
+                    await _completeWaitlist();
+                    return;
+                  }
                   await _completeReservation();
                 },
               ),
@@ -2494,7 +2820,17 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 phoneController: _guestPhoneController,
                 emailController: _guestEmailController,
                 consent: _guestConsent,
-                loading: authBusy,
+                title: isWaitlist
+                    ? 'Être prévenu'
+                    : 'Rejoindre le club',
+                subtitle: isWaitlist
+                    ? 'Laissez vos coordonnées pour être alerté si une place se libère'
+                    : 'Créez votre compte en quelques secondes',
+                submitLabel: isWaitlist
+                    ? 'Me prévenir par SMS'
+                    : 'Créer mon compte',
+                emailRequired: !isWaitlist,
+                loading: authBusy || _bookingBusy,
                 onConsentChanged: (value) {
                   setState(() {
                     _guestConsent = value;
@@ -2881,7 +3217,10 @@ class _CalendarDay {
   final int? slotCount;
   final int alternativeCount;
 
-  bool get isSelectable => date != null && !isPast && isAvailable;
+  bool get isFull => slotCount != null && slotCount! <= 0;
+
+  bool get isSelectable =>
+      date != null && !isPast && (isAvailable || isFull);
 
   bool get hasAlternatives => alternativeCount > 0;
 }
@@ -4058,11 +4397,17 @@ class _CalendarDayCell extends StatelessWidget {
 
     final selected = day.isSelected;
     final available = day.isAvailable && !day.isPast;
+    final full = day.isFull && !day.isPast;
     final dayTextColor = selected
         ? Colors.black
         : day.isPast
         ? Colors.white.withValues(alpha: 0.18)
+        : full
+        ? Colors.white.withValues(alpha: 0.52)
         : Colors.white.withValues(alpha: 0.82);
+    final textDecoration = full && !selected
+        ? TextDecoration.lineThrough
+        : TextDecoration.none;
 
     return Material(
       color: Colors.transparent,
@@ -4089,6 +4434,8 @@ class _CalendarDayCell extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: dayTextColor,
+                    decoration: textDecoration,
+                    decorationColor: Colors.white.withValues(alpha: 0.14),
                   ),
                 ),
               ),
@@ -4100,6 +4447,15 @@ class _CalendarDayCell extends StatelessWidget {
                 height: 4,
                 decoration: const BoxDecoration(
                   color: Color(0xFF25C06D),
+                  shape: BoxShape.circle,
+                ),
+              )
+            else if (full && !selected)
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
                   shape: BoxShape.circle,
                 ),
               )
@@ -4530,6 +4886,513 @@ class _PerkLine extends StatelessWidget {
   }
 }
 
+class _WaitlistPanel extends StatelessWidget {
+  const _WaitlistPanel({
+    required this.barberTitle,
+    required this.dateLabel,
+    required this.currentTimeStart,
+    required this.currentTimeEnd,
+    required this.customExpanded,
+    required this.timeOptions,
+    required this.alternatives,
+    required this.onSelectPreset,
+    required this.onToggleCustom,
+    required this.onCustomStartChanged,
+    required this.onCustomEndChanged,
+    required this.onProceed,
+    required this.onSwitchToBarber,
+  });
+
+  final String barberTitle;
+  final String dateLabel;
+  final String? currentTimeStart;
+  final String? currentTimeEnd;
+  final bool customExpanded;
+  final List<String> timeOptions;
+  final List<ReservationAlternativeBarber> alternatives;
+  final void Function(String? start, String? end) onSelectPreset;
+  final VoidCallback onToggleCustom;
+  final ValueChanged<String> onCustomStartChanged;
+  final ValueChanged<String> onCustomEndChanged;
+  final VoidCallback onProceed;
+  final Future<void> Function(String barberId) onSwitchToBarber;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayBarber = barberTitle.trim();
+    final isMorning = currentTimeStart == '09:00' && currentTimeEnd == '12:00';
+    final isAfternoon =
+        currentTimeStart == '14:00' && currentTimeEnd == '19:00';
+    final isAllDay = currentTimeStart == null && currentTimeEnd == null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111111),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                displayBarber.isNotEmpty
+                    ? '$displayBarber est complet'
+                    : 'Le salon est complet',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: _RdvScreenState._titleFont,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                dateLabel,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.46),
+                  fontSize: 13,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF151515),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.notifications_none_rounded,
+                          color: Colors.white.withValues(alpha: 0.78),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'ÊTRE PRÉVENU SI UNE PLACE SE LIBÈRE',
+                            style: const TextStyle(
+                              fontFamily: _RdvScreenState._titleFont,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'QUAND ÊTES-VOUS DISPONIBLE ?',
+                      style: TextStyle(
+                        fontFamily: _RdvScreenState._titleFont,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withValues(alpha: 0.36),
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _WaitlistPresetButton(
+                            label: 'Matin',
+                            subtitle: '9h - 12h',
+                            selected: isMorning,
+                            onTap: () => onSelectPreset('09:00', '12:00'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _WaitlistPresetButton(
+                            label: 'Après-midi',
+                            subtitle: '14h - 19h',
+                            selected: isAfternoon,
+                            onTap: () => onSelectPreset('14:00', '19:00'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _WaitlistPresetButton(
+                            label: 'Journée',
+                            subtitle: 'Toute la journée',
+                            selected: isAllDay,
+                            onTap: () => onSelectPreset(null, null),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: onToggleCustom,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              customExpanded
+                                  ? Icons.expand_less_rounded
+                                  : Icons.expand_more_rounded,
+                              size: 18,
+                              color: Colors.white.withValues(alpha: 0.58),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Choisir un horaire précis',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.62),
+                                fontSize: 12.8,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            _WaitlistTimeDropdown(
+                              label: 'Début',
+                              value: currentTimeStart ?? timeOptions.first,
+                              options: timeOptions,
+                              onChanged: onCustomStartChanged,
+                            ),
+                            const SizedBox(width: 10),
+                            _WaitlistTimeDropdown(
+                              label: 'Fin',
+                              value: currentTimeEnd ?? timeOptions.last,
+                              options: timeOptions,
+                              onChanged: onCustomEndChanged,
+                            ),
+                          ],
+                        ),
+                      ),
+                      crossFadeState: customExpanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 180),
+                      sizeCurve: Curves.easeOut,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormActionButton(
+                      label: 'Me prévenir par SMS',
+                      loading: false,
+                      onTap: onProceed,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (alternatives.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            'AUTRES BARBIERS DISPONIBLES',
+            style: TextStyle(
+              fontFamily: _RdvScreenState._titleFont,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.white.withValues(alpha: 0.38),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final alternative in alternatives) ...[
+            _WaitlistAlternativeCard(
+              alternative: alternative,
+              onSwitchToBarber: onSwitchToBarber,
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _WaitlistPresetButton extends StatelessWidget {
+  const _WaitlistPresetButton({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 70,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: BoxDecoration(
+              color: selected ? Colors.white : const Color(0xFF1B1B1B),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: _RdvScreenState._titleFont,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.black : Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: selected
+                        ? Colors.black.withValues(alpha: 0.62)
+                        : Colors.white.withValues(alpha: 0.44),
+                    fontSize: 11.4,
+                    height: 1.0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WaitlistTimeDropdown extends StatelessWidget {
+  const _WaitlistTimeDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedValue = options.contains(value) ? value : options.first;
+
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.42),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF171717),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: resolvedValue,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF111111),
+                icon: Icon(
+                  Icons.expand_more_rounded,
+                  color: Colors.white.withValues(alpha: 0.72),
+                ),
+                style: const TextStyle(
+                  fontFamily: _RdvScreenState._titleFont,
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+                items: options
+                    .map(
+                      (option) => DropdownMenuItem<String>(
+                        value: option,
+                        child: Text(option),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (option) {
+                  if (option != null) {
+                    onChanged(option);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaitlistAlternativeCard extends StatelessWidget {
+  const _WaitlistAlternativeCard({
+    required this.alternative,
+    required this.onSwitchToBarber,
+  });
+
+  final ReservationAlternativeBarber alternative;
+  final Future<void> Function(String barberId) onSwitchToBarber;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  alternative.barberName,
+                  style: const TextStyle(
+                    fontFamily: _RdvScreenState._titleFont,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              Text(
+                '${alternative.slotCount} créneaux',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.48),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (alternative.sampleTimes.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final time in alternative.sampleTimes.take(4))
+                  _WaitlistTimeChip(time: time),
+              ],
+            )
+          else
+            Text(
+              'Créneaux à venir',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.42),
+                fontSize: 12.5,
+              ),
+            ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 42,
+            child: Material(
+              color: const Color(0xFF171717),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                onTap: () => unawaited(onSwitchToBarber(alternative.barberId)),
+                borderRadius: BorderRadius.circular(14),
+                child: Center(
+                  child: Text(
+                    'Choisir ce barber',
+                    style: const TextStyle(
+                      fontFamily: _RdvScreenState._titleFont,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaitlistTimeChip extends StatelessWidget {
+  const _WaitlistTimeChip({required this.time});
+
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Text(
+        time,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.74),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _GuestReservationForm extends StatelessWidget {
   const _GuestReservationForm({
     required this.formKey,
@@ -4538,6 +5401,10 @@ class _GuestReservationForm extends StatelessWidget {
     required this.phoneController,
     required this.emailController,
     required this.consent,
+    required this.title,
+    required this.subtitle,
+    required this.submitLabel,
+    required this.emailRequired,
     required this.loading,
     required this.onConsentChanged,
     required this.onSubmit,
@@ -4550,6 +5417,10 @@ class _GuestReservationForm extends StatelessWidget {
   final TextEditingController phoneController;
   final TextEditingController emailController;
   final bool consent;
+  final String title;
+  final String subtitle;
+  final String submitLabel;
+  final bool emailRequired;
   final bool loading;
   final ValueChanged<bool> onConsentChanged;
   final VoidCallback onSubmit;
@@ -4561,10 +5432,10 @@ class _GuestReservationForm extends StatelessWidget {
       children: [
         _AuthBackButton(onBack: onBack),
         const SizedBox(height: 10),
-        const _FormHeader(
+        _FormHeader(
           icon: Icons.person_add_alt_1_rounded,
-          title: 'REJOINDRE LE CLUB',
-          subtitle: 'Créez votre compte en quelques secondes',
+          title: title,
+          subtitle: subtitle,
         ),
         const SizedBox(height: 12),
         _FormPanel(
@@ -4618,15 +5489,16 @@ class _GuestReservationForm extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _FormTextField(
-                  label: 'Email',
+                  label: emailRequired ? 'Email' : 'Email (facultatif)',
                   hint: 'jean@exemple.fr',
                   controller: emailController,
                   light: true,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.done,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty)
-                      return 'Email requis';
+                    if (value == null || value.trim().isEmpty) {
+                      return emailRequired ? 'Email requis' : null;
+                    }
                     if (!value.contains('@')) return 'Email invalide';
                     return null;
                   },
@@ -4640,7 +5512,7 @@ class _GuestReservationForm extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 _FormActionButton(
-                  label: 'CRÉER MON COMPTE',
+                  label: submitLabel,
                   loading: loading,
                   onTap: onSubmit,
                 ),
@@ -4944,11 +5816,17 @@ class _ForgotPasswordForm extends StatelessWidget {
 class _ConnectedPanel extends StatelessWidget {
   const _ConnectedPanel({
     required this.name,
+    required this.title,
+    required this.subtitle,
+    required this.buttonLabel,
     required this.loading,
     required this.onConfirm,
   });
 
   final String name;
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
   final bool loading;
   final VoidCallback onConfirm;
 
@@ -4957,10 +5835,10 @@ class _ConnectedPanel extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 6),
-        const _FormHeader(
+        _FormHeader(
           icon: Icons.check_circle_outline_rounded,
-          title: 'PRÊT À RÉSERVER',
-          subtitle: 'Connecté en tant que client BarberClub',
+          title: title,
+          subtitle: subtitle,
         ),
         const SizedBox(height: 10),
         Container(
@@ -5001,7 +5879,7 @@ class _ConnectedPanel extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _FormActionButton(
-                label: 'RÉSERVER MON CRÉNEAU',
+                label: buttonLabel,
                 loading: loading,
                 onTap: onConfirm,
               ),

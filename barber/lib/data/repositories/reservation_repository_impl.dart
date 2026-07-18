@@ -221,6 +221,69 @@ class ReservationRepositoryImpl implements ReservationRepository {
   }
 
   @override
+  Future<void> requestWaitlist({
+    required String salonId,
+    required String barberId,
+    required String serviceId,
+    required String preferredDate,
+    String? preferredTimeStart,
+    String? preferredTimeEnd,
+    String? clientName,
+    String? clientPhone,
+  }) async {
+    final requestBody = <String, dynamic>{
+      'salon_id': salonId,
+      'barber_id': barberId,
+      'service_id': serviceId,
+      'preferred_date': preferredDate,
+    };
+
+    final normalizedStart = preferredTimeStart?.trim();
+    if (normalizedStart != null && normalizedStart.isNotEmpty) {
+      requestBody['preferred_time_start'] = normalizedStart;
+    }
+
+    final normalizedEnd = preferredTimeEnd?.trim();
+    if (normalizedEnd != null && normalizedEnd.isNotEmpty) {
+      requestBody['preferred_time_end'] = normalizedEnd;
+    }
+
+    final normalizedClientName = clientName?.trim();
+    if (normalizedClientName != null && normalizedClientName.isNotEmpty) {
+      requestBody['client_name'] = normalizedClientName;
+    }
+
+    final normalizedClientPhone = clientPhone?.trim();
+    if (normalizedClientPhone != null && normalizedClientPhone.isNotEmpty) {
+      requestBody['client_phone'] = normalizedClientPhone;
+    }
+
+    try {
+      final requestOptions = await _buildReservationRequestOptions();
+      await _dio.post(
+        '/waitlist',
+        data: requestBody,
+        options: requestOptions,
+      );
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 401) {
+        final refreshed = await _authRepository.refreshSession();
+        if (refreshed != null) {
+          await _dio.post(
+            '/waitlist',
+            data: requestBody,
+            options: Options(
+              headers: {'Authorization': 'Bearer ${refreshed.accessToken}'},
+            ),
+          );
+          return;
+        }
+      }
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
   Future<ReservationClientBookingsPage> getClientBookings({
     String? salonId,
   }) async {
