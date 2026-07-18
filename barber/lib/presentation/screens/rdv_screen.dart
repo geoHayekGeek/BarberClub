@@ -2468,14 +2468,15 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 },
               ),
             ] else if (_authMode == _AuthMode.choice) ...[
-              _AuthOptionCard(
-                icon: Icons.edit_outlined,
-                title: "RÉSERVER EN TANT QU'INVITÉ",
-                description:
-                    'Sans compte — gestion du RDV par email uniquement',
-                onTap: () => _chooseAuthMode(_AuthMode.guest),
-              ),
-              const SizedBox(height: 10),
+              // Disabled guest booking option:
+              // _AuthOptionCard(
+              //   icon: Icons.edit_outlined,
+              //   title: "RÉSERVER EN TANT QU'INVITÉ",
+              //   description:
+              //       'Sans compte — gestion du RDV par email uniquement',
+              //   onTap: () => _chooseAuthMode(_AuthMode.guest),
+              // ),
+              // const SizedBox(height: 10),
               _AuthOptionCard(
                 icon: Icons.person_outline_rounded,
                 title: 'CONNEXION',
@@ -2486,7 +2487,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               _MemberDivider(label: 'PAS ENCORE MEMBRE ?'),
               const SizedBox(height: 14),
               _SignupPromoCard(onTap: () => _chooseAuthMode(_AuthMode.signup)),
-            ] else if (_authMode == _AuthMode.guest) ...[
+            ] /* else if (_authMode == _AuthMode.guest) ...[
               _GuestReservationForm(
                 formKey: _guestFormKey,
                 firstNameController: _guestFirstNameController,
@@ -2503,7 +2504,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 onSubmit: _handleGuestSubmit,
                 onBack: _resetToAuthChoice,
               ),
-            ] else if (_authMode == _AuthMode.login) ...[
+            ] */ else if (_authMode == _AuthMode.login) ...[
               _LoginForm(
                 formKey: _loginFormKey,
                 identifierController: _loginIdentifierController,
