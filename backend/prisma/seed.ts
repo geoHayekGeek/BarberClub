@@ -331,7 +331,7 @@ async function main() {
       firstName: 'Julien',
       lastName: 'Morel', 
       displayName: 'Julien',
-      bio: "Julien est originaire de Voiron et est arrivé à Grenoble en 2018. La coiffure est son premier métier, où il a travaillé en tant qu'employé jusqu'en 2023. Fondateur de BarberClub Grenoble en 2024 et Co-Fondateur de BarberClub Meylan en 2025, il a créé un lieu où passion, expertise et convivialité se rencontrent.",
+      bio: "Julien a débuté son expérience en tant que barber depuis 2018. Fort d'une expérience dans plusieurs salons où il a travaillé jusqu'en 2023. Fondateur de BarberClub Grenoble en 2024 et Co-Fondateur de BarberClub Meylan en 2025, il a créé un lieu où passion, expertise et convivialité se rencontrent.",
       experienceYears: 7, 
       level: 'Fondateur',
       interests: ['Expertise', 'Convivialité'],
