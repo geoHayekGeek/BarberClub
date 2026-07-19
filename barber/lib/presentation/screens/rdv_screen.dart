@@ -1931,9 +1931,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       if (anySuccess) {
         _showMessage('Vous serez prevenu par SMS si une place se libere !');
         setState(_resetReservationFlow);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToTop();
-        });
+        await Future.delayed(const Duration(milliseconds: 450));
+        if (!mounted) return;
+        context.go('/home');
         return;
       }
 
