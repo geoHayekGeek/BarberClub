@@ -1725,7 +1725,10 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     return _step != _ReservationStep.booking &&
         _step != _ReservationStep.success &&
         _authMode == _AuthMode.choice &&
-        selectedSalonId != null;
+        selectedSalonId != null &&
+        !(_step == _ReservationStep.date &&
+            _selectedDateHasWaitlistAvailability() &&
+            _selectedSlot == null);
   }
 
   bool get _actionEnabled {
@@ -2703,22 +2706,26 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 ),
               )
             else if (showWaitlistCard)
-              _WaitlistPanel(
-                barberTitle: _selectedBarber != null && !_selectedBarber!.isAny
-                    ? _selectedBarber!.name
-                    : '',
-                dateLabel: _formatLongDate(selectedDate),
-                currentTimeStart: _waitlistTimeStart,
-                currentTimeEnd: _waitlistTimeEnd,
-                customExpanded: _waitlistCustomExpanded,
-                timeOptions: _waitlistTimeOptions(),
-                alternatives: selectedAvailability?.alternatives ?? const [],
-                onSelectPreset: _selectWaitlistPreset,
-                onToggleCustom: _toggleWaitlistCustom,
-                onCustomStartChanged: _updateWaitlistCustomStart,
-                onCustomEndChanged: _updateWaitlistCustomEnd,
-                onProceed: _beginWaitlistFlow,
-                onSwitchToBarber: _switchToAlternativeBarber,
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: _WaitlistPanel(
+                  barberTitle:
+                      _selectedBarber != null && !_selectedBarber!.isAny
+                          ? _selectedBarber!.name
+                          : '',
+                  dateLabel: _formatLongDate(selectedDate),
+                  currentTimeStart: _waitlistTimeStart,
+                  currentTimeEnd: _waitlistTimeEnd,
+                  customExpanded: _waitlistCustomExpanded,
+                  timeOptions: _waitlistTimeOptions(),
+                  alternatives: selectedAvailability?.alternatives ?? const [],
+                  onSelectPreset: _selectWaitlistPreset,
+                  onToggleCustom: _toggleWaitlistCustom,
+                  onCustomStartChanged: _updateWaitlistCustomStart,
+                  onCustomEndChanged: _updateWaitlistCustomEnd,
+                  onProceed: _beginWaitlistFlow,
+                  onSwitchToBarber: _switchToAlternativeBarber,
+                ),
               )
             else ...[
               Text(
@@ -4929,7 +4936,7 @@ class _WaitlistPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           decoration: BoxDecoration(
             color: const Color(0xFF111111),
             borderRadius: BorderRadius.circular(22),
@@ -4961,9 +4968,9 @@ class _WaitlistPanel extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 decoration: BoxDecoration(
                   color: const Color(0xFF151515),
                   borderRadius: BorderRadius.circular(20),
@@ -4996,7 +5003,7 @@ class _WaitlistPanel extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Text(
                       'QUAND ÊTES-VOUS DISPONIBLE ?',
                       style: TextStyle(
@@ -5007,7 +5014,7 @@ class _WaitlistPanel extends StatelessWidget {
                         letterSpacing: 0.7,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -5038,7 +5045,7 @@ class _WaitlistPanel extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: onToggleCustom,
@@ -5094,7 +5101,7 @@ class _WaitlistPanel extends StatelessWidget {
                       duration: const Duration(milliseconds: 180),
                       sizeCurve: Curves.easeOut,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     _FormActionButton(
                       label: 'Me prévenir par SMS',
                       loading: false,
@@ -5107,24 +5114,24 @@ class _WaitlistPanel extends StatelessWidget {
           ),
         ),
         if (alternatives.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             'AUTRES BARBIERS DISPONIBLES',
             style: TextStyle(
               fontFamily: _RdvScreenState._titleFont,
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
               color: Colors.white.withValues(alpha: 0.38),
-              letterSpacing: 0.8,
+              letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           for (final alternative in alternatives) ...[
             _WaitlistAlternativeCard(
               alternative: alternative,
               onSwitchToBarber: onSwitchToBarber,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
           ],
         ],
       ],
@@ -5286,7 +5293,7 @@ class _WaitlistAlternativeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF111111),
         borderRadius: BorderRadius.circular(20),
@@ -5319,7 +5326,7 @@ class _WaitlistAlternativeCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (alternative.sampleTimes.isNotEmpty)
             Wrap(
               spacing: 8,
@@ -5337,7 +5344,7 @@ class _WaitlistAlternativeCard extends StatelessWidget {
                 fontSize: 12.5,
               ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
             height: 42,
             child: Material(
