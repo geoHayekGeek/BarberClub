@@ -4406,16 +4406,23 @@ class _CalendarDayCell extends StatelessWidget {
     final selected = day.isSelected;
     final available = day.isAvailable && !day.isPast;
     final full = day.isFull && !day.isPast;
+    final blocked = full;
     final dayTextColor = selected
-        ? Colors.black
+        ? (blocked
+              ? Colors.white.withValues(alpha: 0.62)
+              : Colors.black)
         : day.isPast
         ? Colors.white.withValues(alpha: 0.18)
-        : full
-        ? Colors.white.withValues(alpha: 0.52)
+        : blocked
+        ? Colors.white.withValues(alpha: 0.40)
         : Colors.white.withValues(alpha: 0.82);
-    final textDecoration = full && !selected
-        ? TextDecoration.lineThrough
-        : TextDecoration.none;
+    final textDecoration = blocked ? TextDecoration.lineThrough : TextDecoration.none;
+    final backgroundColor = selected
+        ? (blocked ? const Color(0xFF242424) : Colors.white)
+        : Colors.transparent;
+    final backgroundBorder = selected && blocked
+        ? Border.all(color: Colors.white.withValues(alpha: 0.06))
+        : null;
 
     return Material(
       color: Colors.transparent,
@@ -4431,7 +4438,8 @@ class _CalendarDayCell extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: selected ? Colors.white : Colors.transparent,
+                color: backgroundColor,
+                border: backgroundBorder,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
@@ -4443,7 +4451,11 @@ class _CalendarDayCell extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: dayTextColor,
                     decoration: textDecoration,
-                    decorationColor: Colors.white.withValues(alpha: 0.14),
+                    decorationStyle: TextDecorationStyle.solid,
+                    decorationThickness: 1.8,
+                    decorationColor: blocked
+                        ? Colors.white.withValues(alpha: 0.34)
+                        : Colors.white.withValues(alpha: 0.14),
                   ),
                 ),
               ),
