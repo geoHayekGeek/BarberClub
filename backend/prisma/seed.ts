@@ -184,7 +184,11 @@ const OPENING_HOURS_STRUCTURED = {
 };
 
 async function main() {
-  await seedAdminsPerSalon();
+  const catalogOnly = process.argv.includes('--catalog-only');
+
+  if (!catalogOnly) {
+    await seedAdminsPerSalon();
+  }
 
   // --- 1. SALON GRENOBLE ---
   let salonGrenoble = await prisma.salon.findFirst({
@@ -458,6 +462,11 @@ async function main() {
     } else {
       await prisma.offer.create({ data: offer });
     }
+  }
+
+  if (catalogOnly) {
+    console.log('Catalog-only seed completed. Users, loyalty data, and client offers were not modified.');
+    return;
   }
 
   // --- GLOBAL OFFERS (promotions, Offres tab - table global_offers) ---
