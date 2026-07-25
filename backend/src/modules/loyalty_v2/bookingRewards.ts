@@ -7,6 +7,7 @@ import prisma from '../../db/client';
 import { getWebsiteClient } from '../../db/websiteClient';
 import { getMessaging } from '../../config/firebase';
 import { logger } from '../../utils/logger';
+import { validatePhoneNumber } from '../auth/utils/phone';
 import { pointsFromPrice } from './points';
 import { getCheapestRewardCost, getRankFromAppointments, type LoyaltyTierName } from './tiers';
 
@@ -17,6 +18,18 @@ export interface CompletedWebsiteBookingRow {
   client_id: string | null;
   price: number;
   service_name: string | null;
+}
+
+interface WebsiteClientRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  email: string | null;
+  password_hash: string | null;
+  has_account: boolean | null;
+  deleted_at: Date | null;
+  created_at: Date;
 }
 
 export interface CompletedBookingRewardInput {
@@ -44,17 +57,20 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function chunkArray<T>(values: T[], size: number): T[][] {
-  if (size <= 0) {
-    return [values];
+function normalizeEmail(email: string | null | undefined): string {
+  return (email ?? '').trim().toLowerCase();
+}
+
+function normalizePhone(phone: string | null | undefined): string {
+  if (!phone) {
+    return '';
   }
 
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
+  try {
+    return validatePhoneNumber(phone);
+  } catch {
+    return phone.trim();
   }
-
-  return chunks;
 }
 
 function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string }): Prisma.Sql {
@@ -83,6 +99,44 @@ function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string 
     WHERE ${Prisma.join(filters, ' AND ')}
     ORDER BY b.created_at ASC
   `;
+}
+
+async function findAppUserForWebsiteClient(websiteClient: WebsiteClientRow) {
+  const phone = normalizePhone(websiteClient.phone);
+  if (phone) {
+    const phoneMatch = await prisma.user.findUnique({
+      where: { phoneNumber: phone },
+      select: {
+        id: true,
+        fcmToken: true,
+        fullName: true,
+        email: true,
+      },
+    });
+
+    if (phoneMatch) {
+      return phoneMatch;
+    }
+  }
+
+  const email = normalizeEmail(websiteClient.email);
+  if (email) {
+    const emailMatch = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        fcmToken: true,
+        fullName: true,
+        email: true,
+      },
+    });
+
+    if (emailMatch) {
+      return emailMatch;
+    }
+  }
+
+  return null;
 }
 
 async function sendEarnNotifications(params: {
@@ -297,39 +351,25 @@ export async function runBookingLoyaltyRewardSync(params?: {
 
   const rewardedBookingIds = new Set(rewardedRows.map((row) => row.websiteBookingId));
   const clientIds = [...new Set(bookings.map((row) => row.client_id).filter(isNonEmptyString))];
-
-  const links = clientIds.length > 0
-    ? (await Promise.all(
-        chunkArray(clientIds, 500).map((chunk) =>
-          prisma.userSyncLink.findMany({
-            where: { websiteClientId: { in: chunk } },
-            select: {
-              websiteClientId: true,
-              appUserId: true,
-              user: {
-                select: {
-                  id: true,
-                  fcmToken: true,
-                  fullName: true,
-                  email: true,
-                },
-              },
-            },
-          })
-        )
-      )).flat()
-    : [];
-
-  const linkByClientId = new Map(links.map((link) => [link.websiteClientId, link]));
+  const websiteClients =
+    clientIds.length > 0
+      ? await websiteClient.$queryRaw<WebsiteClientRow[]>(Prisma.sql`
+          SELECT id, first_name, last_name, phone, email, password_hash, has_account, deleted_at, created_at
+          FROM clients
+          WHERE id IN (${Prisma.join(clientIds.map((clientId) => Prisma.sql`CAST(${clientId} AS UUID)`))})
+        `)
+      : [];
+  const websiteClientById = new Map(websiteClients.map((client) => [client.id, client]));
 
   let rewarded = 0;
-  let pendingLink = 0;
+  let pendingWebsiteClient = 0;
+  let pendingAppUser = 0;
   let alreadyRewarded = 0;
   let countedZeroPointAppointments = 0;
 
   for (const booking of bookings) {
     if (!isNonEmptyString(booking.client_id)) {
-      pendingLink += 1;
+      pendingWebsiteClient += 1;
       logger.warn('Booking loyalty sync skipped invalid website client id', {
         websiteBookingId: booking.id,
         clientId: booking.client_id,
@@ -342,14 +382,24 @@ export async function runBookingLoyaltyRewardSync(params?: {
       continue;
     }
 
-    const link = linkByClientId.get(booking.client_id);
-    if (!link) {
-      pendingLink += 1;
+    const websiteClientRow = websiteClientById.get(booking.client_id);
+    if (!websiteClientRow) {
+      pendingWebsiteClient += 1;
+      logger.warn('Booking loyalty sync skipped missing website client row', {
+        websiteBookingId: booking.id,
+        websiteClientId: booking.client_id,
+      });
+      continue;
+    }
+
+    const appUser = await findAppUserForWebsiteClient(websiteClientRow);
+    if (!appUser) {
+      pendingAppUser += 1;
       continue;
     }
 
     const result = await awardPointsForCompletedBooking({
-      appUserId: link.appUserId,
+      appUserId: appUser.id,
       websiteBookingId: booking.id,
       websiteClientId: booking.client_id,
       serviceName: booking.service_name?.trim() || 'Reservation',
@@ -369,7 +419,8 @@ export async function runBookingLoyaltyRewardSync(params?: {
   logger.info('Booking loyalty reward sync completed', {
     completedBookings: bookings.length,
     rewarded,
-    pendingLink,
+    pendingWebsiteClient,
+    pendingAppUser,
     alreadyRewarded,
     countedZeroPointAppointments,
   });
