@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,16 +12,12 @@ import '../../domain/models/loyalty_v2_state.dart';
 import '../constants/loyalty_ui_constants.dart';
 import '../providers/auth_providers.dart';
 import '../providers/loyalty_providers.dart';
+import 'private_club_loyalty_view.dart';
 
 /// Loyalty v2 screen: points, tiers, rewards catalog, vouchers, history.
 /// UI matches mockups: no yellow, tier-specific accents, responsive layout.
 class LoyaltyCardScreen extends ConsumerWidget {
   const LoyaltyCardScreen({super.key});
-
-  static const double _horizontalPadding =
-      LoyaltyUIConstants.horizontalScreenPadding;
-  static const double _verticalRhythm = LoyaltyUIConstants.verticalRhythm;
-  static const double _bottomNavPadding = LoyaltyUIConstants.bottomNavPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -79,19 +78,6 @@ class LoyaltyCardScreen extends ConsumerWidget {
       backgroundColor: Colors.black,
       extendBody: true,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          LoyaltyStrings.pageTitle,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -124,7 +110,101 @@ class _LoyaltyBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(color: Colors.black);
+    return Stack(
+      children: [
+        const ColoredBox(color: Colors.black),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF24160C).withValues(alpha: 0.14),
+                  Colors.transparent,
+                  const Color(0xFF040404).withValues(alpha: 0.95),
+                ],
+                stops: const [0.0, 0.44, 1.0],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 180, sigmaY: 180),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -440,
+                    left: -380,
+                    child: _BackdropBlob(
+                      size: 1040,
+                      color: const Color(0xFFE4975A).withValues(alpha: 0.055),
+                    ),
+                  ),
+                  Positioned(
+                    top: -180,
+                    right: -420,
+                    child: _BackdropBlob(
+                      size: 980,
+                      color: const Color(0xFFE9A93A).withValues(alpha: 0.045),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -460,
+                    left: -360,
+                    child: _BackdropBlob(
+                      size: 1040,
+                      color: const Color(0xFF5B341A).withValues(alpha: 0.04),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        IgnorePointer(
+          child: Opacity(
+            opacity: 0.025,
+            child: const ColoredBox(color: Colors.black),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BackdropBlob extends StatelessWidget {
+  const _BackdropBlob({
+    required this.size,
+    required this.color,
+  });
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.scale(
+      scaleX: 1.55,
+      scaleY: 0.82,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withValues(alpha: 0.72),
+              color.withValues(alpha: 0.16),
+              Colors.transparent,
+            ],
+            stops: const [0.0, 0.36, 1.0],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -138,49 +218,20 @@ class _LoyaltyV2Body extends ConsumerStatefulWidget {
 }
 
 class _LoyaltyV2BodyState extends ConsumerState<_LoyaltyV2Body> {
+  String? _previewRankKey;
+
   @override
   Widget build(BuildContext context) {
-    final state = widget.state;
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              LoyaltyCardScreen._horizontalPadding,
-              LoyaltyCardScreen._verticalRhythm,
-              LoyaltyCardScreen._horizontalPadding,
-              LoyaltyCardScreen._bottomNavPadding,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _Header(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _MainCard(state: state),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('VOTRE STATUT'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                _TierCarousel(currentTier: state.tier),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('RÉCOMPENSES'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                const _RewardsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('MES BONS'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                const _RedemptionsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                _SectionTitle('HISTORIQUE RÉCENT'),
-                SizedBox(height: LoyaltyUIConstants.sectionTitleToContent),
-                const _TransactionsSection(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-                const _InfoCards(),
-                SizedBox(height: LoyaltyUIConstants.betweenSections),
-              ],
-            ),
-          );
-        },
-      ),
+    return PrivateClubLoyaltyView(
+      state: widget.state,
+      previewRankKey: _previewRankKey,
+      onPreviewRankChanged: kDebugMode
+          ? (key) {
+              setState(() {
+                _previewRankKey = key;
+              });
+            }
+          : null,
     );
   }
 }
