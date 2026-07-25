@@ -11,6 +11,7 @@ import { generateToken, hashToken, encodeQRPayload, QRType } from '../../utils/q
 import {
   getCheapestRewardCost,
   getNextRank,
+  getRankDefinition,
   getRankFromAppointments,
   getRankProgress,
   getRankScale,
@@ -49,6 +50,17 @@ export interface LoyaltyMeResponse {
     requiredAppointments: number;
     remainingAppointments: number;
   } | null;
+  theme: LoyaltyRankTheme;
+  themeVariables: {
+    '--accent': string;
+    '--accent-2': string;
+    '--glow': string;
+    '--ink': string;
+  };
+  memberPosition: {
+    label: string;
+    points: number;
+  };
   rankProgress: number;
   rankScale: LoyaltyRankScaleDto[];
   rewards: LoyaltyRewardMilestoneDto[];
@@ -74,7 +86,9 @@ export interface LoyaltyRewardDto {
 export interface LoyaltyRewardMilestoneDto extends LoyaltyRewardDto {
   isReached: boolean;
   canRedeem: boolean;
+  isLocked: boolean;
   pointsRemaining: number;
+  remainingLabel: string;
   positionLabel: string;
 }
 
@@ -170,7 +184,9 @@ function toRewardMilestone(row: ReturnType<typeof toRewardDto>, currentBalance: 
     ...row,
     isReached,
     canRedeem: isReached,
+    isLocked: !isReached,
     pointsRemaining,
+    remainingLabel: isReached ? 'Ready to redeem' : `${pointsRemaining} pts remaining`,
     positionLabel: `You \u00B7 ${currentBalance} pts`,
   };
 }
@@ -200,6 +216,7 @@ export async function getLoyaltyState(userId: string): Promise<LoyaltyMeResponse
   if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
 
   const rank = getRankFromAppointments(account.lifetimeAppointments);
+  const rankDefinition = getRankDefinition(rank);
   const nextRank = getNextRank(account.lifetimeAppointments);
   const rewardMilestones = rewardRows
     .map(toRewardDto)
@@ -228,6 +245,17 @@ export async function getLoyaltyState(userId: string): Promise<LoyaltyMeResponse
         }
       : null,
     nextRank,
+    theme: rankDefinition.theme,
+    themeVariables: {
+      '--accent': rankDefinition.theme.accent,
+      '--accent-2': rankDefinition.theme.accent2,
+      '--glow': rankDefinition.theme.glow,
+      '--ink': rankDefinition.theme.ink,
+    },
+    memberPosition: {
+      label: `You \u00B7 ${account.currentBalance} pts`,
+      points: account.currentBalance,
+    },
     rankProgress: getRankProgress(account.lifetimeAppointments),
     rankScale: getRankScale(account.lifetimeAppointments),
     rewards: rewardMilestones,
@@ -473,8 +501,10 @@ export async function adminEarnPoints(
   if (adminId) {
     await assertAdminHasAccessToSalon(adminId, offer.salonId);
   }
+  if (!Number.isFinite(offer.price) || offer.price < 0) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Montant invalide pour ce service', 400);
+  }
   const pointsEarned = pointsFromPrice(offer.price);
-  if (pointsEarned <= 0) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Montant invalide pour ce service', 400);
 
   if (adminId) logger.info('LOYALTY_EARN admin_earn', { adminId, accountId: tokenRecord.accountId, serviceId, pointsEarned });
 
@@ -522,18 +552,20 @@ export async function adminEarnPoints(
     try {
       const messaging = getMessaging();
       if (messaging) {
-        await messaging.send({
-          token: fcmToken,
-          notification: {
-            title: 'Points fidélité',
-            body: `+${pointsEarned} points. Solde: ${account.currentBalance} pts`,
-          },
-          data: {
-            type: 'LOYALTY_EARN',
-            pointsEarned: String(pointsEarned),
-            newBalance: String(account.currentBalance),
-          },
-        });
+        if (pointsEarned > 0) {
+          await messaging.send({
+            token: fcmToken,
+            notification: {
+              title: 'Points fidélité',
+              body: `+${pointsEarned} points. Solde: ${account.currentBalance} pts`,
+            },
+            data: {
+              type: 'LOYALTY_EARN',
+              pointsEarned: String(pointsEarned),
+              newBalance: String(account.currentBalance),
+            },
+          });
+        }
         if (newTier !== previousTier) {
           await messaging.send({
             token: fcmToken,
@@ -544,19 +576,24 @@ export async function adminEarnPoints(
             data: { type: 'LOYALTY_TIER', tier: newTier },
           });
         }
-        const rewards = await prisma.loyaltyReward.findMany({ where: { isActive: true }, select: { costPoints: true } });
-        const cheapest = getCheapestRewardCost(rewards);
-        if (cheapest != null) {
-          const gap = cheapest - account.currentBalance;
-          if (gap > 0 && gap <= NEAR_REWARD_THRESHOLD) {
-            await messaging.send({
-              token: fcmToken,
-              notification: {
-                title: 'Bientôt une récompense',
-                body: `Plus que ${gap} points pour une récompense`,
-              },
-              data: { type: 'LOYALTY_NEAR_REWARD' },
-            });
+        if (pointsEarned > 0) {
+          const rewards = await prisma.loyaltyReward.findMany({
+            where: { isActive: true },
+            select: { costPoints: true },
+          });
+          const cheapest = getCheapestRewardCost(rewards);
+          if (cheapest != null) {
+            const gap = cheapest - account.currentBalance;
+            if (gap > 0 && gap <= NEAR_REWARD_THRESHOLD) {
+              await messaging.send({
+                token: fcmToken,
+                notification: {
+                  title: 'Bientôt une récompense',
+                  body: `Plus que ${gap} points pour une récompense`,
+                },
+                data: { type: 'LOYALTY_NEAR_REWARD' },
+              });
+            }
           }
         }
       } else {

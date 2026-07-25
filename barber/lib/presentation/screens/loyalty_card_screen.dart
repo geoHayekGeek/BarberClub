@@ -240,27 +240,33 @@ class _MainCard extends StatelessWidget {
   static Color _tierColor(String tier) {
     switch (tier) {
       case 'Bronze':
-        return const Color(0xFFCD7F32);
+        return const Color(0xFFE4975A);
       case 'Silver':
-        return const Color(0xFFC0C0C0);
+        return const Color(0xFFBCC3CF);
       case 'Gold':
-        return const Color(0xFFB8860B);
+        return const Color(0xFFF5C542);
+      case 'Diamond':
+        return const Color(0xFF8FB4FF);
       case 'Platinum':
-        return const Color(0xFFE5E4E2);
+        return const Color(0xFFDDF6EF);
       default:
-        return const Color(0xFFC0C0C0);
+        return const Color(0xFFBCC3CF);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final nextTier = state.nextTier;
-    final totalToNext = nextTier != null
-        ? state.lifetimeEarned + nextTier.remainingPoints
-        : 0.0;
-    final progress =
-        nextTier != null && nextTier.remainingPoints > 0 && totalToNext > 0
-        ? 1.0 - (nextTier.remainingPoints / totalToNext)
+    final currentRank = state.rank.isNotEmpty ? state.rank : state.tier;
+    final nextRankName = state.nextRank?.name ?? state.nextTier?.name;
+    final nextRankRequirement =
+        state.nextRank?.requiredAppointments ??
+        state.nextTier?.requiredAppointments ??
+        (nextRankName != null ? _rankRequirement(nextRankName) : null);
+    final remainingAppointments =
+        state.nextRank?.remainingAppointments ??
+        state.nextTier?.remainingAppointments;
+    final progress = nextRankName != null
+        ? _rankProgress(currentRank, state.lifetimeAppointments)
         : 1.0;
 
     return Container(
@@ -277,16 +283,16 @@ class _MainCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _tierColor(state.tier).withOpacity(0.25),
+                color: _tierColor(currentRank).withOpacity(0.25),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _tierColor(state.tier).withOpacity(0.5),
+                  color: _tierColor(currentRank).withOpacity(0.5),
                 ),
               ),
               child: Text(
-                state.tier.toUpperCase(),
+                currentRank.toUpperCase(),
                 style: TextStyle(
-                  color: _tierColor(state.tier),
+                  color: _tierColor(currentRank),
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
@@ -310,17 +316,17 @@ class _MainCard extends StatelessWidget {
               letterSpacing: 2,
             ),
           ),
-          if (nextTier != null) ...[
+          if (nextRankName != null && remainingAppointments != null) ...[
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  state.tier,
+                  currentRank,
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 Text(
-                  '${nextTier.name} — ${_nextTierThreshold(nextTier.name)} pts',
+                  '$nextRankName - $nextRankRequirement visites',
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -329,18 +335,18 @@ class _MainCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
+                value: progress,
                 minHeight: 8,
                 backgroundColor: const Color(0xFF2A2A2A),
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  _tierColor(nextTier.name),
+                  _tierColor(nextRankName),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             Center(
               child: Text(
-                '${nextTier.remainingPoints} pts avant ${nextTier.name}',
+                '$remainingAppointments visites avant $nextRankName',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: Colors.white54),
@@ -352,16 +358,48 @@ class _MainCard extends StatelessWidget {
     );
   }
 
-  static int _nextTierThreshold(String name) {
+  static int _rankRequirement(String name) {
     switch (name) {
       case 'Silver':
-        return 200;
+        return 10;
       case 'Gold':
-        return 500;
+        return 20;
+      case 'Diamond':
+        return 30;
       case 'Platinum':
-        return 1000;
+        return 50;
       default:
         return 0;
+    }
+  }
+
+  static double _rankProgress(String currentRank, int lifetimeAppointments) {
+    final currentRequirement = _rankRequirement(currentRank);
+    final nextRank = _nextRankName(currentRank);
+    final nextRequirement = nextRank != null ? _rankRequirement(nextRank) : 0;
+    final span = nextRequirement - currentRequirement;
+
+    if (nextRank == null || span <= 0) {
+      return 1.0;
+    }
+
+    return ((lifetimeAppointments - currentRequirement) / span)
+        .clamp(0.0, 1.0)
+        .toDouble();
+  }
+
+  static String? _nextRankName(String currentRank) {
+    switch (currentRank) {
+      case 'Bronze':
+        return 'Silver';
+      case 'Silver':
+        return 'Gold';
+      case 'Gold':
+        return 'Diamond';
+      case 'Diamond':
+        return 'Platinum';
+      default:
+        return null;
     }
   }
 }
@@ -371,20 +409,28 @@ class _TierCarousel extends StatelessWidget {
 
   final String currentTier;
 
-  static const List<String> _tiers = ['Bronze', 'Silver', 'Gold', 'Platinum'];
+  static const List<String> _tiers = [
+    'Bronze',
+    'Silver',
+    'Gold',
+    'Diamond',
+    'Platinum',
+  ];
 
   static Color _tierColor(String t) {
     switch (t) {
       case 'Bronze':
-        return const Color(0xFFCD7F32);
+        return const Color(0xFFE4975A);
       case 'Silver':
-        return const Color(0xFFC0C0C0);
+        return const Color(0xFFBCC3CF);
       case 'Gold':
-        return const Color(0xFFB8860B);
+        return const Color(0xFFF5C542);
+      case 'Diamond':
+        return const Color(0xFF8FB4FF);
       case 'Platinum':
-        return const Color(0xFFE5E4E2);
+        return const Color(0xFFDDF6EF);
       default:
-        return const Color(0xFFC0C0C0);
+        return const Color(0xFFBCC3CF);
     }
   }
 
@@ -475,7 +521,7 @@ class _TierCarousel extends StatelessWidget {
     );
   }
 
-  /// Tier icons per spec: Bronze=Shield, Silver=Star, Gold=Crown, Platinum=Gem (visual badges only).
+  /// Rank icons are visual badges only; rank is computed from completed visits.
   static IconData _tierIcon(String t) {
     switch (t) {
       case 'Bronze':
@@ -484,8 +530,10 @@ class _TierCarousel extends StatelessWidget {
         return Icons.star;
       case 'Gold':
         return Icons.workspace_premium_outlined;
-      case 'Platinum':
+      case 'Diamond':
         return Icons.diamond_outlined;
+      case 'Platinum':
+        return Icons.ac_unit_outlined;
       default:
         return Icons.shield_outlined;
     }
@@ -494,13 +542,15 @@ class _TierCarousel extends StatelessWidget {
   static String _tierRange(String t) {
     switch (t) {
       case 'Bronze':
-        return '0 - 199 pts';
+        return 'Inscription';
       case 'Silver':
-        return '200 - 499 pts';
+        return '10 RDV';
       case 'Gold':
-        return '500 - 999 pts';
+        return '20 RDV';
+      case 'Diamond':
+        return '30 RDV';
       case 'Platinum':
-        return '1000+ pts';
+        return '50 RDV';
       default:
         return '';
     }
