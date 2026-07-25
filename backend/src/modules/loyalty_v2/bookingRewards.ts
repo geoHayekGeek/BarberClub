@@ -49,6 +49,14 @@ export interface CompletedBookingRewardResult {
   newRank: LoyaltyTierName;
 }
 
+interface ExistingBookingGrantRow {
+  websiteBookingId: string;
+  appUserId: string | null;
+  loyaltyAccountId: string | null;
+  pointsAwarded: number;
+  appointmentsAwarded: number;
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
@@ -137,6 +145,67 @@ async function findAppUserForWebsiteClient(websiteClient: WebsiteClientRow) {
   }
 
   return null;
+}
+
+async function repairOrphanedBookingGrant(params: {
+  bookingId: string;
+  websiteClient: WebsiteClientRow;
+  serviceName: string;
+  grant: ExistingBookingGrantRow;
+}): Promise<{ pointsEarned: number; appointmentsAwarded: number } | null> {
+  const appUser = await findAppUserForWebsiteClient(params.websiteClient);
+  if (!appUser) {
+    return null;
+  }
+
+  const pointsEarned = params.grant.pointsAwarded;
+  const appointmentsAwarded = params.grant.appointmentsAwarded || 1;
+
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.loyaltyAccount.upsert({
+      where: { userId: appUser.id },
+      create: { userId: appUser.id },
+      update: {},
+      select: { id: true },
+    });
+
+    const existingTransaction = await tx.loyaltyTransaction.findFirst({
+      where: { accountId: account.id, referenceId: params.bookingId, type: 'EARN' },
+      select: { id: true },
+    });
+
+    if (!existingTransaction) {
+      await tx.loyaltyAccount.update({
+        where: { id: account.id },
+        data: {
+          currentBalance: { increment: pointsEarned },
+          lifetimeEarned: { increment: pointsEarned },
+          lifetimeAppointments: { increment: appointmentsAwarded },
+        },
+      });
+
+      await tx.loyaltyTransaction.create({
+        data: {
+          accountId: account.id,
+          type: 'EARN',
+          points: pointsEarned,
+          appointmentCount: appointmentsAwarded,
+          description: params.serviceName,
+          referenceId: params.bookingId,
+        },
+      });
+    }
+
+    await tx.websiteBookingLoyaltyGrant.updateMany({
+      where: { websiteBookingId: params.bookingId },
+      data: {
+        appUserId: appUser.id,
+        loyaltyAccountId: account.id,
+      },
+    });
+  });
+
+  return { pointsEarned, appointmentsAwarded };
 }
 
 async function sendEarnNotifications(params: {
@@ -345,11 +414,17 @@ export async function runBookingLoyaltyRewardSync(params?: {
   const [bookings, rewardedRows] = await Promise.all([
     websiteClient.$queryRaw<CompletedWebsiteBookingRow[]>(query),
     prisma.websiteBookingLoyaltyGrant.findMany({
-      select: { websiteBookingId: true },
+      select: {
+        websiteBookingId: true,
+        appUserId: true,
+        loyaltyAccountId: true,
+        pointsAwarded: true,
+        appointmentsAwarded: true,
+      },
     }),
   ]);
 
-  const rewardedBookingIds = new Set(rewardedRows.map((row) => row.websiteBookingId));
+  const grantByBookingId = new Map(rewardedRows.map((row) => [row.websiteBookingId, row]));
   const clientIds = [...new Set(bookings.map((row) => row.client_id).filter(isNonEmptyString))];
   const websiteClients =
     clientIds.length > 0
@@ -377,11 +452,6 @@ export async function runBookingLoyaltyRewardSync(params?: {
       continue;
     }
 
-    if (rewardedBookingIds.has(booking.id)) {
-      alreadyRewarded += 1;
-      continue;
-    }
-
     const websiteClientRow = websiteClientById.get(booking.client_id);
     if (!websiteClientRow) {
       pendingWebsiteClient += 1;
@@ -389,6 +459,32 @@ export async function runBookingLoyaltyRewardSync(params?: {
         websiteBookingId: booking.id,
         websiteClientId: booking.client_id,
       });
+      continue;
+    }
+
+    const existingGrant = grantByBookingId.get(booking.id);
+    if (existingGrant?.appUserId && existingGrant.loyaltyAccountId) {
+      alreadyRewarded += 1;
+      continue;
+    }
+
+    if (existingGrant) {
+      const repaired = await repairOrphanedBookingGrant({
+        bookingId: booking.id,
+        websiteClient: websiteClientRow,
+        serviceName: booking.service_name?.trim() || 'Reservation',
+        grant: existingGrant,
+      });
+
+      if (repaired) {
+        rewarded += 1;
+        if (repaired.pointsEarned <= 0) {
+          countedZeroPointAppointments += 1;
+        }
+      } else {
+        pendingAppUser += 1;
+      }
+
       continue;
     }
 
