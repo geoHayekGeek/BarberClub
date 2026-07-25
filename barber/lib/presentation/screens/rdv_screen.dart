@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -975,12 +977,28 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     });
   }
 
+  /// The reservation API returns barber photos as site-relative paths (e.g.
+  /// `/barbers/nathan.png`), but on barberclub-grenoble.fr those live under
+  /// `/assets/images/...` — the bare path 404s to the SPA's HTML shell.
+  String? _resolveBarberPhotoUrl(String? rawPath) {
+    if (rawPath == null) return null;
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('data:') ||
+        trimmed.startsWith('http://') ||
+        trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    final relative = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    return AppConfig.resolvePublicAssetUrl('/assets/images/$relative');
+  }
+
   _BarberOption _mapBarber(ReservationBarber barber) {
     return _BarberOption(
       id: barber.id,
       name: barber.name.trim().isEmpty ? 'Barber' : barber.name.trim(),
       subtitle: _barberSubtitle(barber),
-      photoUrl: AppConfig.resolvePublicAssetUrl(barber.photoUrl),
+      photoUrl: _resolveBarberPhotoUrl(barber.photoUrl),
       role: barber.role,
       isAny: false,
       isGuest: barber.isGuest,
@@ -3955,33 +3973,51 @@ class _BarberAvatar extends StatelessWidget {
       );
     }
 
+    final photoUrl = barber.photoUrl;
+    final dataUriBytes = photoUrl != null && photoUrl.startsWith('data:')
+        ? _decodeDataUriImage(photoUrl)
+        : null;
+
     return ClipOval(
       child: Container(
         width: 54,
         height: 54,
         color: const Color(0xFF1A1A1A),
-        child: CachedNetworkImage(
-          imageUrl: barber.photoUrl ?? '',
-          fit: BoxFit.cover,
-          placeholder: (_, __) => Container(
-            color: const Color(0xFF1A1A1A),
-            child: Icon(
-              Icons.person_outline_rounded,
-              color: Colors.white.withValues(alpha: 0.28),
-              size: 26,
-            ),
-          ),
-          errorWidget: (_, __, ___) => Container(
-            color: const Color(0xFF1A1A1A),
-            child: Icon(
-              Icons.person_outline_rounded,
-              color: Colors.white.withValues(alpha: 0.28),
-              size: 26,
-            ),
-          ),
-        ),
+        child: dataUriBytes != null
+            ? Image.memory(
+                dataUriBytes,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _placeholderIcon(),
+              )
+            : CachedNetworkImage(
+                imageUrl: photoUrl ?? '',
+                fit: BoxFit.cover,
+                placeholder: (_, __) => _placeholderIcon(),
+                errorWidget: (_, __, ___) => _placeholderIcon(),
+              ),
       ),
     );
+  }
+
+  Widget _placeholderIcon() {
+    return Container(
+      color: const Color(0xFF1A1A1A),
+      child: Icon(
+        Icons.person_outline_rounded,
+        color: Colors.white.withValues(alpha: 0.28),
+        size: 26,
+      ),
+    );
+  }
+
+  Uint8List? _decodeDataUriImage(String dataUri) {
+    final commaIndex = dataUri.indexOf(',');
+    if (commaIndex == -1) return null;
+    try {
+      return base64Decode(dataUri.substring(commaIndex + 1));
+    } on FormatException {
+      return null;
+    }
   }
 }
 
