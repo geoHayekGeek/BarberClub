@@ -434,6 +434,7 @@ model LoyaltyAccount {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   currentBalance Int      @default(0) @map("current_balance")
   lifetimeEarned  Int      @default(0) @map("lifetime_earned")
+  lifetimeAppointments Int @default(0) @map("lifetime_appointments")
   enrolledAt     DateTime @default(now()) @map("enrolled_at")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -458,6 +459,7 @@ model LoyaltyTransaction {
   account     LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   type        LoyaltyTransactionType
   points      Int
+  appointmentCount Int @default(0) @map("appointment_count")
   description String
   referenceId String?  @map("reference_id")
   adminId     String?  @map("admin_id")
@@ -478,6 +480,7 @@ model WebsiteBookingLoyaltyGrant {
   serviceName    String   @map("service_name")
   bookingPrice   Int      @map("booking_price")
   pointsAwarded  Int      @map("points_awarded")
+  appointmentsAwarded Int @default(1) @map("appointments_awarded")
   awardedAt      DateTime @default(now()) @map("awarded_at")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -493,15 +496,18 @@ model WebsiteBookingLoyaltyGrant {
 
 model LoyaltyReward {
   id          String   @id @default(uuid())
+  slug        String?  @unique
   name        String
   costPoints  Int      @map("cost_points")
   description String?  @db.Text
   imageUrl    String?   @map("image_url")
   isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
 
   redemptions LoyaltyRedemptionVoucher[]
 
+  @@index([isActive, sortOrder, costPoints])
   @@map("loyalty_rewards")
 }
 

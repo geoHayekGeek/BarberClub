@@ -1,5 +1,5 @@
 /**
- * Award loyalty points automatically from completed website bookings.
+ * Award loyalty points and appointment rank progress from completed website bookings.
  */
 
 import { Prisma } from '@prisma/client';
@@ -8,7 +8,7 @@ import { getWebsiteClient } from '../../db/websiteClient';
 import { getMessaging } from '../../config/firebase';
 import { logger } from '../../utils/logger';
 import { pointsFromPrice } from './points';
-import { getCheapestRewardCost, getTierFromLifetime, type LoyaltyTierName } from './tiers';
+import { getCheapestRewardCost, getRankFromAppointments, type LoyaltyTierName } from './tiers';
 
 const NEAR_REWARD_THRESHOLD = 20;
 
@@ -31,7 +31,9 @@ export interface CompletedBookingRewardResult {
   pointsEarned: number;
   newBalance: number;
   newLifetime: number;
+  newLifetimeAppointments: number;
   newTier: LoyaltyTierName;
+  newRank: LoyaltyTierName;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -59,7 +61,7 @@ function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string 
   const filters: Prisma.Sql[] = [
     Prisma.sql`b.status = 'completed'`,
     Prisma.sql`b.deleted_at IS NULL`,
-    Prisma.sql`b.price > 0`,
+    Prisma.sql`COALESCE(b.price, 0) >= 0`,
   ];
 
   if (params?.fromDate) {
@@ -74,7 +76,7 @@ function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string 
     SELECT
       b.id,
       b.client_id,
-      b.price,
+      COALESCE(b.price, 0) AS price,
       COALESCE(s.name, 'Reservation') AS service_name
     FROM bookings b
     LEFT JOIN services s ON s.id = b.service_id
@@ -88,11 +90,11 @@ async function sendEarnNotifications(params: {
   pointsEarned: number;
   previousTier: LoyaltyTierName;
   currentBalance: number;
-  lifetimeEarned: number;
+  lifetimeAppointments: number;
   user: { fcmToken: string | null; fullName: string | null; email: string | null } | null;
   sourceLabel: string;
 }): Promise<LoyaltyTierName> {
-  const newTier = getTierFromLifetime(params.lifetimeEarned);
+  const newTier = getRankFromAppointments(params.lifetimeAppointments);
   const token = params.user?.fcmToken;
 
   if (!token) {
@@ -106,18 +108,20 @@ async function sendEarnNotifications(params: {
       return newTier;
     }
 
-    await messaging.send({
-      token,
-      notification: {
-        title: 'Points fidelite',
-        body: `+${params.pointsEarned} points pour ${params.sourceLabel}. Solde: ${params.currentBalance} pts`,
-      },
-      data: {
-        type: 'LOYALTY_EARN',
-        pointsEarned: String(params.pointsEarned),
-        newBalance: String(params.currentBalance),
-      },
-    });
+    if (params.pointsEarned > 0) {
+      await messaging.send({
+        token,
+        notification: {
+          title: 'Points fidelite',
+          body: `+${params.pointsEarned} points pour ${params.sourceLabel}. Solde: ${params.currentBalance} pts`,
+        },
+        data: {
+          type: 'LOYALTY_EARN',
+          pointsEarned: String(params.pointsEarned),
+          newBalance: String(params.currentBalance),
+        },
+      });
+    }
 
     if (newTier !== params.previousTier) {
       await messaging.send({
@@ -130,22 +134,24 @@ async function sendEarnNotifications(params: {
       });
     }
 
-    const rewards = await prisma.loyaltyReward.findMany({
-      where: { isActive: true },
-      select: { costPoints: true },
-    });
-    const cheapest = getCheapestRewardCost(rewards);
-    if (cheapest != null) {
-      const gap = cheapest - params.currentBalance;
-      if (gap > 0 && gap <= NEAR_REWARD_THRESHOLD) {
-        await messaging.send({
-          token,
-          notification: {
-            title: 'Bientot une recompense',
-            body: `Plus que ${gap} points pour une recompense`,
-          },
-          data: { type: 'LOYALTY_NEAR_REWARD' },
-        });
+    if (params.pointsEarned > 0) {
+      const rewards = await prisma.loyaltyReward.findMany({
+        where: { isActive: true },
+        select: { costPoints: true },
+      });
+      const cheapest = getCheapestRewardCost(rewards);
+      if (cheapest != null) {
+        const gap = cheapest - params.currentBalance;
+        if (gap > 0 && gap <= NEAR_REWARD_THRESHOLD) {
+          await messaging.send({
+            token,
+            notification: {
+              title: 'Bientot une recompense',
+              body: `Plus que ${gap} points pour une recompense`,
+            },
+            data: { type: 'LOYALTY_NEAR_REWARD' },
+          });
+        }
       }
     }
   } catch (error) {
@@ -162,19 +168,19 @@ export async function awardPointsForCompletedBooking(
   input: CompletedBookingRewardInput
 ): Promise<CompletedBookingRewardResult | null> {
   const pointsEarned = pointsFromPrice(input.bookingPrice);
+
   if (pointsEarned <= 0) {
-    logger.info('LOYALTY_BOOKING skipped_zero_points', {
+    logger.info('LOYALTY_BOOKING counted_zero_point_appointment', {
       websiteBookingId: input.websiteBookingId,
       bookingPrice: input.bookingPrice,
     });
-    return null;
   }
 
   const previousAccount = await prisma.loyaltyAccount.findUnique({
     where: { userId: input.appUserId },
-    select: { lifetimeEarned: true },
+    select: { lifetimeAppointments: true },
   });
-  const previousTier = getTierFromLifetime(previousAccount?.lifetimeEarned ?? 0);
+  const previousTier = getRankFromAppointments(previousAccount?.lifetimeAppointments ?? 0);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -186,6 +192,7 @@ export async function awardPointsForCompletedBooking(
           id: true,
           currentBalance: true,
           lifetimeEarned: true,
+          lifetimeAppointments: true,
           user: {
             select: {
               fcmToken: true,
@@ -205,6 +212,7 @@ export async function awardPointsForCompletedBooking(
           serviceName: input.serviceName,
           bookingPrice: input.bookingPrice,
           pointsAwarded: pointsEarned,
+          appointmentsAwarded: 1,
         },
       });
 
@@ -213,8 +221,9 @@ export async function awardPointsForCompletedBooking(
         data: {
           currentBalance: { increment: pointsEarned },
           lifetimeEarned: { increment: pointsEarned },
+          lifetimeAppointments: { increment: 1 },
         },
-        select: { currentBalance: true, lifetimeEarned: true },
+        select: { currentBalance: true, lifetimeEarned: true, lifetimeAppointments: true },
       });
 
       await tx.loyaltyTransaction.create({
@@ -222,6 +231,7 @@ export async function awardPointsForCompletedBooking(
           accountId: account.id,
           type: 'EARN',
           points: pointsEarned,
+          appointmentCount: 1,
           description: input.serviceName,
           referenceId: input.websiteBookingId,
         },
@@ -232,6 +242,7 @@ export async function awardPointsForCompletedBooking(
         user: account.user,
         currentBalance: updatedAccount.currentBalance,
         lifetimeEarned: updatedAccount.lifetimeEarned,
+        lifetimeAppointments: updatedAccount.lifetimeAppointments,
       };
     });
 
@@ -240,7 +251,7 @@ export async function awardPointsForCompletedBooking(
       pointsEarned,
       previousTier,
       currentBalance: result.currentBalance,
-      lifetimeEarned: result.lifetimeEarned,
+      lifetimeAppointments: result.lifetimeAppointments,
       user: result.user,
       sourceLabel: input.serviceName,
     });
@@ -249,7 +260,9 @@ export async function awardPointsForCompletedBooking(
       pointsEarned,
       newBalance: result.currentBalance,
       newLifetime: result.lifetimeEarned,
+      newLifetimeAppointments: result.lifetimeAppointments,
       newTier,
+      newRank: newTier,
     };
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -312,7 +325,7 @@ export async function runBookingLoyaltyRewardSync(params?: {
   let rewarded = 0;
   let pendingLink = 0;
   let alreadyRewarded = 0;
-  let skippedNoPoints = 0;
+  let countedZeroPointAppointments = 0;
 
   for (const booking of bookings) {
     if (!isNonEmptyString(booking.client_id)) {
@@ -345,8 +358,9 @@ export async function runBookingLoyaltyRewardSync(params?: {
 
     if (result) {
       rewarded += 1;
-    } else if (pointsFromPrice(booking.price) <= 0) {
-      skippedNoPoints += 1;
+      if (result.pointsEarned <= 0) {
+        countedZeroPointAppointments += 1;
+      }
     } else {
       alreadyRewarded += 1;
     }
@@ -357,6 +371,6 @@ export async function runBookingLoyaltyRewardSync(params?: {
     rewarded,
     pendingLink,
     alreadyRewarded,
-    skippedNoPoints,
+    countedZeroPointAppointments,
   });
 }

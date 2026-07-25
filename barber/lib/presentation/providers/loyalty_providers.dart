@@ -6,7 +6,9 @@ import 'auth_providers.dart';
 
 final qrDialogCloserProvider = StateProvider<void Function()?>((ref) => null);
 
-final loyaltyCardProvider = FutureProvider.autoDispose<LoyaltyCardData?>((ref) async {
+final loyaltyCardProvider = FutureProvider.autoDispose<LoyaltyCardData?>((
+  ref,
+) async {
   final authState = ref.watch(authStateProvider);
 
   if (authState.status != AuthStatus.authenticated || authState.user == null) {
@@ -46,7 +48,9 @@ final loyaltyCardProvider = FutureProvider.autoDispose<LoyaltyCardData?>((ref) a
   );
 });
 
-final loyaltyCouponsProvider = FutureProvider.autoDispose<List<LoyaltyCoupon>>((ref) async {
+final loyaltyCouponsProvider = FutureProvider.autoDispose<List<LoyaltyCoupon>>((
+  ref,
+) async {
   final authState = ref.watch(authStateProvider);
 
   if (authState.status != AuthStatus.authenticated) {
@@ -75,7 +79,9 @@ class LoyaltyCoupon {
 }
 
 // ---- Loyalty v2 (points, tiers, rewards) ----
-final loyaltyV2StateProvider = FutureProvider.autoDispose<LoyaltyV2State?>((ref) async {
+final loyaltyV2StateProvider = FutureProvider.autoDispose<LoyaltyV2State?>((
+  ref,
+) async {
   final authState = ref.watch(authStateProvider);
   if (authState.status != AuthStatus.authenticated) return null;
   final dio = ref.read(dioClientProvider).dio;
@@ -85,32 +91,55 @@ final loyaltyV2StateProvider = FutureProvider.autoDispose<LoyaltyV2State?>((ref)
   return raw != null ? LoyaltyV2State.fromJson(raw) : null;
 });
 
-final loyaltyRewardsProvider = FutureProvider.autoDispose<List<LoyaltyRewardItem>>((ref) async {
+final loyaltyPrivateClubProvider = FutureProvider.autoDispose<LoyaltyV2State?>((
+  ref,
+) async {
   final authState = ref.watch(authStateProvider);
-  if (authState.status != AuthStatus.authenticated) return [];
+  if (authState.status != AuthStatus.authenticated) return null;
   final dio = ref.read(dioClientProvider).dio;
-  final response = await dio.get('/api/v1/loyalty/rewards');
+  final response = await dio.get('/api/v1/loyalty/private-club');
   final data = response.data as Map<String, dynamic>;
-  final list = data['data'] as List<dynamic>? ?? [];
-  return list.map((e) => LoyaltyRewardItem.fromJson(e as Map<String, dynamic>)).toList();
+  final raw = data['data'] as Map<String, dynamic>?;
+  return raw != null ? LoyaltyV2State.fromJson(raw) : null;
 });
 
-final loyaltyTransactionsProvider = FutureProvider.autoDispose<List<LoyaltyTransactionItem>>((ref) async {
-  final authState = ref.watch(authStateProvider);
-  if (authState.status != AuthStatus.authenticated) return [];
-  final dio = ref.read(dioClientProvider).dio;
-  final response = await dio.get('/api/v1/loyalty/transactions?limit=20');
-  final data = response.data as Map<String, dynamic>;
-  final list = data['data'] as List<dynamic>? ?? [];
-  return list.map((e) => LoyaltyTransactionItem.fromJson(e as Map<String, dynamic>)).toList();
-});
+final loyaltyRewardsProvider =
+    FutureProvider.autoDispose<List<LoyaltyRewardItem>>((ref) async {
+      final authState = ref.watch(authStateProvider);
+      if (authState.status != AuthStatus.authenticated) return [];
+      final dio = ref.read(dioClientProvider).dio;
+      final response = await dio.get('/api/v1/loyalty/rewards');
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>? ?? [];
+      return list
+          .map((e) => LoyaltyRewardItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
-final loyaltyRedemptionsProvider = FutureProvider.autoDispose<List<LoyaltyRedemptionItem>>((ref) async {
-  final authState = ref.watch(authStateProvider);
-  if (authState.status != AuthStatus.authenticated) return [];
-  final dio = ref.read(dioClientProvider).dio;
-  final response = await dio.get('/api/v1/loyalty/redemptions');
-  final data = response.data as Map<String, dynamic>;
-  final list = data['data'] as List<dynamic>? ?? [];
-  return list.map((e) => LoyaltyRedemptionItem.fromJson(e as Map<String, dynamic>)).toList();
-});
+final loyaltyTransactionsProvider =
+    FutureProvider.autoDispose<List<LoyaltyTransactionItem>>((ref) async {
+      final authState = ref.watch(authStateProvider);
+      if (authState.status != AuthStatus.authenticated) return [];
+      final dio = ref.read(dioClientProvider).dio;
+      final response = await dio.get('/api/v1/loyalty/transactions?limit=20');
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>? ?? [];
+      return list
+          .map(
+            (e) => LoyaltyTransactionItem.fromJson(e as Map<String, dynamic>),
+          )
+          .toList();
+    });
+
+final loyaltyRedemptionsProvider =
+    FutureProvider.autoDispose<List<LoyaltyRedemptionItem>>((ref) async {
+      final authState = ref.watch(authStateProvider);
+      if (authState.status != AuthStatus.authenticated) return [];
+      final dio = ref.read(dioClientProvider).dio;
+      final response = await dio.get('/api/v1/loyalty/redemptions');
+      final data = response.data as Map<String, dynamic>;
+      final list = data['data'] as List<dynamic>? ?? [];
+      return list
+          .map((e) => LoyaltyRedemptionItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });

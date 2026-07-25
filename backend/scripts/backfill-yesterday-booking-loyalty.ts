@@ -315,13 +315,13 @@ async function ensureBookingClientLinksForRange(params: { fromDate: string; toDa
     SELECT
       b.id,
       b.client_id,
-      b.price,
+      COALESCE(b.price, 0) AS price,
       COALESCE(s.name, 'Reservation') AS service_name
     FROM bookings b
     LEFT JOIN services s ON s.id = b.service_id
     WHERE b.status = 'completed'
       AND b.deleted_at IS NULL
-      AND b.price > 0
+      AND COALESCE(b.price, 0) >= 0
       AND b.date >= CAST(${params.fromDate} AS DATE)
       AND b.date <= CAST(${params.toDate} AS DATE)
     ORDER BY b.created_at ASC

@@ -1,5 +1,5 @@
 /**
- * Loyalty v2 tests: points-as-currency, earn flow, redeem flow, tiers.
+ * Loyalty v2 tests: points-as-currency, earn flow, redeem flow, appointment ranks.
  */
 
 const TEST_ADMIN_SECRET = 'test-admin-secret-12345678901234567890';
@@ -10,10 +10,13 @@ import request from 'supertest';
 import nock from 'nock';
 import { createApp } from '../src/app';
 import prisma from '../src/db/client';
-import { getTierFromLifetime, getNextTier } from '../src/modules/loyalty_v2/tiers';
+import { getNextRank, getRankFromAppointments } from '../src/modules/loyalty_v2/tiers';
+import { PRIVATE_CLUB_REWARDS } from '../src/modules/loyalty_v2/rewards';
+import { awardPointsForCompletedBooking } from '../src/modules/loyalty_v2/bookingRewards';
 
 beforeAll(async () => {
   await prisma.$connect();
+  await ensurePrivateClubRewards();
   nock.disableNetConnect();
   nock.enableNetConnect('127.0.0.1');
 });
@@ -30,38 +33,76 @@ afterAll(async () => {
 });
 
 async function cleanupLoyaltyV2() {
+  await prisma.websiteBookingLoyaltyGrant.deleteMany();
   await prisma.loyaltyTransaction.deleteMany();
   await prisma.loyaltyRedemptionVoucher.deleteMany();
   await prisma.loyaltyAccountQrToken.deleteMany();
   await prisma.loyaltyAccount.deleteMany();
 }
 
+async function ensurePrivateClubRewards() {
+  await prisma.loyaltyReward.updateMany({
+    where: { slug: null, isActive: true },
+    data: { isActive: false },
+  });
+
+  await Promise.all(
+    PRIVATE_CLUB_REWARDS.map((reward) =>
+      prisma.loyaltyReward.upsert({
+        where: { slug: reward.slug },
+        create: {
+          slug: reward.slug,
+          name: reward.name,
+          costPoints: reward.costPoints,
+          description: reward.description,
+          imageUrl: reward.imageUrl,
+          isActive: true,
+          sortOrder: reward.sortOrder,
+        },
+        update: {
+          name: reward.name,
+          costPoints: reward.costPoints,
+          description: reward.description,
+          imageUrl: reward.imageUrl,
+          isActive: true,
+          sortOrder: reward.sortOrder,
+        },
+      })
+    )
+  );
+}
+
 const app = createApp();
 
-describe('Loyalty v2 tier logic', () => {
-  it('returns Bronze for 0-199 lifetime', () => {
-    expect(getTierFromLifetime(0)).toBe('Bronze');
-    expect(getTierFromLifetime(199)).toBe('Bronze');
+describe('Loyalty v2 appointment rank logic', () => {
+  it('returns Bronze on registration before 10 appointments', () => {
+    expect(getRankFromAppointments(0)).toBe('Bronze');
+    expect(getRankFromAppointments(9)).toBe('Bronze');
   });
-  it('returns Silver for 200-499', () => {
-    expect(getTierFromLifetime(200)).toBe('Silver');
-    expect(getTierFromLifetime(499)).toBe('Silver');
+  it('returns Silver from 10 appointments', () => {
+    expect(getRankFromAppointments(10)).toBe('Silver');
+    expect(getRankFromAppointments(19)).toBe('Silver');
   });
-  it('returns Gold for 500-999', () => {
-    expect(getTierFromLifetime(500)).toBe('Gold');
-    expect(getTierFromLifetime(999)).toBe('Gold');
+  it('returns Gold from 20 appointments', () => {
+    expect(getRankFromAppointments(20)).toBe('Gold');
+    expect(getRankFromAppointments(29)).toBe('Gold');
   });
-  it('returns Platinum for 1000+', () => {
-    expect(getTierFromLifetime(1000)).toBe('Platinum');
-    expect(getTierFromLifetime(5000)).toBe('Platinum');
+  it('returns Diamond from 30 appointments', () => {
+    expect(getRankFromAppointments(30)).toBe('Diamond');
+    expect(getRankFromAppointments(49)).toBe('Diamond');
   });
-  it('getNextTier returns next tier and remaining points', () => {
-    const next = getNextTier(100);
+  it('returns Platinum from 50 appointments', () => {
+    expect(getRankFromAppointments(50)).toBe('Platinum');
+    expect(getRankFromAppointments(5000)).toBe('Platinum');
+  });
+  it('getNextRank returns next rank and remaining appointments', () => {
+    const next = getNextRank(4);
     expect(next?.name).toBe('Silver');
-    expect(next?.remainingPoints).toBe(100);
-    const next199 = getNextTier(199);
-    expect(next199?.remainingPoints).toBe(1);
-    expect(getNextTier(1000)).toBeNull();
+    expect(next?.remainingAppointments).toBe(6);
+    const next29 = getNextRank(29);
+    expect(next29?.name).toBe('Diamond');
+    expect(next29?.remainingAppointments).toBe(1);
+    expect(getNextRank(50)).toBeNull();
   });
 });
 
@@ -132,8 +173,47 @@ describe('Loyalty v2 earn flow', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.currentBalance).toBe(0);
     expect(res.body.data.lifetimeEarned).toBe(0);
+    expect(res.body.data.lifetimeAppointments).toBe(0);
     expect(res.body.data.tier).toBe('Bronze');
+    expect(res.body.data.rank).toBe('Bronze');
+    expect(res.body.data.nextRank).toMatchObject({
+      name: 'Silver',
+      requiredAppointments: 10,
+      remainingAppointments: 10,
+    });
+    expect(res.body.data.rankScale).toHaveLength(5);
+    expect(res.body.data.rewardMilestones.map((reward: { costPoints: number }) => reward.costPoints)).toEqual([
+      75,
+      150,
+      250,
+      300,
+    ]);
+    expect(res.body.data.rewardMilestones[0]).toMatchObject({
+      slug: 'product_30_percent',
+      isReached: false,
+      canRedeem: false,
+      pointsRemaining: 75,
+      positionLabel: 'You \u00B7 0 pts',
+    });
+    expect(res.body.data.pointsRule).toEqual({
+      spendAmount: 1,
+      spendCurrency: 'EUR',
+      pointsEarned: 1,
+    });
     expect(res.body.data.enrolledAt).toBeDefined();
+  });
+
+  it('GET /loyalty/private-club exposes the same aggregate contract', async () => {
+    const res = await request(app).get('/api/v1/loyalty/private-club').set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.member.memberCode).toMatch(/^BC-[A-F0-9]{8}$/);
+    expect(res.body.data.rankScale.map((rank: { name: string }) => rank.name)).toEqual([
+      'Bronze',
+      'Silver',
+      'Gold',
+      'Diamond',
+      'Platinum',
+    ]);
   });
 
   it('POST /loyalty/v2/qr returns earn QR payload', async () => {
@@ -156,7 +236,9 @@ describe('Loyalty v2 earn flow', () => {
     expect(earnRes.body.data.pointsEarned).toBe(25);
     expect(earnRes.body.data.newBalance).toBe(25);
     expect(earnRes.body.data.newLifetime).toBe(25);
+    expect(earnRes.body.data.newLifetimeAppointments).toBe(1);
     expect(earnRes.body.data.newTier).toBe('Bronze');
+    expect(earnRes.body.data.newRank).toBe('Bronze');
   });
 
   it('admin earn with same QR again returns 400 (token used)', async () => {
@@ -235,6 +317,105 @@ describe('Loyalty v2 earn flow', () => {
       .send({ qrPayload, serviceId });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('INVALID_QR');
+  });
+});
+
+describe('Loyalty v2 completed booking awards', () => {
+  let appUserId: string;
+
+  beforeAll(async () => {
+    await cleanupLoyaltyV2();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany({ where: { email: 'bookingaward@example.com' } });
+
+    const reg = await request(app).post('/api/v1/auth/register').send({
+      email: 'bookingaward@example.com',
+      phoneNumber: '+12025550109',
+      password: 'password123',
+      fullName: 'Booking Award',
+    });
+    if (reg.status !== 201) {
+      throw new Error(`Register failed: ${JSON.stringify(reg.body)}`);
+    }
+    appUserId = reg.body.user.id;
+  });
+
+  afterAll(async () => {
+    await cleanupLoyaltyV2();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany({ where: { email: 'bookingaward@example.com' } });
+  });
+
+  it('awards spendable points and one appointment for a paid completed booking', async () => {
+    const result = await awardPointsForCompletedBooking({
+      appUserId,
+      websiteBookingId: 'website-booking-paid-1',
+      websiteClientId: 'website-client-1',
+      serviceName: 'Paid Cut',
+      bookingPrice: 2500,
+    });
+
+    expect(result).toMatchObject({
+      pointsEarned: 25,
+      newBalance: 25,
+      newLifetime: 25,
+      newLifetimeAppointments: 1,
+      newTier: 'Bronze',
+      newRank: 'Bronze',
+    });
+
+    const account = await prisma.loyaltyAccount.findUnique({ where: { userId: appUserId } });
+    expect(account?.currentBalance).toBe(25);
+    expect(account?.lifetimeEarned).toBe(25);
+    expect(account?.lifetimeAppointments).toBe(1);
+
+    const transaction = await prisma.loyaltyTransaction.findFirst({
+      where: { accountId: account!.id, referenceId: 'website-booking-paid-1' },
+    });
+    expect(transaction?.points).toBe(25);
+    expect(transaction?.appointmentCount).toBe(1);
+  });
+
+  it('counts a zero-point completed booking toward rank without adding points', async () => {
+    const result = await awardPointsForCompletedBooking({
+      appUserId,
+      websiteBookingId: 'website-booking-zero-1',
+      websiteClientId: 'website-client-1',
+      serviceName: 'Comped Cut',
+      bookingPrice: 0,
+    });
+
+    expect(result).toMatchObject({
+      pointsEarned: 0,
+      newBalance: 25,
+      newLifetime: 25,
+      newLifetimeAppointments: 2,
+      newTier: 'Bronze',
+      newRank: 'Bronze',
+    });
+
+    const grant = await prisma.websiteBookingLoyaltyGrant.findUnique({
+      where: { websiteBookingId: 'website-booking-zero-1' },
+    });
+    expect(grant?.pointsAwarded).toBe(0);
+    expect(grant?.appointmentsAwarded).toBe(1);
+  });
+
+  it('does not double-count the same website booking', async () => {
+    const duplicate = await awardPointsForCompletedBooking({
+      appUserId,
+      websiteBookingId: 'website-booking-paid-1',
+      websiteClientId: 'website-client-1',
+      serviceName: 'Paid Cut',
+      bookingPrice: 2500,
+    });
+
+    expect(duplicate).toBeNull();
+
+    const account = await prisma.loyaltyAccount.findUnique({ where: { userId: appUserId } });
+    expect(account?.currentBalance).toBe(25);
+    expect(account?.lifetimeEarned).toBe(25);
+    expect(account?.lifetimeAppointments).toBe(2);
   });
 });
 

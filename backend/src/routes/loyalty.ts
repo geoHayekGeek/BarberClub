@@ -300,12 +300,22 @@ router.post('/redeem', authenticate, async (req: AuthRequest, res: Response, nex
   }
 });
 
-// ---- Loyalty v2 (points, tiers, rewards) ----
+// ---- Loyalty v2 (points, appointment ranks, rewards) ----
 /** GET /loyalty/v2/me — current balance, lifetimeEarned, tier, nextTier */
 router.get('/v2/me', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
     const state = await loyaltyV2.getLoyaltyState(req.userId);
+    res.json({ data: state });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/private-club', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId) throw new AppError(ErrorCode.UNAUTHORIZED, 'User ID not found', 401);
+    const state = await loyaltyV2.getPrivateClubState(req.userId);
     res.json({ data: state });
   } catch (error) {
     next(error);

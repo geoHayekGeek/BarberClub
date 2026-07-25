@@ -1,5 +1,5 @@
 /**
- * Loyalty v2 service: points-as-currency, tiers, rewards catalog, transactions.
+ * Loyalty v2 service: points-as-currency, appointment-based ranks, rewards catalog, transactions.
  */
 
 import prisma from '../../db/client';
@@ -8,7 +8,15 @@ import { AppError, ErrorCode } from '../../utils/errors';
 import { logger } from '../../utils/logger';
 import config from '../../config';
 import { generateToken, hashToken, encodeQRPayload, QRType } from '../../utils/qr';
-import { getTierFromLifetime, getNextTier, getCheapestRewardCost, type LoyaltyTierName } from './tiers';
+import {
+  getCheapestRewardCost,
+  getNextRank,
+  getRankFromAppointments,
+  getRankProgress,
+  getRankScale,
+  type LoyaltyRankTheme,
+  type LoyaltyTierName,
+} from './tiers';
 import { assertAdminHasAccessToSalon } from '../admin/salonAccess';
 import { pointsFromPrice } from './points';
 
@@ -20,24 +28,70 @@ const NEAR_REWARD_THRESHOLD = 20;
 export interface LoyaltyMeResponse {
   currentBalance: number;
   lifetimeEarned: number;
+  lifetimeAppointments: number;
   tier: LoyaltyTierName;
+  rank: LoyaltyTierName;
   enrolledAt: string;
-  nextTier: { name: LoyaltyTierName; remainingPoints: number } | null;
+  member: {
+    id: string;
+    memberCode: string;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+  nextTier: {
+    name: LoyaltyTierName;
+    requiredAppointments: number;
+    remainingAppointments: number;
+    remainingPoints: number;
+  } | null;
+  nextRank: {
+    name: LoyaltyTierName;
+    requiredAppointments: number;
+    remainingAppointments: number;
+  } | null;
+  rankProgress: number;
+  rankScale: LoyaltyRankScaleDto[];
+  rewards: LoyaltyRewardMilestoneDto[];
+  rewardMilestones: LoyaltyRewardMilestoneDto[];
+  pointsRule: {
+    spendAmount: number;
+    spendCurrency: 'EUR';
+    pointsEarned: number;
+  };
 }
 
 export interface LoyaltyRewardDto {
   id: string;
+  slug: string | null;
   name: string;
   costPoints: number;
   description: string | null;
   imageUrl: string | null;
   isActive: boolean;
+  sortOrder: number;
+}
+
+export interface LoyaltyRewardMilestoneDto extends LoyaltyRewardDto {
+  isReached: boolean;
+  canRedeem: boolean;
+  pointsRemaining: number;
+  positionLabel: string;
+}
+
+export interface LoyaltyRankScaleDto {
+  name: LoyaltyTierName;
+  requiredAppointments: number;
+  theme: LoyaltyRankTheme;
+  isCurrent: boolean;
+  isReached: boolean;
+  remainingAppointments: number;
 }
 
 export interface LoyaltyTransactionDto {
   id: string;
   type: string;
   points: number;
+  appointmentCount: number;
   description: string;
   createdAt: string;
 }
@@ -46,14 +100,18 @@ export interface AdminEarnResponse {
   pointsEarned: number;
   newBalance: number;
   newLifetime: number;
+  newLifetimeAppointments: number;
   newTier: LoyaltyTierName;
+  newRank: LoyaltyTierName;
 }
 
 export interface CompletedBookingEarnResponse {
   pointsEarned: number;
   newBalance: number;
   newLifetime: number;
+  newLifetimeAppointments: number;
   newTier: LoyaltyTierName;
+  newRank: LoyaltyTierName;
 }
 
 export interface CompletedBookingEarnInput {
@@ -78,21 +136,112 @@ export async function ensureLoyaltyAccount(userId: string): Promise<{ id: string
   return created;
 }
 
+function formatMemberCode(userId: string): string {
+  return `BC-${userId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+}
+
+function toRewardDto(row: {
+  id: string;
+  slug: string | null;
+  name: string;
+  costPoints: number;
+  description: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}): LoyaltyRewardDto {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    costPoints: row.costPoints,
+    description: row.description,
+    imageUrl: row.imageUrl,
+    isActive: row.isActive,
+    sortOrder: row.sortOrder,
+  };
+}
+
+function toRewardMilestone(row: ReturnType<typeof toRewardDto>, currentBalance: number): LoyaltyRewardMilestoneDto {
+  const pointsRemaining = Math.max(0, row.costPoints - currentBalance);
+  const isReached = pointsRemaining === 0;
+
+  return {
+    ...row,
+    isReached,
+    canRedeem: isReached,
+    pointsRemaining,
+    positionLabel: `You \u00B7 ${currentBalance} pts`,
+  };
+}
+
 export async function getLoyaltyState(userId: string): Promise<LoyaltyMeResponse> {
   await ensureLoyaltyAccount(userId);
-  const account = await prisma.loyaltyAccount.findUnique({
-    where: { userId },
-  });
+  const [account, rewardRows] = await Promise.all([
+    prisma.loyaltyAccount.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    }),
+    prisma.loyaltyReward.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { costPoints: 'asc' }, { createdAt: 'asc' }],
+    }),
+  ]);
+
   if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
-  const tier = getTierFromLifetime(account.lifetimeEarned);
-  const nextTier = getNextTier(account.lifetimeEarned);
+
+  const rank = getRankFromAppointments(account.lifetimeAppointments);
+  const nextRank = getNextRank(account.lifetimeAppointments);
+  const rewardMilestones = rewardRows
+    .map(toRewardDto)
+    .map((reward) => toRewardMilestone(reward, account.currentBalance));
+
   return {
     currentBalance: account.currentBalance,
     lifetimeEarned: account.lifetimeEarned,
-    tier,
+    lifetimeAppointments: account.lifetimeAppointments,
+    tier: rank,
+    rank,
     enrolledAt: account.enrolledAt.toISOString(),
-    nextTier: nextTier ? { name: nextTier.name, remainingPoints: nextTier.remainingPoints } : null,
+    member: {
+      id: account.user.id,
+      memberCode: formatMemberCode(account.user.id),
+      fullName: account.user.fullName?.trim() || account.user.email,
+      avatarUrl: account.user.avatarUrl,
+    },
+    nextTier: nextRank
+      ? {
+          name: nextRank.name,
+          requiredAppointments: nextRank.requiredAppointments,
+          remainingAppointments: nextRank.remainingAppointments,
+          // Backward-compatible alias for the current mobile parser.
+          remainingPoints: nextRank.remainingAppointments,
+        }
+      : null,
+    nextRank,
+    rankProgress: getRankProgress(account.lifetimeAppointments),
+    rankScale: getRankScale(account.lifetimeAppointments),
+    rewards: rewardMilestones,
+    rewardMilestones,
+    pointsRule: {
+      spendAmount: 1,
+      spendCurrency: 'EUR',
+      pointsEarned: 1,
+    },
   };
+}
+
+export async function getPrivateClubState(userId: string): Promise<LoyaltyMeResponse> {
+  return getLoyaltyState(userId);
 }
 
 export async function generateEarnQr(userId: string): Promise<{ qrPayload: string; expiresAt: string }> {
@@ -110,16 +259,9 @@ export async function generateEarnQr(userId: string): Promise<{ qrPayload: strin
 export async function listActiveRewards(): Promise<LoyaltyRewardDto[]> {
   const rows = await prisma.loyaltyReward.findMany({
     where: { isActive: true },
-    orderBy: { costPoints: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { costPoints: 'asc' }, { createdAt: 'asc' }],
   });
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    costPoints: r.costPoints,
-    description: r.description,
-    imageUrl: r.imageUrl,
-    isActive: r.isActive,
-  }));
+  return rows.map(toRewardDto);
 }
 
 export interface RedeemRewardResult {
@@ -222,6 +364,7 @@ export async function listTransactions(userId: string, limit: number): Promise<L
     id: r.id,
     type: r.type,
     points: r.points,
+    appointmentCount: r.appointmentCount,
     description: r.description,
     createdAt: r.createdAt.toISOString(),
   }));
@@ -336,7 +479,7 @@ export async function adminEarnPoints(
   if (adminId) logger.info('LOYALTY_EARN admin_earn', { adminId, accountId: tokenRecord.accountId, serviceId, pointsEarned });
 
   const accountId = tokenRecord.accountId;
-  const previousTier = getTierFromLifetime(tokenRecord.account.lifetimeEarned);
+  const previousTier = getRankFromAppointments(tokenRecord.account.lifetimeAppointments);
 
   await prisma.$transaction(async (tx) => {
     await tx.loyaltyAccountQrToken.update({
@@ -348,14 +491,16 @@ export async function adminEarnPoints(
       data: {
         currentBalance: { increment: pointsEarned },
         lifetimeEarned: { increment: pointsEarned },
+        lifetimeAppointments: { increment: 1 },
       },
-      select: { currentBalance: true, lifetimeEarned: true },
+      select: { currentBalance: true, lifetimeEarned: true, lifetimeAppointments: true },
     });
     await tx.loyaltyTransaction.create({
       data: {
         accountId,
         type: 'EARN',
         points: pointsEarned,
+        appointmentCount: 1,
         description: offer.title,
         referenceId: serviceId,
         adminId,
@@ -366,10 +511,10 @@ export async function adminEarnPoints(
 
   const account = await prisma.loyaltyAccount.findUnique({
     where: { id: accountId },
-    select: { currentBalance: true, lifetimeEarned: true },
+    select: { currentBalance: true, lifetimeEarned: true, lifetimeAppointments: true },
   });
   if (!account) throw new AppError(ErrorCode.INTERNAL_ERROR, 'Account not found', 500);
-  const newTier = getTierFromLifetime(account.lifetimeEarned);
+  const newTier = getRankFromAppointments(account.lifetimeAppointments);
   const user = tokenRecord.account.user;
   const fcmToken = user?.fcmToken;
 
@@ -426,7 +571,9 @@ export async function adminEarnPoints(
     pointsEarned,
     newBalance: account.currentBalance,
     newLifetime: account.lifetimeEarned,
+    newLifetimeAppointments: account.lifetimeAppointments,
     newTier,
+    newRank: newTier,
   };
 }
 

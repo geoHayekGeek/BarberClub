@@ -17,6 +17,7 @@ import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/modules/auth/utils/password';
 import { syncWebsiteOffers } from '../src/modules/client_offers/website_offers';
+import { PRIVATE_CLUB_REWARDS } from '../src/modules/loyalty_v2/rewards';
 
 const prisma = new PrismaClient();
 
@@ -158,6 +159,7 @@ const IMAGES = {
   barbers: {
     alan: getImg('barbers/alan.png'),
     clement: getImg('barbers/clement.png'),
+    louay: getImg('barbers/louay.jpg'),
     julien: getImg('barbers/julien.jpg'), 
     lucas: getImg('barbers/lucas.png'),
     nathan: getImg('barbers/nathan.png'),
@@ -314,6 +316,22 @@ async function main() {
       imageUrl: IMAGES.barbers.clement,
       // Uses the "coupes-clement" folder
       gallery: [IMAGES.barbers.clement, ...getBarberGallery('coupes-clement')],
+    },
+    {
+      firstName: 'Louay',
+      lastName: '',
+      displayName: 'Louay',
+      bio: "Tout nouvelle recrue chez BarberClub, mais fort d'une expÃ©rience passÃ©e, il maÃ®trise les dÃ©gradÃ©s, le coiffage et possÃ¨de un sens du dÃ©tail qui saura vous convaincre.",
+      experienceYears: null,
+      level: 'Senior',
+      interests: ['DÃ©gradÃ©s', 'Coiffage', 'DÃ©tail'],
+      salonIds: [salonGrenoble.id],
+      age: null,
+      origin: null,
+      videoUrl: null,
+      imageUrl: IMAGES.barbers.louay,
+      // Uses the "Coupe Louay" folder
+      gallery: [IMAGES.barbers.louay, ...getBarberGallery('Coupe Louay')],
     },
     {
       firstName: 'Lucas',
@@ -522,6 +540,34 @@ async function main() {
     }
   }
   console.log('Loyalty rewards seeded.');
+
+  await prisma.loyaltyReward.updateMany({
+    where: { slug: null, isActive: true },
+    data: { isActive: false },
+  });
+  for (const reward of PRIVATE_CLUB_REWARDS) {
+    await prisma.loyaltyReward.upsert({
+      where: { slug: reward.slug },
+      create: {
+        slug: reward.slug,
+        name: reward.name,
+        costPoints: reward.costPoints,
+        description: reward.description,
+        imageUrl: reward.imageUrl,
+        isActive: true,
+        sortOrder: reward.sortOrder,
+      },
+      update: {
+        name: reward.name,
+        costPoints: reward.costPoints,
+        description: reward.description,
+        imageUrl: reward.imageUrl,
+        isActive: true,
+        sortOrder: reward.sortOrder,
+      },
+    });
+  }
+  console.log('Private Club loyalty rewards seeded.');
 
   // --- Backfill LoyaltyAccount for existing users (idempotent) ---
   const users = await prisma.user.findMany({ select: { id: true } });

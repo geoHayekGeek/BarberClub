@@ -132,7 +132,28 @@ const barberSalonLinks = [
   ['62463742-8527-4ac5-8c52-5b9ae33d34b9', salonIds.meylan],
   ['34fff522-b16e-441a-8689-74bf66349bb8', salonIds.grenoble],
   ['1b9c2c87-8d61-4b96-ae4e-44e168696bda', salonIds.grenoble],
+  ['346bda90-0652-407d-957d-46077800edd8', salonIds.grenoble],
 ] as const;
+
+const louayRecovery: Prisma.BarberCreateManyInput = {
+  id: '346bda90-0652-407d-957d-46077800edd8',
+  firstName: 'Louay',
+  lastName: '',
+  displayName: 'Louay',
+  bio: "Tout nouvelle recrue chez BarberClub, mais fort d'une expérience passée, il maîtrise les dégradés, le coiffage et possède un sens du détail qui saura vous convaincre.",
+  experienceYears: null,
+  level: 'Senior',
+  interests: ['Dégradés', 'Coiffage', 'Détail'],
+  images: ['/images/barbers/louay.jpg'],
+  isActive: true,
+  role: 'BARBER',
+  age: null,
+  origin: null,
+  videoUrl: null,
+  imageUrl: '/images/barbers/louay.jpg',
+  gallery: ['/images/barbers/louay.jpg', '/images/barbers/Coupe Louay/IMG_0760.jpg'],
+  salonId: salonIds.grenoble,
+};
 
 const currentOfferIds: Record<string, string> = {
   'grenoble|Coupe Homme': '9bc28eed-2e1e-4eda-b2cd-846f594c1263',
@@ -173,7 +194,7 @@ async function main(): Promise<void> {
       ]),
     ]);
 
-  const expectedCounts = [2, 6, 6, 16];
+  const expectedCounts = [2, 7, 7, 16];
   if (currentCounts.some((count, index) => count !== expectedCounts[index])) {
     throw new Error(
       `Unexpected starting catalog counts: ${currentCounts.join(', ')}; ` +
@@ -281,6 +302,8 @@ async function main(): Promise<void> {
       salonId: recovery.salonId,
     });
   }
+
+  recoveredBarbers.push(louayRecovery);
 
   const currentSalonSlugById = new Map([
     [grenoble.id, 'grenoble'],
@@ -394,7 +417,7 @@ async function main(): Promise<void> {
         links,
         offers,
       ];
-      const expected = [3, 2, 11, 6, 12, 21];
+      const expected = [3, 2, 12, 7, 13, 21];
       if (actual.some((count, index) => count !== expected[index])) {
         throw new Error(
           `Recovery validation failed: ${actual.join(', ')}; ` +
