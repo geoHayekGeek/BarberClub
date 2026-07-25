@@ -9,6 +9,9 @@ class LoyaltyV2State {
   final LoyaltyMember? member;
   final LoyaltyNextTier? nextTier;
   final LoyaltyNextRank? nextRank;
+  final LoyaltyRankTheme? theme;
+  final Map<String, String> themeVariables;
+  final LoyaltyMemberPosition? memberPosition;
   final double rankProgress;
   final List<LoyaltyRankScaleItem> rankScale;
   final List<LoyaltyRewardMilestoneItem> rewardMilestones;
@@ -24,6 +27,9 @@ class LoyaltyV2State {
     this.member,
     this.nextTier,
     this.nextRank,
+    this.theme,
+    this.themeVariables = const {},
+    this.memberPosition,
     this.rankProgress = 0,
     this.rankScale = const [],
     this.rewardMilestones = const [],
@@ -34,6 +40,9 @@ class LoyaltyV2State {
     final next = json['nextTier'] as Map<String, dynamic>?;
     final nextRank = json['nextRank'] as Map<String, dynamic>?;
     final member = json['member'] as Map<String, dynamic>?;
+    final theme = json['theme'] as Map<String, dynamic>?;
+    final memberPosition = json['memberPosition'] as Map<String, dynamic>?;
+    final themeVariables = json['themeVariables'] as Map<String, dynamic>?;
     final rankScale = json['rankScale'] as List<dynamic>? ?? const [];
     final rewardMilestones =
         json['rewardMilestones'] as List<dynamic>? ?? const [];
@@ -60,6 +69,15 @@ class LoyaltyV2State {
             )
           : null,
       nextRank: nextRank != null ? LoyaltyNextRank.fromJson(nextRank) : null,
+      theme: theme != null ? LoyaltyRankTheme.fromJson(theme) : null,
+      themeVariables: themeVariables != null
+          ? themeVariables.map(
+              (key, value) => MapEntry(key, value?.toString() ?? ''),
+            )
+          : const {},
+      memberPosition: memberPosition != null
+          ? LoyaltyMemberPosition.fromJson(memberPosition)
+          : null,
       rankProgress: (json['rankProgress'] as num?)?.toDouble() ?? 0,
       rankScale: rankScale
           .map(
@@ -100,6 +118,20 @@ class LoyaltyMember {
       memberCode: json['memberCode'] as String? ?? '',
       fullName: json['fullName'] as String? ?? 'Member',
       avatarUrl: json['avatarUrl'] as String?,
+    );
+  }
+}
+
+class LoyaltyMemberPosition {
+  final String label;
+  final int points;
+
+  const LoyaltyMemberPosition({required this.label, required this.points});
+
+  static LoyaltyMemberPosition fromJson(Map<String, dynamic> json) {
+    return LoyaltyMemberPosition(
+      label: json['label'] as String? ?? '',
+      points: (json['points'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -255,7 +287,9 @@ class LoyaltyRewardItem {
 class LoyaltyRewardMilestoneItem extends LoyaltyRewardItem {
   final bool isReached;
   final bool canRedeem;
+  final bool isLocked;
   final int pointsRemaining;
+  final String remainingLabel;
   final String positionLabel;
 
   const LoyaltyRewardMilestoneItem({
@@ -264,7 +298,9 @@ class LoyaltyRewardMilestoneItem extends LoyaltyRewardItem {
     required super.costPoints,
     required this.isReached,
     required this.canRedeem,
+    required this.isLocked,
     required this.pointsRemaining,
+    required this.remainingLabel,
     required this.positionLabel,
     super.slug,
     super.description,
@@ -285,7 +321,9 @@ class LoyaltyRewardMilestoneItem extends LoyaltyRewardItem {
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
       isReached: json['isReached'] as bool? ?? false,
       canRedeem: json['canRedeem'] as bool? ?? false,
+      isLocked: json['isLocked'] as bool? ?? true,
       pointsRemaining: (json['pointsRemaining'] as num?)?.toInt() ?? 0,
+      remainingLabel: json['remainingLabel'] as String? ?? '',
       positionLabel: json['positionLabel'] as String? ?? '',
     );
   }

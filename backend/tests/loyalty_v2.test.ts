@@ -182,6 +182,16 @@ describe('Loyalty v2 earn flow', () => {
       remainingAppointments: 10,
     });
     expect(res.body.data.rankScale).toHaveLength(5);
+    expect(res.body.data.themeVariables).toMatchObject({
+      '--accent': '#E4975A',
+      '--accent-2': '#C4753A',
+      '--glow': 'rgba(228,151,90,.50)',
+      '--ink': '#2A1808',
+    });
+    expect(res.body.data.memberPosition).toEqual({
+      label: 'You \u00B7 0 pts',
+      points: 0,
+    });
     expect(res.body.data.rewardMilestones.map((reward: { costPoints: number }) => reward.costPoints)).toEqual([
       75,
       150,
@@ -192,7 +202,9 @@ describe('Loyalty v2 earn flow', () => {
       slug: 'product_30_percent',
       isReached: false,
       canRedeem: false,
+      isLocked: true,
       pointsRemaining: 75,
+      remainingLabel: '75 pts remaining',
       positionLabel: 'You \u00B7 0 pts',
     });
     expect(res.body.data.pointsRule).toEqual({
