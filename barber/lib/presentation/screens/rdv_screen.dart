@@ -2223,7 +2223,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
           child: _ReservationTopHeader(
             title: 'CHOISISSEZ VOTRE SALON',
-            subtitle: 'BarberClub Grenoble et Meylan',
+            subtitle: '',
             onBack: () => context.go('/home'),
             onProfile: _openAccount,
           ),
@@ -3428,38 +3428,54 @@ class _SalonChoiceSplit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (salons.isEmpty) {
-      return const _SalonChoiceFallbackPanel();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final squareSide = constraints.maxWidth;
+        if (salons.isEmpty) {
+          return SizedBox(
+            height: squareSide * 2 + 5,
+            child: const _SalonChoiceFallbackPanel(),
+          );
+        }
 
-    final topSalon = salons.first;
-    final bottomSalon = salons.length > 1 ? salons[1] : null;
+        final topSalon = salons.first;
+        final bottomSalon = salons.length > 1 ? salons[1] : null;
+        final separatorHeight = bottomSalon != null ? 5.0 : 0.0;
+        final totalHeight =
+            squareSide * (bottomSalon != null ? 2 : 1) + separatorHeight;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(color: Colors.black),
-        Column(
-          children: [
-            Expanded(
-              child: _SalonChoicePanel(
-                salon: topSalon,
-                onTap: () => onTapSalon(topSalon),
+        return SizedBox(
+          height: totalHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(color: Colors.black),
+              Column(
+                children: [
+                  SizedBox(
+                    height: squareSide,
+                    child: _SalonChoicePanel(
+                      salon: topSalon,
+                      onTap: () => onTapSalon(topSalon),
+                    ),
+                  ),
+                  if (bottomSalon != null) const GlowingSeparator(),
+                  SizedBox(
+                    height: squareSide,
+                    child: bottomSalon != null
+                        ? _SalonChoicePanel(
+                            salon: bottomSalon,
+                            onTap: () => onTapSalon(bottomSalon),
+                            contentBottomInset: 96,
+                          )
+                        : const _SalonChoiceFallbackPanel(),
+                  ),
+                ],
               ),
-            ),
-            const GlowingSeparator(),
-            Expanded(
-              child: bottomSalon != null
-                  ? _SalonChoicePanel(
-                      salon: bottomSalon,
-                      onTap: () => onTapSalon(bottomSalon),
-                      contentBottomInset: 96,
-                    )
-                  : const _SalonChoiceFallbackPanel(),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

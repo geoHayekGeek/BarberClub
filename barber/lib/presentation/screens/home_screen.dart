@@ -99,13 +99,10 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        SizedBox(
-                          height: math.max(430.0, viewportHeight * 0.72),
-                          child: _HeroSalonsSplit(
-                            salons: featured,
-                            onTapSalon: (salon) =>
-                                context.push('/salon/${salon.id}'),
-                          ),
+                        _HeroSalonsSplit(
+                          salons: featured,
+                          onTapSalon: (salon) =>
+                              context.push('/salon/${salon.id}'),
                         ),
                         if (remaining.isNotEmpty) ...[
                           const SizedBox(height: 24),
@@ -312,38 +309,54 @@ class _HeroSalonsSplit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (salons.isEmpty) {
-      return const _HeroLoadingSection();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final squareSide = constraints.maxWidth;
+        if (salons.isEmpty) {
+          return SizedBox(
+            height: squareSide * 2 + 5,
+            child: const _HeroLoadingSection(),
+          );
+        }
 
-    final topSalon = salons.first;
-    final bottomSalon = salons.length > 1 ? salons[1] : null;
+        final topSalon = salons.first;
+        final bottomSalon = salons.length > 1 ? salons[1] : null;
+        final separatorHeight = bottomSalon != null ? 5.0 : 0.0;
+        final totalHeight =
+            squareSide * (bottomSalon != null ? 2 : 1) + separatorHeight;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(color: Colors.black),
-        Column(
-          children: [
-            Expanded(
-              child: _HeroSalonPanel(
-                salon: topSalon,
-                onTap: () => onTapSalon(topSalon),
+        return SizedBox(
+          height: totalHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(color: Colors.black),
+              Column(
+                children: [
+                  SizedBox(
+                    height: squareSide,
+                    child: _HeroSalonPanel(
+                      salon: topSalon,
+                      onTap: () => onTapSalon(topSalon),
+                    ),
+                  ),
+                  if (bottomSalon != null) const GlowingSeparator(),
+                  SizedBox(
+                    height: squareSide,
+                    child: bottomSalon != null
+                        ? _HeroSalonPanel(
+                            salon: bottomSalon,
+                            onTap: () => onTapSalon(bottomSalon),
+                            contentBottomInset: 96,
+                          )
+                        : _HeroFallbackPanel(onTap: () => onTapSalon(topSalon)),
+                  ),
+                ],
               ),
-            ),
-            const GlowingSeparator(),
-            Expanded(
-              child: bottomSalon != null
-                  ? _HeroSalonPanel(
-                      salon: bottomSalon,
-                      onTap: () => onTapSalon(bottomSalon),
-                      contentBottomInset: 96,
-                    )
-                  : _HeroFallbackPanel(onTap: () => onTapSalon(topSalon)),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
