@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -1209,21 +1210,46 @@ class _ConditionsSection extends StatelessWidget {
       children: [
         const _SectionLabel(text: 'CONDITIONS'),
         const SizedBox(height: 14),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.035),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Column(
-            children: [
-              for (var index = 0; index < conditions.length; index++)
-                _ConditionRow(
-                  icon: _conditionIconForIndex(index),
-                  text: conditions[index],
-                  showDivider: index != 0,
-                ),
-            ],
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.035),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.04),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.35],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      for (var index = 0; index < conditions.length; index++)
+                        _ConditionRow(
+                          icon: _conditionIconForIndex(index),
+                          text: conditions[index],
+                          showDivider: index != 0,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -1258,7 +1284,7 @@ class _ConditionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
@@ -1276,12 +1302,12 @@ class _ConditionRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
             ),
             child: Icon(
               icon,
               size: 16,
-              color: Colors.white.withValues(alpha: 0.42),
+              color: Colors.white.withValues(alpha: 0.4),
             ),
           ),
           const SizedBox(width: 14),
@@ -1292,7 +1318,7 @@ class _ConditionRow extends StatelessWidget {
                 fontSize: 13,
                 height: 1.35,
                 fontWeight: FontWeight.w500,
-                color: Colors.white.withValues(alpha: 0.42),
+                color: Colors.white.withValues(alpha: 0.4),
               ),
             ),
           ),
