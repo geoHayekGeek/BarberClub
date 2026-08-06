@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -16,6 +15,7 @@ import '../../domain/models/reservation_models.dart';
 import '../../domain/models/reservation_session.dart';
 import '../../domain/models/user.dart';
 import '../../domain/models/salon.dart';
+import '../constants/loyalty_ui_constants.dart';
 import '../providers/auth_providers.dart';
 import '../providers/reservation_auth_providers.dart';
 import '../providers/reservation_providers.dart';
@@ -2215,7 +2215,11 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
 
   Widget _buildSalonSelectionView(BuildContext context, List<Salon> salons) {
     final selectionSalons = salons.take(2).toList(growable: false);
-    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom + 24;
+    final bottomPadding =
+        MediaQuery.viewPaddingOf(context).bottom +
+        LoyaltyUIConstants.bottomNavPadding +
+        120 +
+        24;
 
     return Column(
       children: [
@@ -2269,10 +2273,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                       ),
                       const SizedBox(height: 18),
                       SizedBox(
-                        height: math.max(
-                          430.0,
-                          MediaQuery.sizeOf(context).height * 0.72,
-                        ),
+                        width: double.infinity,
                         child: _SalonChoiceSplit(
                           salons: selectionSalons,
                           onTapSalon: _selectSalon,
