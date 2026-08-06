@@ -541,29 +541,6 @@ class _TierCarousel extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isCurrent)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'ACTUEL',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           );

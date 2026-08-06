@@ -697,37 +697,6 @@ class _RankSwitchPill extends StatelessWidget {
               ),
             ],
           ),
-          if (isSelected)
-            Positioned(
-              left: 6,
-              top: -11,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.glow.withValues(alpha: 0.18),
-                      blurRadius: 12,
-                    ),
-                  ],
-                ),
-                child: const Text(
-                  'ACTUEL',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontFamily: 'Orbitron',
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -960,7 +929,7 @@ class _MembershipCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Solde disponible ? 1 ? d?pens? = 1 point',
+            'Solde disponible · 1 € dépensé = 1 point',
             style: GoogleFonts.inter(
               color: Colors.white.withValues(alpha: 0.56),
               fontSize: 12.5,
@@ -1275,37 +1244,46 @@ class _GoalPanel extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _SvgIcon(
-                            svg: _svgStar,
-                            size: 11,
-                            color: palette.accent,
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
                           ),
-                          const SizedBox(width: 7),
-                          Text(
-                            objective,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'Orbitron',
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.1),
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _SvgIcon(
+                                svg: _svgStar,
+                                size: 11,
+                                color: palette.accent,
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                objective,
+                                maxLines: 1,
+                                softWrap: false,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Orbitron',
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -1794,8 +1772,8 @@ class _RewardTimelineSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   nextMilestone == null
-                      ? 'Tous les paliers d?bloqu?s'
-                      : 'Prochain palier : ${nextMilestone!.costPoints} pts ? plus que ${nextMilestone!.pointsRemaining} pts',
+                      ? 'Tous les paliers débloqués'
+                      : 'Prochain palier : ${nextMilestone!.costPoints} pts · plus que ${nextMilestone!.pointsRemaining} pts',
                   textAlign: TextAlign.right,
                   style: GoogleFonts.inter(
                     color: Colors.white54,
@@ -1847,13 +1825,13 @@ class _RewardTimelineSection extends StatelessWidget {
           if (milestones.isEmpty) ...[
             const SizedBox(height: 10),
             Text(
-              'Aucune r?compense configur?e',
+              'Aucune récompense configurée',
               style: GoogleFonts.inter(color: Colors.white54),
             ),
           ],
           const SizedBox(height: 8),
           Text(
-            '$redeemableCount r?compense(s) pr?te(s) ? ?tre utilis?e(s)',
+            '$redeemableCount récompense(s) prête(s) à être utilisée(s)',
             style: GoogleFonts.inter(color: Colors.white38, fontSize: 11.5),
           ),
         ],
@@ -2149,16 +2127,16 @@ class _HowSection extends StatelessWidget {
       (
         '1',
         'Vous consommez',
-        'Coupe, barbe, soins, produits - chaque euro cr?dite 1 point.',
+        'Coupe, barbe, soins, produits - chaque euro crédite 1 point.',
       ),
       (
         '2',
         'Vous montez en rang',
-        'Chaque RDV vous fait progresser de Bronze jusqu?? Platine.',
+        'Chaque RDV vous fait progresser de Bronze jusqu’à Platine.',
       ),
       (
         '3',
-        'Vous ?changez',
+        'Vous échangez',
         'Transformez vos points en remises et prestations offertes.',
       ),
     ];
@@ -2270,7 +2248,7 @@ class _ActivityFeed extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'ACTIVIT? DES POINTS',
+            'ACTIVITÉ DES POINTS',
                 style: TextStyle(
                   color: Colors.white,
                   fontFamily: 'Orbitron',
@@ -2310,7 +2288,7 @@ class _ActivityFeed extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'ACTIVIT? DES POINTS',
+                'ACTIVITÉ DES POINTS',
             style: TextStyle(
               color: Colors.white,
               fontFamily: 'Orbitron',
@@ -2321,7 +2299,7 @@ class _ActivityFeed extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Aucune op?ration r?cente',
+            'Aucune opération récente',
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
           ),
         ],
