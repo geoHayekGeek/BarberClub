@@ -334,10 +334,11 @@ class _BarberCarouselCardState extends State<_BarberCarouselCard> {
                         Text(
                           widget.barber.displayName.toUpperCase(),
                           style: const TextStyle(
+                            fontFamily: 'Orbitron',
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
+                            letterSpacing: 1.0,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

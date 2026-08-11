@@ -46,7 +46,8 @@ class BarbersListScreen extends ConsumerWidget {
                         // Titre mis à jour avec la typographie globale Orbitron
                         Text(
                           'NOS BARBERS',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          style: Theme.of(context).textTheme.displaySmall
+                              ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 3,
@@ -54,10 +55,10 @@ class BarbersListScreen extends ConsumerWidget {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
-                        
+
                         // --- PREMIUM SEPARATOR ---
                         const GlowingSeparator(),
-                        
+
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -71,16 +72,13 @@ class BarbersListScreen extends ConsumerWidget {
                         mainAxisSpacing: 16,
                         childAspectRatio: 0.75,
                       ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final barber = barbers[index];
-                          return _BarberGridCard(
-                            barber: barber,
-                            onTap: () => context.push('/coiffeurs/${barber.id}'),
-                          );
-                        },
-                        childCount: barbers.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final barber = barbers[index];
+                        return _BarberGridCard(
+                          barber: barber,
+                          onTap: () => context.push('/coiffeurs/${barber.id}'),
+                        );
+                      }, childCount: barbers.length),
                     ),
                   ),
                 ],
@@ -94,15 +92,17 @@ class BarbersListScreen extends ConsumerWidget {
             // Note: Ensure getBarberErrorMessage is defined or replaced with error.toString()
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
+                padding: const EdgeInsets.all(
+                  BarberUIConstants.horizontalGutter,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       error.toString(),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: BarberUIConstants.sectionSpacing),
@@ -127,9 +127,9 @@ class BarbersListScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
         child: Text(
           'Aucun coiffeur trouvé.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white70,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
           textAlign: TextAlign.center,
         ),
       ),
@@ -198,10 +198,11 @@ class _BarberGridCardState extends State<_BarberGridCard> {
                         Text(
                           widget.barber.displayName.toUpperCase(),
                           style: const TextStyle(
+                            fontFamily: 'Orbitron',
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
+                            letterSpacing: 1.6,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

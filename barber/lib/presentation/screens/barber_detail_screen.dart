@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,15 +63,17 @@ class BarberDetailScreen extends ConsumerWidget {
           body: SafeArea(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
+                padding: const EdgeInsets.all(
+                  BarberUIConstants.horizontalGutter,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       message,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: BarberUIConstants.sectionSpacing),
@@ -112,8 +114,9 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     // Keep the hero immersive without pushing core info off-screen.
-    final headerHeight =
-        (mediaQuery.size.height * 0.56).clamp(320.0, 520.0).toDouble();
+    final headerHeight = (mediaQuery.size.height * 0.56)
+        .clamp(320.0, 520.0)
+        .toDouble();
     final paddingH = BarberUIConstants.horizontalGutter;
 
     return Scaffold(
@@ -134,23 +137,14 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                paddingH,
-                24,
-                paddingH,
-                0,
-              ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _InfoCardsRow(barber: widget.barber),
-                      const SizedBox(height: 24),
+              padding: EdgeInsets.fromLTRB(paddingH, 24, paddingH, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 12),
                   _AProposSection(barber: widget.barber),
                   const SizedBox(height: 24),
-                  _CtaButton(
-                    barber: widget.barber,
-                    salonId: widget.salonId,
-                  ),
+                  _CtaButton(barber: widget.barber, salonId: widget.salonId),
                   const SizedBox(height: 32),
                   _SectionTitleWithDivider(title: 'SES RÉALISATIONS'),
                   const SizedBox(height: 12),
@@ -179,15 +173,6 @@ class _BarberVideoHeader extends StatefulWidget {
 
   @override
   State<_BarberVideoHeader> createState() => _BarberVideoHeaderState();
-}
-
-String _experienceLevel(Barber b) {
-  if (b.experienceYears != null && b.experienceYears! > 0) {
-    return '${b.experienceYears} ANS D\'EXP.';
-  }
-  final level = b.level.toUpperCase();
-  if (level.isNotEmpty && level != 'BARBER') return level;
-  return 'COIFFEUR';
 }
 
 class _BarberVideoHeaderState extends State<_BarberVideoHeader>
@@ -246,14 +231,16 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
     final salonLabel = widget.salonName != null && widget.salonName!.isNotEmpty
         ? widget.salonName!.toUpperCase()
         : (barber.salons.isNotEmpty
-            ? barber.salons.first.name.toUpperCase()
-            : '');
+              ? barber.salons.first.name.toUpperCase()
+              : '');
 
     return Stack(
       fit: StackFit.expand,
       clipBehavior: Clip.hardEdge,
       children: [
-        if (_useVideo && _controller != null && _controller!.value.isInitialized)
+        if (_useVideo &&
+            _controller != null &&
+            _controller!.value.isInitialized)
           Positioned.fill(
             child: FadeTransition(
               opacity: AlwaysStoppedAnimation(_initialized ? 1.0 : 0.0),
@@ -277,73 +264,69 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
                   )
                 : _placeholder(),
           ),
-        Positioned.fill(
-          child: Container(
-            color: Colors.black.withOpacity(0.6),
-          ),
-        ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Material(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(24),
-                        child: InkWell(
-                          onTap: widget.onBack,
-                          borderRadius: BorderRadius.circular(24),
-                          child: const SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'BARBER',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      Text(
-                        'CLUB',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-          ),
-        ),
+        Positioned.fill(child: Container(color: Colors.black.withOpacity(0.6))),
+        // Positioned(
+        //   top: 0,
+        //   left: 0,
+        //   right: 0,
+        //   child: SafeArea(
+        //     child: Padding(
+        //       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        //       child: Row(
+        //         children: [
+        //           ClipRRect(
+        //             borderRadius: BorderRadius.circular(24),
+        //             child: BackdropFilter(
+        //               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        //               child: Material(
+        //                 color: Colors.white.withOpacity(0.15),
+        //                 borderRadius: BorderRadius.circular(24),
+        //                 child: InkWell(
+        //                   onTap: widget.onBack,
+        //                   borderRadius: BorderRadius.circular(24),
+        //                   child: const SizedBox(
+        //                     width: 48,
+        //                     height: 48,
+        //                     child: Icon(
+        //                       Icons.arrow_back,
+        //                       color: Colors.white,
+        //                       size: 24,
+        //                     ),
+        //                   ),
+        //                 ),
+        //               ),
+        //             ),
+        //           ),
+        //           const Spacer(),
+        //           const Column(
+        //             mainAxisSize: MainAxisSize.min,
+        //             children: [
+        //               Text(
+        //                 'BARBER',
+        //                 style: TextStyle(
+        //                   color: Colors.white,
+        //                   fontSize: 18,
+        //                   fontWeight: FontWeight.w700,
+        //                   letterSpacing: 2,
+        //                 ),
+        //               ),
+        //               Text(
+        //                 'CLUB',
+        //                 style: TextStyle(
+        //                   color: Colors.white,
+        //                   fontSize: 12,
+        //                   letterSpacing: 1,
+        //                 ),
+        //               ),
+        //             ],
+        //           ),
+        //           const Spacer(),
+        //           const SizedBox(width: 48),
+        //         ],
+        //       ),
+        //     ),
+        //   ),
+        // ),
         Positioned(
           bottom: 40,
           left: 0,
@@ -363,19 +346,13 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
-              // const SizedBox(height: 8),
-              // Text(
-              //   _experienceLevel(barber),
-              //   style: TextStyle(
-              //     color: Colors.white.withOpacity(0.7),
-              //     fontSize: 14,
-              //     letterSpacing: 3,
-              //   ),
-              // ),
               if (salonLabel.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(30),
@@ -419,82 +396,6 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
   }
 }
 
-class _InfoCardsRow extends StatelessWidget {
-  final Barber barber;
-
-  const _InfoCardsRow({required this.barber});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _InfoCard(
-            value: barber.age != null ? '${barber.age}' : '—',
-            label: 'ANS',
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _InfoCard(
-            value: (barber.origin ?? '').isNotEmpty
-                ? barber.origin!.toUpperCase()
-                : '—',
-            label: 'ORIGINE',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final String value;
-  final String label;
-
-  const _InfoCard({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.05),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 12,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _AProposSection extends StatelessWidget {
   final Barber barber;
 
@@ -521,10 +422,7 @@ class _AProposSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF111111),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.05),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
           ),
           child: Text(
             barber.bio.isNotEmpty
@@ -553,7 +451,6 @@ class _CtaButton extends ConsumerStatefulWidget {
 }
 
 class _CtaButtonState extends ConsumerState<_CtaButton> {
-
   void _handleOnTap() {
     HapticFeedback.mediumImpact();
     ref.read(selectedSalonIdForRdvProvider.notifier).state = widget.salonId;
@@ -588,8 +485,8 @@ class _CtaButtonState extends ConsumerState<_CtaButton> {
               ),
             ],
           ),
-          ),
         ),
+      ),
     );
   }
 }
@@ -665,11 +562,12 @@ class _GalleryGrid extends StatelessWidget {
     return Container(
       color: const Color(0xFF1A1A1A),
       child: const Center(
-        child: Icon(Icons.image_not_supported_outlined,
-            color: Colors.white24, size: 40),
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: Colors.white24,
+          size: 40,
+        ),
       ),
     );
   }
 }
-
-

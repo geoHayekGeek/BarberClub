@@ -52,7 +52,7 @@ class BarbersBySalonScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: CustomScrollView(
                 slivers: [
-              SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Column(
                       children: [
                         const SizedBox(height: 16),
@@ -66,7 +66,8 @@ class BarbersBySalonScreen extends ConsumerWidget {
                         // Titre mis à jour avec la typographie globale Orbitron
                         Text(
                           'NOS BARBERS',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          style: Theme.of(context).textTheme.displaySmall
+                              ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 3,
@@ -74,8 +75,7 @@ class BarbersBySalonScreen extends ConsumerWidget {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
-                      
-                        
+
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -89,19 +89,18 @@ class BarbersBySalonScreen extends ConsumerWidget {
                         mainAxisSpacing: 16,
                         childAspectRatio: 0.75,
                       ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final barber = barbers[index];
-                          return _BarberGridCard(
-                            barber: barber,
-                            onTap: () {
-                              final name = Uri.encodeComponent(salonName);
-                              context.push('/coiffeurs/salon/$salonId/barber/${barber.id}?name=$name');
-                            },
-                          );
-                        },
-                        childCount: barbers.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final barber = barbers[index];
+                        return _BarberGridCard(
+                          barber: barber,
+                          onTap: () {
+                            final name = Uri.encodeComponent(salonName);
+                            context.push(
+                              '/coiffeurs/salon/$salonId/barber/${barber.id}?name=$name',
+                            );
+                          },
+                        );
+                      }, childCount: barbers.length),
                     ),
                   ),
                 ],
@@ -115,15 +114,17 @@ class BarbersBySalonScreen extends ConsumerWidget {
             final message = getBarberErrorMessage(error, stackTrace);
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
+                padding: const EdgeInsets.all(
+                  BarberUIConstants.horizontalGutter,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       message,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: BarberUIConstants.sectionSpacing),
@@ -149,9 +150,9 @@ class BarbersBySalonScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(BarberUIConstants.horizontalGutter),
         child: Text(
           BarberStrings.emptyList,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white70,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: Colors.white70),
           textAlign: TextAlign.center,
         ),
       ),
@@ -216,10 +217,11 @@ class _BarberGridCardState extends State<_BarberGridCard> {
                     child: Text(
                       widget.barber.displayName.toUpperCase(),
                       style: const TextStyle(
+                        fontFamily: 'Orbitron',
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 2,
+                        letterSpacing: 1.6,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

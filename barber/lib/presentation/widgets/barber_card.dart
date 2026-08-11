@@ -77,8 +77,10 @@ class BarberCard extends StatelessWidget {
                       Text(
                         barber.displayName,
                         style: theme.textTheme.titleLarge?.copyWith(
+                          fontFamily: 'Orbitron',
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

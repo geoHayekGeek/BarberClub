@@ -25,11 +25,15 @@ class BarberHorizontalCard extends StatelessWidget {
     final isNetworkUrl = imageUrl != null && imageUrl.startsWith('http');
     final salonCity = barber.salons.isNotEmpty ? barber.salons.first.city : '';
     final summary = barber.bio.isNotEmpty
-        ? (barber.bio.length > 60 ? '${barber.bio.substring(0, 60)}...' : barber.bio)
+        ? (barber.bio.length > 60
+              ? '${barber.bio.substring(0, 60)}...'
+              : barber.bio)
         : null;
     final imageCacheWidth = (BarberUIConstants.cardWidth * dpr).round();
     final imageCacheHeight =
-        ((BarberUIConstants.cardWidth / BarberUIConstants.cardImageAspectRatio) * dpr)
+        ((BarberUIConstants.cardWidth /
+                    BarberUIConstants.cardImageAspectRatio) *
+                dpr)
             .round();
 
     return SizedBox(
@@ -38,12 +42,18 @@ class BarberHorizontalCard extends StatelessWidget {
         padding: const EdgeInsets.only(right: BarberUIConstants.cardSpacing),
         child: Material(
           color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(BarberUIConstants.cardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            BarberUIConstants.cardBorderRadius,
+          ),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(BarberUIConstants.cardBorderRadius),
+            borderRadius: BorderRadius.circular(
+              BarberUIConstants.cardBorderRadius,
+            ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(BarberUIConstants.cardBorderRadius),
+              borderRadius: BorderRadius.circular(
+                BarberUIConstants.cardBorderRadius,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
@@ -64,15 +74,19 @@ class BarberHorizontalCard extends StatelessWidget {
                         : _buildPlaceholder(),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(BarberUIConstants.cardPadding),
+                    padding: const EdgeInsets.all(
+                      BarberUIConstants.cardPadding,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           barber.displayName,
                           style: theme.textTheme.titleMedium?.copyWith(
+                            fontFamily: 'Orbitron',
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
