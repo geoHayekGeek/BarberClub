@@ -228,9 +228,8 @@ class _LaunchOverlay extends StatelessWidget {
       color: Colors.black,
       child: Center(
         child: Image.asset(
-          'assets/images/couronne_white_splash.png',
-          width: 74,
-          height: 74,
+          'assets/images/barber_club_full_logo.png',
+          width: 220,
           fit: BoxFit.contain,
         ),
       ),
