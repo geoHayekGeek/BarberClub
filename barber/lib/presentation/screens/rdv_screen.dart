@@ -4077,9 +4077,11 @@ class _ServiceCard extends StatelessWidget {
                       Text(
                         service.name,
                         style: const TextStyle(
+                          fontFamily: _RdvScreenState._titleFont,
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
+                          letterSpacing: 0.3,
                           height: 1.15,
                         ),
                       ),
@@ -4178,9 +4180,11 @@ class _DisabledServiceCard extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
+                      fontFamily: _RdvScreenState._titleFont,
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
+                      letterSpacing: 0.3,
                     ),
                   ),
                   const SizedBox(height: 4),
