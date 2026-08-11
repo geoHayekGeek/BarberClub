@@ -170,6 +170,15 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                   child: _RankLadder(palette: palette, steps: visualRankScale),
                 ),
                 const SizedBox(height: 34),
+                _Reveal(
+                  delay: const Duration(milliseconds: 260),
+                  reduceMotion: reduceMotion,
+                  child: _HowSection(
+                    palette: palette,
+                    pointsRuleLabel: pointsRuleLabel,
+                  ),
+                ),
+                const SizedBox(height: 34),
                 _SectionHeading(
                   eyebrow: 'Boutique de points',
                   title: 'Votre parcours récompenses',
@@ -178,7 +187,7 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 18),
                 _Reveal(
-                  delay: const Duration(milliseconds: 260),
+                  delay: const Duration(milliseconds: 300),
                   reduceMotion: reduceMotion,
                   child: _RewardTimelineSection(
                     state: state,
@@ -194,36 +203,7 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                 _Reveal(
                   delay: const Duration(milliseconds: 340),
                   reduceMotion: reduceMotion,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth >= 900;
-                      final howSection = _HowSection(
-                        palette: palette,
-                        pointsRuleLabel: pointsRuleLabel,
-                      );
-                      final activitySection = _ActivityFeed(palette: palette);
-
-                      if (isWide) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: howSection),
-                            const SizedBox(width: 20),
-                            Expanded(child: activitySection),
-                          ],
-                        );
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          howSection,
-                          const SizedBox(height: 20),
-                          activitySection,
-                        ],
-                      );
-                    },
-                  ),
+                  child: _ActivityFeed(palette: palette),
                 ),
               ],
             ),
