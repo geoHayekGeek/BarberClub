@@ -225,13 +225,11 @@ class _LoyaltyV2BodyState extends ConsumerState<_LoyaltyV2Body> {
     return PrivateClubLoyaltyView(
       state: widget.state,
       previewRankKey: _previewRankKey,
-      onPreviewRankChanged: kDebugMode
-          ? (key) {
-              setState(() {
-                _previewRankKey = key;
-              });
-            }
-          : null,
+      onPreviewRankChanged: (key) {
+        setState(() {
+          _previewRankKey = key;
+        });
+      },
     );
   }
 }
