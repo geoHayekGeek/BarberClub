@@ -265,68 +265,43 @@ class _BarberVideoHeaderState extends State<_BarberVideoHeader>
                 : _placeholder(),
           ),
         Positioned.fill(child: Container(color: Colors.black.withOpacity(0.6))),
-        // Positioned(
-        //   top: 0,
-        //   left: 0,
-        //   right: 0,
-        //   child: SafeArea(
-        //     child: Padding(
-        //       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        //       child: Row(
-        //         children: [
-        //           ClipRRect(
-        //             borderRadius: BorderRadius.circular(24),
-        //             child: BackdropFilter(
-        //               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        //               child: Material(
-        //                 color: Colors.white.withOpacity(0.15),
-        //                 borderRadius: BorderRadius.circular(24),
-        //                 child: InkWell(
-        //                   onTap: widget.onBack,
-        //                   borderRadius: BorderRadius.circular(24),
-        //                   child: const SizedBox(
-        //                     width: 48,
-        //                     height: 48,
-        //                     child: Icon(
-        //                       Icons.arrow_back,
-        //                       color: Colors.white,
-        //                       size: 24,
-        //                     ),
-        //                   ),
-        //                 ),
-        //               ),
-        //             ),
-        //           ),
-        //           const Spacer(),
-        //           const Column(
-        //             mainAxisSize: MainAxisSize.min,
-        //             children: [
-        //               Text(
-        //                 'BARBER',
-        //                 style: TextStyle(
-        //                   color: Colors.white,
-        //                   fontSize: 18,
-        //                   fontWeight: FontWeight.w700,
-        //                   letterSpacing: 2,
-        //                 ),
-        //               ),
-        //               Text(
-        //                 'CLUB',
-        //                 style: TextStyle(
-        //                   color: Colors.white,
-        //                   fontSize: 12,
-        //                   letterSpacing: 1,
-        //                 ),
-        //               ),
-        //             ],
-        //           ),
-        //           const Spacer(),
-        //           const SizedBox(width: 48),
-        //         ],
-        //       ),
-        //     ),
-        //   ),
-        // ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Material(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(24),
+                        child: InkWell(
+                          onTap: widget.onBack,
+                          borderRadius: BorderRadius.circular(24),
+                          child: const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         Positioned(
           bottom: 40,
           left: 0,
