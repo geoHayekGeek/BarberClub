@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -33,17 +32,18 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
     final actualRankKey = _rankKeyFromName(
       state.rank.isNotEmpty ? state.rank : state.tier,
     );
-    final visualRankKey = previewRankKey != null && kDebugMode
-        ? previewRankKey!
-        : actualRankKey;
-    final palette = previewRankKey != null && kDebugMode
+    final visualRankKey = previewRankKey ?? actualRankKey;
+    // Selecting your own rank is not a preview: fall back to the real account
+    // data so the RDV count and theme match what the member actually has.
+    final isPreviewing = visualRankKey != actualRankKey;
+    final palette = isPreviewing
         ? _paletteForRankKey(visualRankKey)
         : _paletteFromState(state, actualRankKey);
-    final visualAppointments = previewRankKey != null && kDebugMode
+    final visualAppointments = isPreviewing
         ? _previewAppointmentsForKey(visualRankKey)
         : state.lifetimeAppointments;
 
-    final nextKey = previewRankKey != null && kDebugMode
+    final nextKey = isPreviewing
         ? _nextRankKey(visualRankKey)
         : (state.nextRank != null
               ? _rankKeyFromName(state.nextRank!.name)
@@ -71,7 +71,6 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                   label: _rankLabelFr(_rankKeyFromName(step.name)),
                   requiredAppointments: step.requiredAppointments,
                   theme: _paletteFromRankTheme(step.theme),
-                  isCurrent: _rankKeyFromName(step.name) == visualRankKey,
                   isReached: visualAppointments >= step.requiredAppointments,
                   remainingAppointments: math.max(
                     0,
@@ -127,16 +126,15 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                     visualRankLabel: currentRankLabel,
                   ),
                 ),
-                if (onPreviewRankChanged != null) ...[
-                  const SizedBox(height: 12),
-                  _Reveal(
-                    delay: const Duration(milliseconds: 60),
-                    reduceMotion: reduceMotion,
-                    child: _RankSwitch(
-                      currentKey: visualRankKey,
-                    ),
+                const SizedBox(height: 12),
+                _Reveal(
+                  delay: const Duration(milliseconds: 60),
+                  reduceMotion: reduceMotion,
+                  child: _RankSwitch(
+                    currentKey: visualRankKey,
+                    onRankChanged: onPreviewRankChanged,
                   ),
-                ],
+                ),
                 const SizedBox(height: 16),
                 _Reveal(
                   delay: const Duration(milliseconds: 120),
@@ -167,7 +165,13 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                 _Reveal(
                   delay: const Duration(milliseconds: 180),
                   reduceMotion: reduceMotion,
-                  child: _RankLadder(palette: palette, steps: visualRankScale),
+                  child: _RankLadder(
+                    palette: palette,
+                    steps: visualRankScale,
+                    actualRankKey: actualRankKey,
+                    selectedRankKey: visualRankKey,
+                    onRankChanged: onPreviewRankChanged,
+                  ),
                 ),
                 const SizedBox(height: 34),
                 _Reveal(
@@ -566,9 +570,11 @@ class _Header extends StatelessWidget {
 class _RankSwitch extends StatelessWidget {
   const _RankSwitch({
     required this.currentKey,
+    this.onRankChanged,
   });
 
   final String currentKey;
+  final ValueChanged<String>? onRankChanged;
 
   static const List<String> _keys = [
     'bronze',
@@ -597,6 +603,9 @@ class _RankSwitch extends StatelessWidget {
                   label: _rankLabelFr(_keys[index]),
                   palette: _paletteForRankKey(_keys[index]),
                   isSelected: _keys[index] == currentKey,
+                  onTap: onRankChanged != null
+                      ? () => onRankChanged!(_keys[index])
+                      : null,
                 ),
               ],
             ],
@@ -612,72 +621,77 @@ class _RankSwitchPill extends StatelessWidget {
     required this.label,
     required this.palette,
     required this.isSelected,
+    this.onTap,
   });
 
   final String label;
   final _PrivateClubPalette palette;
   final bool isSelected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? palette.accent.withValues(alpha: 0.95)
-            : Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
           color: isSelected
               ? palette.accent.withValues(alpha: 0.95)
-              : Colors.white.withValues(alpha: 0.12),
-        ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: palette.glow.withValues(alpha: 0.36),
-                  blurRadius: 18,
-                  spreadRadius: 0,
-                ),
-              ]
-            : const [],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? palette.ink : palette.accent,
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.glow.withValues(alpha: 0.7),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? palette.ink : Colors.white70,
-                  fontFamily: 'Orbitron',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 10.5,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isSelected
+                ? palette.accent.withValues(alpha: 0.95)
+                : Colors.white.withValues(alpha: 0.12),
           ),
-        ],
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: palette.glow.withValues(alpha: 0.36),
+                    blurRadius: 18,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : const [],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? palette.ink : palette.accent,
+                    boxShadow: [
+                      BoxShadow(
+                        color: palette.glow.withValues(alpha: 0.7),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? palette.ink : Colors.white70,
+                    fontFamily: 'Orbitron',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10.5,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -943,20 +957,29 @@ class _MembershipCard extends StatelessWidget {
                   ),
                 ],
               ),
-              Container(
-                width: 42,
-                height: 31,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [palette.accent, palette.accent2],
+              // Card chip: bare gradient rect with an inset border, matching
+              // the reference `.card-foot .chip` (no icon inside).
+              Opacity(
+                opacity: 0.9,
+                child: Container(
+                  width: 42,
+                  height: 31,
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [palette.accent, palette.accent2],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Center(
-                  child: _SvgIcon(
-                    svg: _svgShield,
-                    size: 14,
-                    color: palette.ink,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.black.withValues(alpha: 0.35),
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
                   ),
                 ),
               ),
@@ -1515,10 +1538,19 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _RankLadder extends StatelessWidget {
-  const _RankLadder({required this.palette, required this.steps});
+  const _RankLadder({
+    required this.palette,
+    required this.steps,
+    required this.actualRankKey,
+    required this.selectedRankKey,
+    this.onRankChanged,
+  });
 
   final _PrivateClubPalette palette;
   final List<_VisualRankStep> steps;
+  final String actualRankKey;
+  final String selectedRankKey;
+  final ValueChanged<String>? onRankChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1545,6 +1577,11 @@ class _RankLadder extends StatelessWidget {
                   child: _RankStepCard(
                     step: steps[i],
                     isLast: i == steps.length - 1,
+                    isActual: steps[i].key == actualRankKey,
+                    isSelected: steps[i].key == selectedRankKey,
+                    onTap: onRankChanged != null
+                        ? () => onRankChanged!(steps[i].key)
+                        : null,
                   ),
                 ),
               ],
@@ -1557,10 +1594,24 @@ class _RankLadder extends StatelessWidget {
 }
 
 class _RankStepCard extends StatelessWidget {
-  const _RankStepCard({required this.step, required this.isLast});
+  const _RankStepCard({
+    required this.step,
+    required this.isLast,
+    required this.isActual,
+    required this.isSelected,
+    this.onTap,
+  });
 
   final _VisualRankStep step;
   final bool isLast;
+
+  /// The member's real rank — drives the ACTUEL badge, which must stay put
+  /// while other ranks are being previewed.
+  final bool isActual;
+
+  /// The rank currently being previewed — drives the ring and glow.
+  final bool isSelected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1577,13 +1628,13 @@ class _RankStepCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: step.theme.glow.withValues(
-              alpha: step.isCurrent ? 0.55 : 0.18,
+              alpha: isSelected ? 0.55 : 0.18,
             ),
-            blurRadius: step.isCurrent ? 24 : 12,
+            blurRadius: isSelected ? 24 : 12,
             spreadRadius: 0,
           ),
         ],
-        border: step.isCurrent
+        border: isSelected
             ? Border.all(color: step.theme.accent, width: 2)
             : null,
       ),
@@ -1596,13 +1647,16 @@ class _RankStepCard extends StatelessWidget {
       ),
     );
 
-    return Column(
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
       children: [
         Stack(
           clipBehavior: Clip.none,
           children: [
             badge,
-            if (step.isCurrent)
+            if (isActual)
               Positioned(
                 right: -8,
                 top: -8,
@@ -1640,7 +1694,7 @@ class _RankStepCard extends StatelessWidget {
               maxLines: 1,
               softWrap: false,
               style: TextStyle(
-                color: step.isCurrent ? step.theme.accent : Colors.white70,
+                color: isSelected ? step.theme.accent : Colors.white70,
                 fontFamily: 'Orbitron',
                 fontWeight: FontWeight.w700,
                 fontSize: 9.2,
@@ -1667,6 +1721,7 @@ class _RankStepCard extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -2502,7 +2557,6 @@ class _VisualRankStep {
     required this.label,
     required this.requiredAppointments,
     required this.theme,
-    required this.isCurrent,
     required this.isReached,
     required this.remainingAppointments,
   });
@@ -2511,7 +2565,6 @@ class _VisualRankStep {
   final String label;
   final int requiredAppointments;
   final _PrivateClubPalette theme;
-  final bool isCurrent;
   final bool isReached;
   final int remainingAppointments;
 }
@@ -2555,7 +2608,6 @@ final List<_VisualRankStep> _fallbackRankScale = [
     label: 'Bronze',
     requiredAppointments: 0,
     theme: _rankPalettes['bronze']!,
-    isCurrent: false,
     isReached: true,
     remainingAppointments: 0,
   ),
@@ -2564,7 +2616,6 @@ final List<_VisualRankStep> _fallbackRankScale = [
     label: 'Argent',
     requiredAppointments: 10,
     theme: _rankPalettes['argent']!,
-    isCurrent: false,
     isReached: false,
     remainingAppointments: 10,
   ),
@@ -2573,7 +2624,6 @@ final List<_VisualRankStep> _fallbackRankScale = [
     label: 'Or',
     requiredAppointments: 20,
     theme: _rankPalettes['or']!,
-    isCurrent: false,
     isReached: false,
     remainingAppointments: 20,
   ),
@@ -2582,7 +2632,6 @@ final List<_VisualRankStep> _fallbackRankScale = [
     label: 'Diamant',
     requiredAppointments: 30,
     theme: _rankPalettes['diamant']!,
-    isCurrent: false,
     isReached: false,
     remainingAppointments: 30,
   ),
@@ -2591,7 +2640,6 @@ final List<_VisualRankStep> _fallbackRankScale = [
     label: 'Platine',
     requiredAppointments: 50,
     theme: _rankPalettes['platine']!,
-    isCurrent: false,
     isReached: false,
     remainingAppointments: 50,
   ),
