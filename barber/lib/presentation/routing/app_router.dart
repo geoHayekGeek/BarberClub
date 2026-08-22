@@ -60,7 +60,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         if (!loc.startsWith('/admin')) return '/admin';
         if (loc == '/admin') return '/admin';
       } else if (isAuth && !isAdmin) {
-        if (loc == '/login' || loc == '/signup') return '/home';
+        // An explicit ?redirect= means a screen deliberately sent the user to
+        // sign in - e.g. the app session is alive but the reservation session
+        // is not. Bouncing them home in that case is a dead end with no way
+        // to recover, so honour the request.
+        final wantsLogin = state.uri.queryParameters['redirect'] != null;
+        if ((loc == '/login' || loc == '/signup') && !wantsLogin) return '/home';
         if (loc.startsWith('/admin')) return '/home';
       } else {
         if (loc.startsWith('/admin')) return '/login';
