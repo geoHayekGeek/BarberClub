@@ -35,6 +35,13 @@ class ReservationAuthRepositoryImpl implements ReservationAuthRepository {
   final ReservationTokenRepository _tokenRepository;
   final Dio _dio;
 
+  /// Guards against concurrent refreshes. The reservation API rotates refresh
+  /// tokens, so two parallel refreshes with the same token means one of them
+  /// gets a 401 for a token the other already replaced. Callers that arrive
+  /// while a refresh is in flight await that same result instead of starting
+  /// their own.
+  Future<ReservationSession?>? _refreshInFlight;
+
   @override
   Future<ReservationSession?> restoreSession() async {
     final accessToken = await _tokenRepository.getReservationAccessToken();
@@ -61,7 +68,10 @@ class ReservationAuthRepositoryImpl implements ReservationAuthRepository {
       if (error.code == 'NETWORK_ERROR') {
         return null;
       }
-      await clearSession();
+      // Upstream failures (5xx, 429, gateway errors) are not proof of an
+      // invalid session. Deleting the tokens here left users permanently
+      // locked out after a single blip, so keep them and let the next
+      // launch retry.
       return null;
     } on DioException {
       // Keep the cached tokens in place when the network is temporarily down.
@@ -113,7 +123,19 @@ class ReservationAuthRepositoryImpl implements ReservationAuthRepository {
   }
 
   @override
-  Future<ReservationSession?> refreshSession() async {
+  Future<ReservationSession?> refreshSession() {
+    // Single-flight: concurrent callers share one refresh.
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+
+    final future = _refreshSessionOnce();
+    _refreshInFlight = future;
+    return future.whenComplete(() {
+      _refreshInFlight = null;
+    });
+  }
+
+  Future<ReservationSession?> _refreshSessionOnce() async {
     final refreshToken = await _tokenRepository.getReservationRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
       return null;
@@ -129,7 +151,33 @@ class ReservationAuthRepositoryImpl implements ReservationAuthRepository {
       if (error.code == 'NETWORK_ERROR') {
         return null;
       }
-      await clearSession();
+
+      // A 401 here does not prove the session is dead. If another caller
+      // already rotated the token, ours is simply stale - re-read storage and
+      // retry once before destroying credentials.
+      if (error.code == 'UNAUTHORIZED') {
+        final current = await _tokenRepository.getReservationRefreshToken();
+        if (current != null && current.isNotEmpty && current != refreshToken) {
+          try {
+            final retry = await _dio.post(
+              '/auth/refresh',
+              data: {'refresh_token': current},
+            );
+            return await _completeSessionFromAuthResponse(retry.data);
+          } on ApiError {
+            // Fall through: the rotated token failed too.
+          } on DioException {
+            return null;
+          }
+        }
+        // Genuinely rejected - the user must sign in again.
+        await clearSession();
+        return null;
+      }
+
+      // Anything else (5xx, 429, gateway errors) is an upstream problem, not
+      // proof of an invalid session. Keep the tokens so the next launch can
+      // recover instead of locking the user out permanently.
       return null;
     } on DioException {
       return null;

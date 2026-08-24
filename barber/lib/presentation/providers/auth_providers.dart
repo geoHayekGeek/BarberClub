@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/auth_response.dart';
@@ -117,15 +118,30 @@ class AuthController extends StateNotifier<AuthState> {
         appUser = await _authRepository.getCurrentUser();
       }
     } catch (e) {
-      // Clear invalid app tokens, then fall back to the reservation session.
-      await _tokenRepository.clearTokens();
+      // Only a definitive rejection means the tokens are invalid. A network
+      // or server failure must not sign the user out.
+      final status = e is DioException ? e.response?.statusCode : null;
+      final rejected =
+          status == 401 || status == 403 || (e is ApiError && e.code == 'UNAUTHORIZED');
+      if (rejected) {
+        await _tokenRepository.clearTokens();
+      } else {
+        debugPrint('[auth] bootstrap /me failed, keeping tokens: $e');
+      }
     }
 
+    // Reuse the reservation controller's bootstrap rather than calling
+    // restoreSession() again here. Two independent restores raced on the
+    // rotating refresh token and could leave the reservation session dead
+    // while this one stayed authenticated - an unrecoverable state.
     ReservationSession? reservationSession;
     try {
-      reservationSession = await _reservationAuthRepository.restoreSession();
-    } catch (_) {
+      reservationSession = await _ref
+          .read(reservationSessionProvider.notifier)
+          .ensureBootstrapped();
+    } catch (e) {
       // Reservation restore is best effort.
+      debugPrint('[auth] reservation restore failed: $e');
     }
 
     if (appUser != null) {
