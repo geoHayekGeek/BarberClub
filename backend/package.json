@@ -20,6 +20,7 @@
     "sync-website-offers": "tsx scripts/sync-website-offers.ts",
     "backfill-booking-loyalty": "tsx scripts/backfill-booking-loyalty.ts",
     "backfill-booking-loyalty-yesterday": "tsx scripts/backfill-yesterday-booking-loyalty.ts",
+    "repair-pre-app-loyalty": "tsx scripts/repair-pre-app-loyalty.ts",
     "reset-passwords": "tsx scripts/reset-all-passwords.ts",
     "seed:prod": "node dist/prisma/seed.js",
     "lint": "eslint src --ext .ts",

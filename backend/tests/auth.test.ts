@@ -212,6 +212,37 @@ describe('POST /api/v1/auth/login', () => {
     expect(response.body.user.email).toBe('login@example.com');
   });
 
+  it('sets app first login only once for an imported website user', async () => {
+    await prisma.user.update({
+      where: { email: 'login@example.com' },
+      data: { appFirstLoginAt: null },
+    });
+
+    const firstLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'login@example.com', password: 'password123' });
+    expect(firstLogin.status).toBe(200);
+
+    const enrolled = await prisma.user.findUnique({
+      where: { email: 'login@example.com' },
+      select: { appFirstLoginAt: true },
+    });
+    expect(enrolled?.appFirstLoginAt).toBeInstanceOf(Date);
+    const firstEnrollmentAt = enrolled!.appFirstLoginAt;
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const secondLogin = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'login@example.com', password: 'password123' });
+    expect(secondLogin.status).toBe(200);
+
+    const afterSecondLogin = await prisma.user.findUnique({
+      where: { email: 'login@example.com' },
+      select: { appFirstLoginAt: true },
+    });
+    expect(afterSecondLogin?.appFirstLoginAt?.getTime()).toBe(firstEnrollmentAt?.getTime());
+  });
+
   it('should login with phone number successfully', async () => {
     const response = await request(app)
       .post('/api/v1/auth/login')

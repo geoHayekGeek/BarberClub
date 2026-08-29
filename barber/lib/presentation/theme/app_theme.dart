@@ -88,7 +88,7 @@ class AppTheme {
           ),
         ),
       ),
-      
+
       // --- MODIFICATION GLOBALE ICI ---
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(

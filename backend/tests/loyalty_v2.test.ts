@@ -12,7 +12,10 @@ import { createApp } from '../src/app';
 import prisma from '../src/db/client';
 import { getNextRank, getRankFromAppointments } from '../src/modules/loyalty_v2/tiers';
 import { PRIVATE_CLUB_REWARDS } from '../src/modules/loyalty_v2/rewards';
-import { awardPointsForCompletedBooking } from '../src/modules/loyalty_v2/bookingRewards';
+import {
+  awardPointsForCompletedBooking,
+  isBookingEligibleForAppLoyalty,
+} from '../src/modules/loyalty_v2/bookingRewards';
 
 beforeAll(async () => {
   await prisma.$connect();
@@ -75,6 +78,14 @@ async function ensurePrivateClubRewards() {
 const app = createApp();
 
 describe('Loyalty v2 appointment rank logic', () => {
+  it('does not make a website booking eligible before app enrollment', () => {
+    const firstLogin = new Date('2026-08-29T10:00:00.000Z');
+
+    expect(isBookingEligibleForAppLoyalty(new Date('2026-08-29T09:59:59.000Z'), firstLogin)).toBe(false);
+    expect(isBookingEligibleForAppLoyalty(new Date('2026-08-29T10:00:00.000Z'), firstLogin)).toBe(true);
+    expect(isBookingEligibleForAppLoyalty(new Date('2026-08-29T10:00:00.000Z'), null)).toBe(false);
+  });
+
   it('returns Bronze on registration before 10 appointments', () => {
     expect(getRankFromAppointments(0)).toBe('Bronze');
     expect(getRankFromAppointments(9)).toBe('Bronze');
