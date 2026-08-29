@@ -92,6 +92,7 @@ export class AuthService {
           passwordHash,
           websitePasswordHash,
           fullName: input.fullName?.trim() || null,
+          appFirstLoginAt: new Date(),
         },
         select: {
           id: true,
@@ -214,14 +215,21 @@ export class AuthService {
       );
     }
 
-    const updateData: Prisma.UserUpdateInput = {
-      lastLoginAt: new Date(),
-    };
+    const loginAt = new Date();
+    const updateData: Prisma.UserUpdateInput = { lastLoginAt: loginAt };
     if (!user.websitePasswordHash) {
       updateData.websitePasswordHash = isBcryptHash(user.passwordHash)
         ? user.passwordHash
         : await hashWebsitePassword(input.password);
     }
+
+    // Website-imported users have no app enrollment timestamp until this first
+    // successful app login. The conditional update makes this one-time under
+    // concurrent login requests.
+    await prisma.user.updateMany({
+      where: { id: user.id, appFirstLoginAt: null },
+      data: { appFirstLoginAt: loginAt },
+    });
 
     await prisma.user.update({
       where: { id: user.id },

@@ -18,6 +18,7 @@ export interface CompletedWebsiteBookingRow {
   client_id: string | null;
   price: number;
   service_name: string | null;
+  created_at: Date;
 }
 
 interface WebsiteClientRow {
@@ -101,12 +102,20 @@ function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string 
       b.id,
       b.client_id,
       COALESCE(b.price, 0) AS price,
-      COALESCE(s.name, 'Reservation') AS service_name
+      COALESCE(s.name, 'Reservation') AS service_name,
+      b.created_at
     FROM bookings b
     LEFT JOIN services s ON s.id = b.service_id
     WHERE ${Prisma.join(filters, ' AND ')}
     ORDER BY b.created_at ASC
   `;
+}
+
+export function isBookingEligibleForAppLoyalty(
+  bookingCreatedAt: Date,
+  appFirstLoginAt: Date | null
+): boolean {
+  return appFirstLoginAt !== null && bookingCreatedAt >= appFirstLoginAt;
 }
 
 async function findAppUserForWebsiteClient(websiteClient: WebsiteClientRow) {
@@ -119,6 +128,7 @@ async function findAppUserForWebsiteClient(websiteClient: WebsiteClientRow) {
         fcmToken: true,
         fullName: true,
         email: true,
+        appFirstLoginAt: true,
       },
     });
 
@@ -136,6 +146,7 @@ async function findAppUserForWebsiteClient(websiteClient: WebsiteClientRow) {
         fcmToken: true,
         fullName: true,
         email: true,
+        appFirstLoginAt: true,
       },
     });
 
@@ -469,6 +480,22 @@ export async function runBookingLoyaltyRewardSync(params?: {
     }
 
     if (existingGrant) {
+      const appUser = await findAppUserForWebsiteClient(websiteClientRow);
+      if (!appUser) {
+        pendingAppUser += 1;
+        continue;
+      }
+
+      if (!isBookingEligibleForAppLoyalty(booking.created_at, appUser.appFirstLoginAt)) {
+        logger.info('LOYALTY_BOOKING skipped_orphan_before_app_enrollment', {
+          websiteBookingId: booking.id,
+          appUserId: appUser.id,
+          bookingCreatedAt: booking.created_at,
+          appFirstLoginAt: appUser.appFirstLoginAt,
+        });
+        continue;
+      }
+
       const repaired = await repairOrphanedBookingGrant({
         bookingId: booking.id,
         websiteClient: websiteClientRow,
@@ -491,6 +518,16 @@ export async function runBookingLoyaltyRewardSync(params?: {
     const appUser = await findAppUserForWebsiteClient(websiteClientRow);
     if (!appUser) {
       pendingAppUser += 1;
+      continue;
+    }
+
+    if (!isBookingEligibleForAppLoyalty(booking.created_at, appUser.appFirstLoginAt)) {
+      logger.info('LOYALTY_BOOKING skipped_before_app_enrollment', {
+        websiteBookingId: booking.id,
+        appUserId: appUser.id,
+        bookingCreatedAt: booking.created_at,
+        appFirstLoginAt: appUser.appFirstLoginAt,
+      });
       continue;
     }
 
