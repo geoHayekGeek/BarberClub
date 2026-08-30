@@ -1,5 +1,5 @@
 import { runBookingLoyaltyRewardSync } from '../src/modules/loyalty_v2/bookingRewards';
-import { logger } from '../src/utils/logger';
+import { logger } from '../src/utils/logger'; 
 
 type CliOptions = {
   fromDate?: string;
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 
   const fromDate = args.fromDate ?? formatLocalDate(startOfWeekLocal(now));
   const toDate = args.toDate ?? formatLocalDate(now);
-
+ 
   logger.info('Starting booking loyalty backfill', { fromDate, toDate });
   await runBookingLoyaltyRewardSync({ fromDate, toDate });
   logger.info('Booking loyalty backfill completed', { fromDate, toDate });
