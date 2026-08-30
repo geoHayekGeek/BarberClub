@@ -17,6 +17,7 @@
     "prisma:seed:catalog": "tsx prisma/seed.ts --catalog-only",
     "add-offers": "tsx scripts/add-offers.ts",
     "update-julien-bio": "tsx scripts/update-julien-bio.ts",
+    "refresh-barber-galleries": "tsx scripts/refresh-barber-galleries.ts",
     "sync-website-offers": "tsx scripts/sync-website-offers.ts",
     "backfill-booking-loyalty": "tsx scripts/backfill-booking-loyalty.ts",
     "backfill-booking-loyalty-yesterday": "tsx scripts/backfill-yesterday-booking-loyalty.ts",

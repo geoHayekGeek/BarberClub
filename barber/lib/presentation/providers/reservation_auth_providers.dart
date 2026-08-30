@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/secure_token_repository.dart';
@@ -73,7 +74,26 @@ class ReservationSessionController
 
   final ReservationAuthRepository _repository;
 
-  Future<void> bootstrapSession() async {
+  /// The single in-flight bootstrap, shared by every caller.
+  Future<ReservationSession?>? _bootstrap;
+
+  Future<void> bootstrapSession() => ensureBootstrapped().then((_) {});
+
+  /// Restores the reservation session exactly once, no matter how many callers
+  /// ask. Previously this controller and [AuthController] each called
+  /// restoreSession() in parallel, which raced on the rotating refresh token.
+  Future<ReservationSession?> ensureBootstrapped() {
+    final existing = _bootstrap;
+    if (existing != null) return existing;
+
+    final future = _bootstrapOnce();
+    _bootstrap = future;
+    return future.whenComplete(() {
+      _bootstrap = null;
+    });
+  }
+
+  Future<ReservationSession?> _bootstrapOnce() async {
     state = state.copyWith(
       status: ReservationSessionStatus.authenticating,
       clearError: true,
@@ -85,18 +105,22 @@ class ReservationSessionController
         state = const ReservationSessionState(
           status: ReservationSessionStatus.unauthenticated,
         );
-        return;
+        return null;
       }
 
       state = ReservationSessionState(
         status: ReservationSessionStatus.authenticated,
         user: session.user,
       );
-    } catch (_) {
-      await _repository.clearSession();
+      return session;
+    } catch (e) {
+      // Do NOT clear the session here: an unexpected error is not proof the
+      // credentials are invalid, and wiping them locked users out for good.
+      debugPrint('[reservation] bootstrap failed, keeping tokens: $e');
       state = const ReservationSessionState(
         status: ReservationSessionStatus.unauthenticated,
       );
+      return null;
     }
   }
 
