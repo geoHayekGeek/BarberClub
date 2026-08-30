@@ -30,7 +30,7 @@ async function loadBookingDates(bookingIds: string[]): Promise<Map<string, Date>
     const rows = await websiteClient.$queryRaw<BookingCreatedAt[]>(Prisma.sql`
       SELECT id, created_at
       FROM bookings
-      WHERE id IN (${Prisma.join(batch.map((id) => Prisma.sql`${id}`))})
+      WHERE id IN (${Prisma.join(batch.map((id) => Prisma.sql`CAST(${id} AS UUID)`))})
     `);
 
     for (const row of rows) {
