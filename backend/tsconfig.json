@@ -20,6 +20,6 @@
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "prisma/**/*"],
+  "include": ["src/**/*", "scripts/repair-pre-app-loyalty.ts", "prisma/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }
