@@ -305,8 +305,8 @@ class ReservationClientBookingsPage {
 
   factory ReservationClientBookingsPage.fromJson(Map<String, dynamic> json) {
     return ReservationClientBookingsPage(
-      upcoming: _parseBookings(json['upcoming']),
-      past: _parseBookings(json['past']),
+      upcoming: _parseBookings(json['upcoming'], newestFirst: false),
+      past: _parseBookings(json['past'], newestFirst: true),
     );
   }
 
@@ -321,15 +321,43 @@ class ReservationClientBookingsPage {
   List<ReservationBooking> get allBookings => [...upcoming, ...past];
 }
 
-List<ReservationBooking> _parseBookings(dynamic raw) {
+List<ReservationBooking> _parseBookings(
+  dynamic raw, {
+  required bool newestFirst,
+}) {
   if (raw is! List) {
     return const [];
   }
 
-  return raw
+  final bookings = raw
       .whereType<Map<String, dynamic>>()
       .map(ReservationBooking.fromJson)
-      .toList(growable: false);
+      .toList();
+  bookings.sort((left, right) {
+    final comparison = _compareBookingSchedule(left, right);
+    return newestFirst ? -comparison : comparison;
+  });
+  return List.unmodifiable(bookings);
+}
+
+int _compareBookingSchedule(ReservationBooking left, ReservationBooking right) {
+  final leftScheduledAt = DateTime.tryParse('${left.date}T${left.startTime}');
+  final rightScheduledAt = DateTime.tryParse(
+    '${right.date}T${right.startTime}',
+  );
+
+  if (leftScheduledAt != null && rightScheduledAt != null) {
+    final comparison = leftScheduledAt.compareTo(rightScheduledAt);
+    if (comparison != 0) return comparison;
+  } else if (leftScheduledAt != null) {
+    return -1;
+  } else if (rightScheduledAt != null) {
+    return 1;
+  }
+
+  final createdAtComparison = left.createdAt.compareTo(right.createdAt);
+  if (createdAtComparison != 0) return createdAtComparison;
+  return left.id.compareTo(right.id);
 }
 
 int? _asInt(dynamic value) {
