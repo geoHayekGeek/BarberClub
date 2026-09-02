@@ -223,17 +223,55 @@ export class AuthService {
         : await hashWebsitePassword(input.password);
     }
 
-    // Website-imported users have no app enrollment timestamp until this first
-    // successful app login. The conditional update makes this one-time under
-    // concurrent login requests.
-    await prisma.user.updateMany({
-      where: { id: user.id, appFirstLoginAt: null },
-      data: { appFirstLoginAt: loginAt },
-    });
+    await prisma.$transaction(async (tx) => {
+      // The conditional write is the concurrency-safe boundary between a
+      // website-only account and an app loyalty member.
+      const enrollment = await tx.user.updateMany({
+        where: { id: user.id, appFirstLoginAt: null },
+        data: { appFirstLoginAt: loginAt },
+      });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: updateData,
+      if (enrollment.count === 1) {
+        const loyaltyAccount = await tx.loyaltyAccount.findUnique({
+          where: { userId: user.id },
+          select: {
+            id: true,
+            currentBalance: true,
+            lifetimeEarned: true,
+            lifetimeAppointments: true,
+          },
+        });
+
+        if (loyaltyAccount && (
+          loyaltyAccount.currentBalance !== 0 ||
+          loyaltyAccount.lifetimeEarned !== 0 ||
+          loyaltyAccount.lifetimeAppointments !== 0
+        )) {
+          await tx.loyaltyAccount.update({
+            where: { id: loyaltyAccount.id },
+            data: {
+              currentBalance: 0,
+              lifetimeEarned: 0,
+              lifetimeAppointments: 0,
+            },
+          });
+          await tx.loyaltyTransaction.create({
+            data: {
+              accountId: loyaltyAccount.id,
+              type: 'ADJUST',
+              points: -loyaltyAccount.currentBalance,
+              appointmentCount: -loyaltyAccount.lifetimeAppointments,
+              description: 'Reset pre-app-enrollment loyalty balance',
+              referenceId: `app-enrollment:${user.id}`,
+            },
+          });
+        }
+      }
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
     });
 
     const role = (user.role === 'ADMIN' ? 'ADMIN' : 'USER') as 'USER' | 'ADMIN';

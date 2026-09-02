@@ -1,7 +1,7 @@
 # Testing Guide
 
 ## Setup
-
+  
 Before running tests, ensure:
 1. Database is set up and migrations are run: `npm run prisma:migrate`
 2. `.env` contains a dedicated `TEST_DATABASE_URL` that is different from `DATABASE_URL`

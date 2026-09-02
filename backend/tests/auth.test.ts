@@ -213,9 +213,18 @@ describe('POST /api/v1/auth/login', () => {
   });
 
   it('sets app first login only once for an imported website user', async () => {
-    await prisma.user.update({
+    const importedUser = await prisma.user.update({
       where: { email: 'login@example.com' },
       data: { appFirstLoginAt: null },
+      select: { id: true },
+    });
+    await prisma.loyaltyAccount.create({
+      data: {
+        userId: importedUser.id,
+        currentBalance: 100,
+        lifetimeEarned: 100,
+        lifetimeAppointments: 4,
+      },
     });
 
     const firstLogin = await request(app)
@@ -230,6 +239,28 @@ describe('POST /api/v1/auth/login', () => {
     expect(enrolled?.appFirstLoginAt).toBeInstanceOf(Date);
     const firstEnrollmentAt = enrolled!.appFirstLoginAt;
 
+    const resetAccount = await prisma.loyaltyAccount.findUnique({
+      where: { userId: importedUser.id },
+    });
+    expect(resetAccount).toMatchObject({
+      currentBalance: 0,
+      lifetimeEarned: 0,
+      lifetimeAppointments: 0,
+    });
+    const enrollmentAdjustment = await prisma.loyaltyTransaction.findFirst({
+      where: { accountId: resetAccount!.id, referenceId: `app-enrollment:${importedUser.id}` },
+    });
+    expect(enrollmentAdjustment).toMatchObject({
+      type: 'ADJUST',
+      points: -100,
+      appointmentCount: -4,
+    });
+
+    await prisma.loyaltyAccount.update({
+      where: { userId: importedUser.id },
+      data: { currentBalance: 25, lifetimeEarned: 25, lifetimeAppointments: 1 },
+    });
+
     await new Promise((resolve) => setTimeout(resolve, 5));
     const secondLogin = await request(app)
       .post('/api/v1/auth/login')
@@ -241,6 +272,15 @@ describe('POST /api/v1/auth/login', () => {
       select: { appFirstLoginAt: true },
     });
     expect(afterSecondLogin?.appFirstLoginAt?.getTime()).toBe(firstEnrollmentAt?.getTime());
+
+    const accountAfterSecondLogin = await prisma.loyaltyAccount.findUnique({
+      where: { userId: importedUser.id },
+    });
+    expect(accountAfterSecondLogin).toMatchObject({
+      currentBalance: 25,
+      lifetimeEarned: 25,
+      lifetimeAppointments: 1,
+    });
   });
 
   it('should login with phone number successfully', async () => {
