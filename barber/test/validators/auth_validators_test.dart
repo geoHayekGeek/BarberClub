@@ -134,9 +134,26 @@ void main() {
 
     group('validatePassword', () {
       test('returns null for valid passwords', () {
-        expect(AuthValidators.validatePassword('password123'), isNull);
-        expect(AuthValidators.validatePassword('12345678'), isNull); // exactly 8
-        expect(AuthValidators.validatePassword('verylongpassword123'), isNull);
+        // A password needs 8+ chars with an upper case letter, a lower case
+        // letter and a digit.
+        expect(AuthValidators.validatePassword('Password123'), isNull);
+        expect(AuthValidators.validatePassword('Abcdefg1'), isNull); // exactly 8
+        expect(AuthValidators.validatePassword('VeryLongPassword123'), isNull);
+      });
+
+      test('returns error when a character class is missing', () {
+        expect(
+          AuthValidators.validatePassword('password123'),
+          'Le mot de passe doit contenir au moins une lettre majuscule.',
+        );
+        expect(
+          AuthValidators.validatePassword('PASSWORD123'),
+          'Le mot de passe doit contenir au moins une lettre minuscule.',
+        );
+        expect(
+          AuthValidators.validatePassword('Passwordxyz'),
+          'Le mot de passe doit contenir au moins un chiffre.',
+        );
       });
 
       test('returns error for empty or null', () {
