@@ -103,7 +103,7 @@ function normalizeServiceName(name: string | null | undefined): string {
     .toLowerCase();
 }
 
-function isMultiSlotService(name: string | null | undefined): boolean {
+export function isMultiSlotService(name: string | null | undefined): boolean {
   return MULTI_SLOT_SERVICE_NAMES.has(normalizeServiceName(name));
 }
 
@@ -124,7 +124,7 @@ function appointmentDayKey(booking: CompletedWebsiteBookingRow): string {
  * which holds because the job queries every completed booking. Passing a
  * narrow fromDate/toDate could split a visit across batches.
  */
-function findExtraSlotBookingIds(
+export function findExtraSlotBookingIds(
   bookings: CompletedWebsiteBookingRow[],
   grantByBookingId: Map<string, ExistingBookingGrantRow>
 ): Set<string> {
