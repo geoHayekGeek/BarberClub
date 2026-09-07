@@ -19,6 +19,8 @@ export interface CompletedWebsiteBookingRow {
   price: number;
   service_name: string | null;
   created_at: Date;
+  /** Appointment date, used to group slots belonging to the same visit. */
+  date: Date | null;
 }
 
 interface WebsiteClientRow {
@@ -82,6 +84,81 @@ function normalizePhone(phone: string | null | undefined): string {
   }
 }
 
+/**
+ * Services the salon schedules as several consecutive slots for a single
+ * visit. The client is charged once, so only one slot may earn loyalty -
+ * otherwise one appointment yields double points and double rank progress.
+ *
+ * Names are compared with accents stripped and case folded, so "Meches",
+ * "Mèches" and "MECHES" all match. Add an entry here if another service
+ * starts being booked across multiple slots.
+ */
+const MULTI_SLOT_SERVICE_NAMES = new Set(['meches']);
+
+function normalizeServiceName(name: string | null | undefined): string {
+  return (name ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function isMultiSlotService(name: string | null | undefined): boolean {
+  return MULTI_SLOT_SERVICE_NAMES.has(normalizeServiceName(name));
+}
+
+/** Calendar day of the appointment, falling back to when it was created. */
+function appointmentDayKey(booking: CompletedWebsiteBookingRow): string {
+  const source = booking.date ?? booking.created_at;
+  return new Date(source).toISOString().slice(0, 10);
+}
+
+/**
+ * For multi-slot services, picks one booking per (client, service, day) and
+ * returns the ids of the extra slots, which must not be rewarded.
+ *
+ * An already-rewarded slot is preferred as the keeper so that re-running the
+ * sync never awards a second grant for a visit that has already been counted.
+ *
+ * Note: this relies on all slots of a visit being present in the same batch,
+ * which holds because the job queries every completed booking. Passing a
+ * narrow fromDate/toDate could split a visit across batches.
+ */
+function findExtraSlotBookingIds(
+  bookings: CompletedWebsiteBookingRow[],
+  grantByBookingId: Map<string, ExistingBookingGrantRow>
+): Set<string> {
+  const groups = new Map<string, CompletedWebsiteBookingRow[]>();
+
+  for (const booking of bookings) {
+    if (!isNonEmptyString(booking.client_id) || !isMultiSlotService(booking.service_name)) {
+      continue;
+    }
+    const key = `${booking.client_id}|${normalizeServiceName(booking.service_name)}|${appointmentDayKey(booking)}`;
+    const group = groups.get(key);
+    if (group) {
+      group.push(booking);
+    } else {
+      groups.set(key, [booking]);
+    }
+  }
+
+  const extras = new Set<string>();
+  for (const group of groups.values()) {
+    if (group.length < 2) {
+      continue;
+    }
+    const keeper = group.find((booking) => grantByBookingId.has(booking.id)) ?? group[0];
+    for (const booking of group) {
+      if (booking.id !== keeper.id) {
+        extras.add(booking.id);
+      }
+    }
+  }
+
+  return extras;
+}
+
 function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string }): Prisma.Sql {
   const filters: Prisma.Sql[] = [
     Prisma.sql`b.status = 'completed'`,
@@ -103,7 +180,8 @@ function buildWebsiteBookingQuery(params?: { fromDate?: string; toDate?: string 
       b.client_id,
       COALESCE(b.price, 0) AS price,
       COALESCE(s.name, 'Reservation') AS service_name,
-      b.created_at
+      b.created_at,
+      b.date
     FROM bookings b
     LEFT JOIN services s ON s.id = b.service_id
     WHERE ${Prisma.join(filters, ' AND ')}
@@ -447,13 +525,30 @@ export async function runBookingLoyaltyRewardSync(params?: {
       : [];
   const websiteClientById = new Map(websiteClients.map((client) => [client.id, client]));
 
+  // Collapse services booked as several slots for one visit (e.g. Meches),
+  // so a single paid appointment cannot earn double points and double rank
+  // progress.
+  const extraSlotBookingIds = findExtraSlotBookingIds(bookings, grantByBookingId);
+
   let rewarded = 0;
   let pendingWebsiteClient = 0;
   let pendingAppUser = 0;
   let alreadyRewarded = 0;
   let countedZeroPointAppointments = 0;
+  let extraSlotsSkipped = 0;
 
   for (const booking of bookings) {
+    if (extraSlotBookingIds.has(booking.id)) {
+      extraSlotsSkipped += 1;
+      logger.info('LOYALTY_BOOKING skipped_extra_slot_of_same_visit', {
+        websiteBookingId: booking.id,
+        websiteClientId: booking.client_id,
+        serviceName: booking.service_name,
+        appointmentDay: appointmentDayKey(booking),
+      });
+      continue;
+    }
+
     if (!isNonEmptyString(booking.client_id)) {
       pendingWebsiteClient += 1;
       logger.warn('Booking loyalty sync skipped invalid website client id', {
@@ -556,5 +651,6 @@ export async function runBookingLoyaltyRewardSync(params?: {
     pendingAppUser,
     alreadyRewarded,
     countedZeroPointAppointments,
+    extraSlotsSkipped,
   });
 }
