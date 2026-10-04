@@ -3307,14 +3307,26 @@ class _CompteScreenShell extends ConsumerWidget {
               if (bookings.upcoming.length > 1) ...[
                 const SizedBox(height: 6),
                 for (final booking in bookings.upcoming.skip(1))
-                  _buildBookingCard(booking: booking, isPast: false),
+                  _buildBookingCard(
+                    context: context,
+                    ref: ref,
+                    booking: booking,
+                    isPast: false,
+                    salonFilter: salonFilter,
+                  ),
               ],
             ],
             if (bookings.past.isNotEmpty) ...[
               if (bookings.upcoming.isNotEmpty) const SizedBox(height: 24),
               _buildSectionTitle('Historique'),
               for (final booking in bookings.past.take(10))
-                _buildBookingCard(booking: booking, isPast: true),
+                _buildBookingCard(
+                  context: context,
+                  ref: ref,
+                  booking: booking,
+                  isPast: true,
+                  salonFilter: salonFilter,
+                ),
             ],
           ],
           const SizedBox(height: 18),
@@ -3603,12 +3615,17 @@ class _CompteScreenShell extends ConsumerWidget {
   }
 
   Widget _buildBookingCard({
+    required BuildContext context,
+    required WidgetRef ref,
     required ReservationBooking booking,
     required bool isPast,
+    required String? salonFilter,
   }) {
     final barberInitials = _initials(
       booking.barberName.isNotEmpty ? booking.barberName : booking.serviceName,
     );
+    final canCancel = !isPast && _canModifyBooking(booking);
+    final canReschedule = canCancel && !booking.rescheduled;
 
     return Container(
       width: double.infinity,
@@ -3714,6 +3731,50 @@ class _CompteScreenShell extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (!isPast) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildActionButton(
+                        label: 'Décaler',
+                        icon: Icons.edit_calendar_outlined,
+                        onPressed: canReschedule
+                            ? () => _showRescheduleBookingDialog(
+                                context,
+                                ref,
+                                booking,
+                                salonFilter,
+                              )
+                            : null,
+                      ),
+                      _buildActionButton(
+                        label: 'Annuler',
+                        icon: Icons.close_rounded,
+                        onPressed: canCancel
+                            ? () => _showCancelBookingDialog(
+                                context,
+                                ref,
+                                booking,
+                                salonFilter,
+                              )
+                            : null,
+                      ),
+                    ],
+                  ),
+                  if (booking.rescheduled) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ce rendez-vous a déjà été décalé une fois.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11.5,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),

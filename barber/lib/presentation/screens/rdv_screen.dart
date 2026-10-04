@@ -274,12 +274,17 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
               builder: (context, setDialogState) {
                 return Dialog(
                   backgroundColor: Colors.transparent,
-                  insetPadding: const EdgeInsets.symmetric(horizontal: 18),
+                  insetPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 24,
+                  ),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 430),
+                      constraints: BoxConstraints(
+                        maxWidth: 430,
+                        maxHeight: MediaQuery.of(context).size.height * 0.88,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
                         decoration: BoxDecoration(
                           color: const Color(0xFF0C0C0C),
                           borderRadius: BorderRadius.circular(28),
@@ -294,150 +299,203 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 2),
-                            const Text(
-                              'NOS ENGAGEMENTS MUTUELS',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: _titleFont,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Pour garantir la meilleure expérience à chacun',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontSize: 12.5,
-                                height: 1.45,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _PolicyRuleCard(
-                              title: 'PONCTUALITÉ',
-                              description:
-                                  'Au-delà de 5 minutes de retard, nous nous réservons le droit de refuser votre rendez-vous afin de ne pas décaler les clients suivants. Cette prestation sera facturée comme un rendez-vous non honoré.',
-                              icon: Icons.schedule_outlined,
-                            ),
-                            const SizedBox(height: 10),
-                            _PolicyRuleCard(
-                              title: 'ANNULATION',
-                              description:
-                                  'Vous pouvez annuler jusqu’à 12 heures avant votre rendez-vous via le lien dans votre email de confirmation ou en nous envoyant un message.',
-                              icon: Icons.calendar_month_outlined,
-                            ),
-                            const SizedBox(height: 10),
-                            _PolicyRuleCard(
-                              title: 'RENDEZ-VOUS NON HONORÉ',
-                              description:
-                                  'En cas d’absence sans prévenir, la prestation sera facturée à 100% lors de votre prochain passage. Chaque créneau réservé est un créneau qu’un autre client aurait pu prendre.',
-                              icon: Icons.shield_outlined,
-                            ),
-                            const SizedBox(height: 14),
-                            InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () {
-                                setDialogState(() {
-                                  checked = !checked;
-                                });
-                              },
-                              child: Row(
-                                children: [
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    width: 22,
-                                    height: 22,
-                                    decoration: BoxDecoration(
-                                      color: checked
-                                          ? Colors.white
-                                          : const Color(0xFF1D1D1D),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: checked
-                                            ? Colors.white
-                                            : Colors.white.withValues(
-                                                alpha: 0.22,
-                                              ),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.check_rounded,
-                                      size: 14,
-                                      color: checked
-                                          ? Colors.black
-                                          : Colors.transparent,
-                                    ),
+                        child: SafeArea(
+                          top: false,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Flexible(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    18,
+                                    22,
+                                    18,
+                                    0,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      "J’ai lu et j’accepte ces conditions",
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.78,
-                                        ),
-                                        fontSize: 13,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              height: 48,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                decoration: BoxDecoration(
-                                  color: checked ? Colors.white : _disabled,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: checked
-                                        ? Colors.transparent
-                                        : Colors.white.withValues(alpha: 0.05),
-                                  ),
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(14),
-                                    onTap: checked
-                                        ? () {
-                                            Navigator.of(
-                                              dialogContext,
-                                            ).pop(true);
-                                          }
-                                        : null,
-                                    child: Center(
-                                      child: Text(
-                                        'RÉSERVER MON CRÉNEAU',
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      const Text(
+                                        'NOS ENGAGEMENTS MUTUELS',
+                                        textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontFamily: _titleFont,
-                                          fontSize: 13,
+                                          fontSize: 18,
                                           fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.0,
-                                          color: checked
-                                              ? Colors.black
-                                              : Colors.white.withValues(
-                                                  alpha: 0.2,
-                                                ),
+                                          letterSpacing: 1.2,
+                                          color: Colors.white,
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Pour garantir la meilleure expérience à chacun',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.55,
+                                          ),
+                                          fontSize: 12.5,
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _PolicyRuleCard(
+                                        title: 'PONCTUALITÉ',
+                                        description:
+                                            'Au-delà de 5 minutes de retard, nous nous réservons le droit de refuser votre rendez-vous afin de ne pas décaler les clients suivants. Cette prestation sera facturée comme un rendez-vous non honoré.',
+                                        icon: Icons.schedule_outlined,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      _PolicyRuleCard(
+                                        title: 'ANNULATION',
+                                        description:
+                                            'Vous pouvez annuler jusqu’à 12 heures avant votre rendez-vous via le lien dans votre email de confirmation ou en nous envoyant un message.',
+                                        icon: Icons.calendar_month_outlined,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      _PolicyRuleCard(
+                                        title: 'RENDEZ-VOUS NON HONORÉ',
+                                        description:
+                                            'En cas d’absence sans prévenir, la prestation sera facturée à 100% lors de votre prochain passage. Chaque créneau réservé est un créneau qu’un autre client aurait pu prendre.',
+                                        icon: Icons.shield_outlined,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  18,
+                                  14,
+                                  18,
+                                  18,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(16),
+                                      onTap: () {
+                                        setDialogState(() {
+                                          checked = !checked;
+                                        });
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 180,
+                                              ),
+                                              width: 22,
+                                              height: 22,
+                                              decoration: BoxDecoration(
+                                                color: checked
+                                                    ? Colors.white
+                                                    : const Color(0xFF1D1D1D),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: checked
+                                                      ? Colors.white
+                                                      : Colors.white
+                                                            .withValues(
+                                                              alpha: 0.22,
+                                                            ),
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                Icons.check_rounded,
+                                                size: 14,
+                                                color: checked
+                                                    ? Colors.black
+                                                    : Colors.transparent,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                "J’ai lu et j’accepte ces conditions",
+                                                style: TextStyle(
+                                                  color: Colors.white
+                                                      .withValues(
+                                                        alpha: 0.78,
+                                                      ),
+                                                  fontSize: 13,
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    SizedBox(
+                                      height: 48,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: checked
+                                              ? Colors.white
+                                              : _disabled,
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: checked
+                                                ? Colors.transparent
+                                                : Colors.white.withValues(
+                                                    alpha: 0.05,
+                                                  ),
+                                          ),
+                                        ),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            onTap: checked
+                                                ? () {
+                                                    Navigator.of(
+                                                      dialogContext,
+                                                    ).pop(true);
+                                                  }
+                                                : null,
+                                            child: Center(
+                                              child: Text(
+                                                'RÉSERVER MON CRÉNEAU',
+                                                style: TextStyle(
+                                                  fontFamily: _titleFont,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: 1.0,
+                                                  color: checked
+                                                      ? Colors.black
+                                                      : Colors.white
+                                                            .withValues(
+                                                              alpha: 0.2,
+                                                            ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
