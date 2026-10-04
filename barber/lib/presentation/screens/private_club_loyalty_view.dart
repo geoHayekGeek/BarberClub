@@ -149,6 +149,7 @@ class PrivateClubLoyaltyView extends ConsumerWidget {
                     nextRankLabel: nextRankLabel,
                     nextRequirement: nextRequirement,
                     visualAppointments: visualAppointments,
+                    actualAppointments: state.lifetimeAppointments,
                     progress: rankProgress,
                     balanceLabel: balanceLabel,
                     reduceMotion: reduceMotion,
@@ -708,6 +709,7 @@ class _HeroSection extends StatelessWidget {
     required this.nextRankLabel,
     required this.nextRequirement,
     required this.visualAppointments,
+    required this.actualAppointments,
     required this.progress,
     required this.balanceLabel,
     required this.reduceMotion,
@@ -722,6 +724,7 @@ class _HeroSection extends StatelessWidget {
   final String? nextRankLabel;
   final int? nextRequirement;
   final int visualAppointments;
+  final int actualAppointments;
   final double progress;
   final String balanceLabel;
   final bool reduceMotion;
@@ -748,6 +751,7 @@ class _HeroSection extends StatelessWidget {
           nextRankLabel: nextRankLabel,
           nextRequirement: nextRequirement,
           visualAppointments: visualAppointments,
+          actualAppointments: actualAppointments,
           progress: progress,
           reduceMotion: reduceMotion,
         );
@@ -1179,6 +1183,7 @@ class _GoalPanel extends StatelessWidget {
     required this.nextRankLabel,
     required this.nextRequirement,
     required this.visualAppointments,
+    required this.actualAppointments,
     required this.progress,
     required this.reduceMotion,
   });
@@ -1188,6 +1193,7 @@ class _GoalPanel extends StatelessWidget {
   final String? nextRankLabel;
   final int? nextRequirement;
   final int visualAppointments;
+  final int actualAppointments;
   final double progress;
   final bool reduceMotion;
 
@@ -1217,7 +1223,7 @@ class _GoalPanel extends StatelessWidget {
             children: [
               _RingGauge(
                 palette: palette,
-                current: visualAppointments,
+                current: actualAppointments,
                 total: total,
                 progress: progress,
                 reduceMotion: reduceMotion,
@@ -1300,7 +1306,7 @@ class _GoalPanel extends StatelessWidget {
               Expanded(
                 child: _MiniStat(
                   label: 'RDV à vie',
-                  value: visualAppointments.toString(),
+                  value: actualAppointments.toString(),
                   accent: palette.accent,
                 ),
               ),
