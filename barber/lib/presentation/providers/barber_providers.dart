@@ -3,32 +3,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/barber.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/repositories/barber_repository.dart';
-import '../../data/repositories/barber_repository_impl.dart';
-import 'auth_providers.dart';
+import 'website_catalog_provider.dart';
 
 /// Barber repository provider
 final barberRepositoryProvider = Provider<BarberRepository>((ref) {
-  final dioClient = ref.watch(dioClientProvider);
-  return BarberRepositoryImpl(dioClient: dioClient);
+  return ref.watch(websiteCatalogProvider);
 });
 
 /// Barbers list provider (all barbers). Prefer barbersBySalonProvider for salon-scoped list.
-final barbersListProvider =
-    FutureProvider.autoDispose<List<Barber>>((ref) async {
+final barbersListProvider = FutureProvider.autoDispose<List<Barber>>((
+  ref,
+) async {
   final repository = ref.watch(barberRepositoryProvider);
   return repository.getBarbers();
 });
 
 /// Barbers list filtered by salon. Server-side filtering. Pass salonId.
-final barbersBySalonProvider =
-    FutureProvider.autoDispose.family<List<Barber>, String>((ref, salonId) async {
-  final repository = ref.watch(barberRepositoryProvider);
-  return repository.getBarbers(salonId: salonId);
-});
+final barbersBySalonProvider = FutureProvider.autoDispose
+    .family<List<Barber>, String>((ref, salonId) async {
+      final repository = ref.watch(barberRepositoryProvider);
+      return repository.getBarbers(salonId: salonId);
+    });
 
 /// Barber detail by id.
-final barberDetailProvider =
-    FutureProvider.autoDispose.family<Barber, String>((ref, id) async {
+final barberDetailProvider = FutureProvider.autoDispose.family<Barber, String>((
+  ref,
+  id,
+) async {
   final repository = ref.watch(barberRepositoryProvider);
   return repository.getBarberById(id);
 });

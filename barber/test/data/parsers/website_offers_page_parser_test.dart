@@ -69,13 +69,14 @@ void main() {
         <div class="mystery-note">Détails révélés bientôt</div>
       </div>
     </div>
+  </section>
     <script>
       const TARGET = new Date(2026, 6, 11, 0, 0, 0).getTime();
       const API_BASE = window.location.hostname === 'localhost'
         ? 'http://localhost:3000/api'
         : 'https://fortunate-benevolence-production-7df2.up.railway.app/api';
+      const body = {event_name: '2ans_grenoble', salon_id: 'grenoble'};
     </script>
-  </section>
   <div class="gift-section rv">
     <h2 class="section-title">Toute l'année</h2>
     <a href="reserver.html" class="gift-card" style="text-decoration:none;color:inherit">
@@ -123,11 +124,32 @@ void main() {
       'https://barberclub-grenoble.fr/assets/images/salons/grenoble/chaise-grenoble.jpg?v=3',
     );
     expect(page.upcomingSection?.countdownTarget, DateTime(2026, 7, 11, 0, 0));
-    expect(page.upcomingSection?.alertConfig?.apiBaseUrl,
-        'https://fortunate-benevolence-production-7df2.up.railway.app/api');
+    expect(
+      page.upcomingSection?.alertConfig?.apiBaseUrl,
+      'https://fortunate-benevolence-production-7df2.up.railway.app/api',
+    );
     expect(page.upcomingSection?.alertConfig?.eventName, '2ans_grenoble');
     expect(page.giftCard.title, "Offrez l'expérience");
     expect(page.conditions, hasLength(4));
+  });
+
+  test('missing event configuration never falls back to a different event', () {
+    final page = parser.parse(
+      salonId: 'voiron',
+      pageUrl: Uri.parse(
+        'https://barberclub-grenoble.fr/pages/voiron/offres.html',
+      ),
+      html: '''<html><div id="offerTabs"></div>
+        <section class="offer-panel" id="tab-upcoming">
+          <div class="mystery-number">Ouverture</div>
+        </section></html>''',
+    );
+    expect(page.upcomingSection?.headline, 'Ouverture');
+    expect(page.upcomingSection?.alertConfig, isNull);
+    expect(page.upcomingSection?.countdownTarget, isNull);
+    expect(page.upcomingSection?.imageUrl, isEmpty);
+    expect(page.upcomingSection?.priceNew, isNull);
+    expect(page.giftCard.title, isEmpty);
   });
 
   test('parses the Meylan teaser page structure', () {

@@ -10,6 +10,7 @@ import '../../domain/models/barber.dart';
 import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
 import '../providers/salon_providers.dart';
+import '../widgets/website_media_tile.dart';
 
 /// Single Barber Detail: fullscreen video hero, info cards, à propos, CTA, gallery.
 class BarberDetailScreen extends ConsumerWidget {
@@ -148,7 +149,12 @@ class _BarberDetailContentState extends State<_BarberDetailContent> {
                   const SizedBox(height: 32),
                   _SectionTitleWithDivider(title: 'SES RÉALISATIONS'),
                   const SizedBox(height: 12),
-                  _GalleryGrid(imageUrls: widget.barber.galleryImages),
+                  _GalleryGrid(
+                    imageUrls: [
+                      ...widget.barber.galleryImages,
+                      ...widget.barber.galleryVideoUrls,
+                    ],
+                  ),
                   SizedBox(height: 24 + mediaQuery.padding.bottom),
                 ],
               ),
@@ -429,6 +435,8 @@ class _CtaButtonState extends ConsumerState<_CtaButton> {
   void _handleOnTap() {
     HapticFeedback.mediumImpact();
     ref.read(selectedSalonIdForRdvProvider.notifier).state = widget.salonId;
+    ref.read(selectedBarberNameForRdvProvider.notifier).state =
+        widget.barber.displayName;
     context.go('/rdv');
   }
 
@@ -447,16 +455,18 @@ class _CtaButtonState extends ConsumerState<_CtaButton> {
             children: [
               const Icon(Icons.calendar_today, color: Colors.black87, size: 22),
               const SizedBox(width: 12),
-              Text(
-                'RÉSERVER AVEC ${widget.barber.displayName.toUpperCase()}',
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+              Flexible(
+                child: Text(
+                  'RÉSERVER AVEC ${widget.barber.displayName.toUpperCase()}',
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -522,11 +532,7 @@ class _GalleryGrid extends StatelessWidget {
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: url != null && url.startsWith('http')
-              ? Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _placeholder(),
-                )
+              ? WebsiteMediaTile(url: url)
               : _placeholder(),
         );
       },

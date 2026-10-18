@@ -7,23 +7,23 @@ import '../../domain/repositories/website_offers_repository.dart';
 import '../parsers/website_offers_page_parser.dart';
 
 class WebsiteOffersRepositoryImpl implements WebsiteOffersRepository {
-  WebsiteOffersRepositoryImpl({
-    Dio? siteDio,
-    WebsiteOffersPageParser? parser,
-  })  : _siteDio = siteDio ??
-            Dio(
-              BaseOptions(
-                baseUrl: AppConfig.publicSiteBaseUrl,
-                connectTimeout: const Duration(milliseconds: 30000),
-                receiveTimeout: const Duration(milliseconds: 30000),
-                sendTimeout: const Duration(milliseconds: 30000),
-                responseType: ResponseType.plain,
-                headers: const {
-                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                },
-              ),
+  WebsiteOffersRepositoryImpl({Dio? siteDio, WebsiteOffersPageParser? parser})
+    : _siteDio =
+          siteDio ??
+          Dio(
+            BaseOptions(
+              baseUrl: AppConfig.publicSiteBaseUrl,
+              connectTimeout: const Duration(milliseconds: 30000),
+              receiveTimeout: const Duration(milliseconds: 30000),
+              sendTimeout: const Duration(milliseconds: 30000),
+              responseType: ResponseType.plain,
+              headers: const {
+                'Accept':
+                    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
             ),
-        _parser = parser ?? const WebsiteOffersPageParser();
+          ),
+      _parser = parser ?? const WebsiteOffersPageParser();
 
   final Dio _siteDio;
   final WebsiteOffersPageParser _parser;
@@ -105,30 +105,20 @@ class WebsiteOffersRepositoryImpl implements WebsiteOffersRepository {
         message: responseMessage?.trim().isNotEmpty == true
             ? responseMessage!.trim()
             : statusCode == 400
-                ? 'Veuillez vérifier les informations saisies.'
-                : 'Impossible de contacter le site.',
+            ? 'Veuillez vérifier les informations saisies.'
+            : 'Impossible de contacter le site.',
       );
     }
   }
 
   WebsiteOffersPageData _fallback(String salonId, Uri pageUrl) {
-    switch (salonId) {
-      case 'meylan':
-        return WebsiteOffersPageData.fallbackMeylan(pageUrl);
-      case 'grenoble':
-      default:
-        return WebsiteOffersPageData.fallbackGrenoble(pageUrl);
-    }
+    return WebsiteOffersPageData.unavailable(salonId, pageUrl);
   }
 
   String _normalizeSalonId(String salonId) {
     final normalized = salonId.trim().toLowerCase();
-    switch (normalized) {
-      case 'meylan':
-      case 'grenoble':
-        return normalized;
-      default:
-        return 'grenoble';
-    }
+    if (!RegExp(r'^[a-z0-9-]+$').hasMatch(normalized))
+      throw const FormatException('Invalid salon.');
+    return normalized;
   }
 }

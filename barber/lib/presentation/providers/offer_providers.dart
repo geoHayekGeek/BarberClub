@@ -10,6 +10,8 @@ import '../../domain/models/my_offer_item.dart';
 import '../../domain/models/offer.dart';
 import '../../domain/repositories/offer_repository.dart';
 import 'auth_providers.dart';
+import 'reservation_providers.dart';
+import 'salon_providers.dart';
 
 final offerRepositoryProvider = Provider<OfferRepository>((ref) {
   final dioClient = ref.watch(dioClientProvider);
@@ -97,8 +99,23 @@ final activationStatesProvider =
 /// Prestations (pricing) for a single salon.
 final prestationsListProvider = FutureProvider.autoDispose
     .family<List<Offer>, String>((ref, salonId) async {
-      final repository = ref.watch(offerRepositoryProvider);
-      return repository.getPrestations(salonId);
+      final salon = await ref.watch(salonDetailProvider(salonId).future);
+      final services = await ref
+          .watch(reservationRepositoryProvider)
+          .getServices(salonId: salon.reservationSalonId);
+      return [
+        for (var i = 0; i < services.length; i++)
+          Offer(
+            id: services[i].id,
+            title: services[i].name,
+            description: services[i].description,
+            price: services[i].priceCents ~/ 100,
+            priceCents: services[i].priceCents,
+            durationMinutes: services[i].effectiveDurationMinutes,
+            salonId: salon.id,
+            orderIndex: i,
+          ),
+      ];
     });
 
 int _compareCurrentOffers(ClientOffer a, ClientOffer b) {

@@ -31,14 +31,22 @@ class HomeScreen extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  const _IntroBackground(),
+                  _IntroBackground(
+                    imageUrl: salonsAsync.valueOrNull?.firstOrNull?.imageUrl,
+                  ),
                   const Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
                     child: HomeHeader(),
                   ),
-                  const _IntroCenterContent(),
+                  _IntroCenterContent(
+                    salonNames:
+                        salonsAsync.valueOrNull
+                            ?.map((salon) => salon.city)
+                            .toList() ??
+                        const [],
+                  ),
                 ],
               ),
             ),
@@ -66,7 +74,12 @@ class HomeScreen extends ConsumerWidget {
                       : <Salon>[];
 
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 26, 0, 24),
+                    padding: EdgeInsets.fromLTRB(
+                      0,
+                      26,
+                      0,
+                      media.viewPadding.bottom + 140,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -181,19 +194,21 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _IntroBackground extends StatelessWidget {
-  const _IntroBackground();
+  const _IntroBackground({this.imageUrl});
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          'assets/images/barber_background.jpg',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              Container(color: const Color(0xFF111111)),
-        ),
+        if (imageUrl != null)
+          Image.network(
+            imageUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFF111111)),
+          ),
         Container(color: Colors.black.withOpacity(0.62)),
         Positioned.fill(
           child: DecoratedBox(
@@ -217,7 +232,8 @@ class _IntroBackground extends StatelessWidget {
 }
 
 class _IntroCenterContent extends StatelessWidget {
-  const _IntroCenterContent();
+  const _IntroCenterContent({required this.salonNames});
+  final List<String> salonNames;
 
   @override
   Widget build(BuildContext context) {
@@ -229,14 +245,20 @@ class _IntroCenterContent extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/barber_club_full_logo.png',
+            Image.network(
+              AppConfig.resolvePublicAssetUrl(
+                '/assets/images/common/logo-blanc.png',
+              )!,
               width: math.min(width * 0.82, 300),
               fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Image.asset(
+                'assets/images/barber_club_full_logo.png',
+                width: math.min(width * 0.82, 300),
+              ),
             ),
             const SizedBox(height: 24),
             Text(
-              'Barber club est né d’une conviction : Chaque client mérite l’exception',
+              salonNames.join(' · '),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: 18,
                 color: Colors.white.withOpacity(0.84),

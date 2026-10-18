@@ -15,11 +15,13 @@ import '../../domain/models/reservation_models.dart';
 import '../../domain/models/reservation_session.dart';
 import '../../domain/models/user.dart';
 import '../../domain/models/salon.dart';
+import '../../domain/models/barber.dart';
 import '../constants/loyalty_ui_constants.dart';
 import '../providers/auth_providers.dart';
 import '../providers/reservation_auth_providers.dart';
 import '../providers/reservation_providers.dart';
 import '../providers/salon_providers.dart';
+import '../providers/website_catalog_provider.dart';
 import '../widgets/glowing_separator.dart';
 
 class RdvScreen extends ConsumerStatefulWidget {
@@ -70,6 +72,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   late final ProviderSubscription<ReservationSessionState>
   _reservationSessionSubscription;
   late final ProviderSubscription<String?> _reservationSalonIdSubscription;
+  late final ProviderSubscription<String?> _preferredBarberSubscription;
   List<_BarberOption> _barbers = const [];
   List<_ServiceOption> _services = const [];
   List<_SlotOption> _availableSlots = const [];
@@ -126,6 +129,20 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
       selectedReservationSalonIdForRdvProvider,
       _handleReservationSalonIdChanged,
     );
+    _preferredBarberSubscription = ref.listenManual<String?>(
+      selectedBarberNameForRdvProvider,
+      (_, next) {
+        if (next == null || _barbersLoading) return;
+        for (final barber in _barbers) {
+          if (barber.name.toLowerCase() == next.toLowerCase()) {
+            _selectBarber(barber);
+            _setStep(_ReservationStep.barber);
+            ref.read(selectedBarberNameForRdvProvider.notifier).state = null;
+            return;
+          }
+        }
+      },
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _handleAuthStateChanged(null, ref.read(authStateProvider));
@@ -146,6 +163,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     _authStateSubscription.close();
     _reservationSessionSubscription.close();
     _reservationSalonIdSubscription.close();
+    _preferredBarberSubscription.close();
     // Keep provider writes out of dispose; Riverpod rejects mutations while unmounting.
     _scrollController.dispose();
     _guestFirstNameController.dispose();
@@ -404,10 +422,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                                 border: Border.all(
                                                   color: checked
                                                       ? Colors.white
-                                                      : Colors.white
-                                                            .withValues(
-                                                              alpha: 0.22,
-                                                            ),
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.22,
+                                                        ),
                                                 ),
                                               ),
                                               child: Icon(
@@ -424,9 +441,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                                 "J’ai lu et j’accepte ces conditions",
                                                 style: TextStyle(
                                                   color: Colors.white
-                                                      .withValues(
-                                                        alpha: 0.78,
-                                                      ),
+                                                      .withValues(alpha: 0.78),
                                                   fontSize: 13,
                                                   height: 1.3,
                                                 ),
@@ -461,8 +476,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                         child: Material(
                                           color: Colors.transparent,
                                           child: InkWell(
-                                            borderRadius:
-                                                BorderRadius.circular(14),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
                                             onTap: checked
                                                 ? () {
                                                     Navigator.of(
@@ -480,10 +496,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                                                   letterSpacing: 1.0,
                                                   color: checked
                                                       ? Colors.black
-                                                      : Colors.white
-                                                            .withValues(
-                                                              alpha: 0.2,
-                                                            ),
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.2,
+                                                        ),
                                                 ),
                                               ),
                                             ),
@@ -1051,12 +1066,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     return AppConfig.resolvePublicAssetUrl('/assets/images/$relative');
   }
 
-  _BarberOption _mapBarber(ReservationBarber barber) {
+  _BarberOption _mapBarber(ReservationBarber barber, {String? photoUrl}) {
     return _BarberOption(
       id: barber.id,
       name: barber.name.trim().isEmpty ? 'Barber' : barber.name.trim(),
       subtitle: _barberSubtitle(barber),
-      photoUrl: _resolveBarberPhotoUrl(barber.photoUrl),
+      photoUrl: photoUrl ?? _resolveBarberPhotoUrl(barber.photoUrl),
       role: barber.role,
       isAny: false,
       isGuest: barber.isGuest,
@@ -1150,6 +1165,18 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     try {
       final repository = ref.read(reservationRepositoryProvider);
       final barbers = await repository.getBarbers(salonId: reservationSalonId);
+      final publishedTeam = await ref
+          .read(websiteCatalogProvider)
+          .getBarbers(salonId: reservationSalonId)
+          .catchError((_) => <Barber>[]);
+      String? publishedPhoto(ReservationBarber barber) {
+        for (final profile in publishedTeam) {
+          if (profile.displayName.toLowerCase() == barber.name.toLowerCase())
+            return profile.image;
+        }
+        return _resolveBarberPhotoUrl(barber.photoUrl);
+      }
+
       if (!mounted || _currentReservationSalonId() != reservationSalonId) {
         return;
       }
@@ -1170,11 +1197,27 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             subtitle: 'Premier barber disponible',
             isAny: true,
           ),
-          ...barbers.map(_mapBarber),
+          ...barbers.map(
+            (barber) => _mapBarber(barber, photoUrl: publishedPhoto(barber)),
+          ),
         ];
         _barbersLoading = false;
         _barbersError = null;
+        final preferred = ref
+            .read(selectedBarberNameForRdvProvider)
+            ?.toLowerCase();
+        if (preferred != null) {
+          for (final option in _barbers) {
+            if (option.name.toLowerCase() == preferred) {
+              _selectedBarber = option;
+              break;
+            }
+          }
+        }
       });
+      ref.read(selectedBarberNameForRdvProvider.notifier).state = null;
+      if (_selectedBarber != null)
+        unawaited(_loadServicesForCurrentSelection());
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -1582,8 +1625,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   void _updateWaitlistCustomStart(String start) {
     setState(() {
       _waitlistTimeStart = start;
-      _waitlistTimeEnd = _waitlistTimeEnd == null ||
-              _waitlistTimeEnd!.compareTo(start) <= 0
+      _waitlistTimeEnd =
+          _waitlistTimeEnd == null || _waitlistTimeEnd!.compareTo(start) <= 0
           ? _incrementWaitlistTime(start)
           : _waitlistTimeEnd;
     });
@@ -1603,7 +1646,13 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
     if (parts.length != 2) return '19:00';
     final hour = int.tryParse(parts[0]) ?? 9;
     final minute = int.tryParse(parts[1]) ?? 0;
-    final current = DateTime(_today.year, _today.month, _today.day, hour, minute);
+    final current = DateTime(
+      _today.year,
+      _today.month,
+      _today.day,
+      hour,
+      minute,
+    );
     final next = current.add(const Duration(minutes: 60));
     final clamped = DateTime(_today.year, _today.month, _today.day, 19, 0);
     final resolved = next.isAfter(clamped) ? clamped : next;
@@ -1954,7 +2003,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
         ? _barbers.map((option) => option.id).toList(growable: false)
         : <String>[barber.id];
     if (barberIds.isEmpty) {
-      _showMessage('Impossible de determiner le barber de la liste d\'attente.');
+      _showMessage(
+        'Impossible de determiner le barber de la liste d\'attente.',
+      );
       return;
     }
 
@@ -2215,7 +2266,12 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
           Expanded(
             child: SingleChildScrollView(
               controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
+              key: const ValueKey('reservation-step-scroll'),
+              primary: false,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
               padding: EdgeInsets.fromLTRB(
                 16,
                 8,
@@ -2272,7 +2328,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   }
 
   Widget _buildSalonSelectionView(BuildContext context, List<Salon> salons) {
-    final selectionSalons = salons.take(2).toList(growable: false);
+    final selectionSalons = salons;
     final bottomPadding =
         MediaQuery.viewPaddingOf(context).bottom +
         LoyaltyUIConstants.bottomNavPadding +
@@ -2306,7 +2362,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                   ),
                 )
               : SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
+                  ),
                   padding: EdgeInsets.fromLTRB(16, 6, 16, bottomPadding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2788,8 +2846,8 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
                 child: _WaitlistPanel(
                   barberTitle:
                       _selectedBarber != null && !_selectedBarber!.isAny
-                          ? _selectedBarber!.name
-                          : '',
+                      ? _selectedBarber!.name
+                      : '',
                   dateLabel: _formatLongDate(selectedDate),
                   currentTimeStart: _waitlistTimeStart,
                   currentTimeEnd: _waitlistTimeEnd,
@@ -3304,8 +3362,7 @@ class _CalendarDay {
 
   bool get isFull => slotCount != null && slotCount! <= 0;
 
-  bool get isSelectable =>
-      date != null && !isPast && (isAvailable || isFull);
+  bool get isSelectable => date != null && !isPast && (isAvailable || isFull);
 
   bool get hasAlternatives => alternativeCount > 0;
 }
@@ -3497,42 +3554,19 @@ class _SalonChoiceSplit extends StatelessWidget {
           );
         }
 
-        final topSalon = salons.first;
-        final bottomSalon = salons.length > 1 ? salons[1] : null;
-        final separatorHeight = bottomSalon != null ? 5.0 : 0.0;
-        final totalHeight =
-            squareSide * (bottomSalon != null ? 2 : 1) + separatorHeight;
-
-        return SizedBox(
-          height: totalHeight,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(color: Colors.black),
-              Column(
-                children: [
-                  SizedBox(
-                    height: squareSide,
-                    child: _SalonChoicePanel(
-                      salon: topSalon,
-                      onTap: () => onTapSalon(topSalon),
-                    ),
-                  ),
-                  if (bottomSalon != null) const GlowingSeparator(),
-                  SizedBox(
-                    height: squareSide,
-                    child: bottomSalon != null
-                        ? _SalonChoicePanel(
-                            salon: bottomSalon,
-                            onTap: () => onTapSalon(bottomSalon),
-                            contentBottomInset: 96,
-                          )
-                        : const _SalonChoiceFallbackPanel(),
-                  ),
-                ],
+        return Column(
+          children: [
+            for (var i = 0; i < salons.length; i++) ...[
+              if (i > 0) const GlowingSeparator(),
+              SizedBox(
+                height: squareSide,
+                child: _SalonChoicePanel(
+                  salon: salons[i],
+                  onTap: () => onTapSalon(salons[i]),
+                ),
               ),
             ],
-          ),
+          ],
         );
       },
     );
@@ -4523,15 +4557,15 @@ class _CalendarDayCell extends StatelessWidget {
     final full = day.isFull && !day.isPast;
     final blocked = full;
     final dayTextColor = selected
-        ? (blocked
-              ? Colors.white.withValues(alpha: 0.62)
-              : Colors.black)
+        ? (blocked ? Colors.white.withValues(alpha: 0.62) : Colors.black)
         : day.isPast
         ? Colors.white.withValues(alpha: 0.18)
         : blocked
         ? Colors.white.withValues(alpha: 0.40)
         : Colors.white.withValues(alpha: 0.82);
-    final textDecoration = blocked ? TextDecoration.lineThrough : TextDecoration.none;
+    final textDecoration = blocked
+        ? TextDecoration.lineThrough
+        : TextDecoration.none;
     final backgroundColor = selected
         ? (blocked ? const Color(0xFF242424) : Colors.white)
         : Colors.transparent;

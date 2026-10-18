@@ -1,4 +1,6 @@
 import '../../domain/models/website_offers_page_data.dart';
+import 'package:html/parser.dart' as html_parser;
+import '../../core/config/booking_policy.dart';
 
 class WebsiteOffersPageParser {
   const WebsiteOffersPageParser();
@@ -7,6 +9,7 @@ class WebsiteOffersPageParser {
     required String salonId,
     required Uri pageUrl,
     required String html,
+    DateTime? now,
   }) {
     final normalizedSalonId = salonId.trim().toLowerCase();
     final pageTitle = _cleanText(
@@ -30,7 +33,61 @@ class WebsiteOffersPageParser {
     final hasTabbedLayout = html.contains('id="offerTabs"');
     final sections = <WebsiteOfferSection>[];
 
-    if (hasTabbedLayout) {
+    final document = html_parser.parse(html);
+    final launch = document.querySelector('.launch-fine');
+    if (launch != null) {
+      final days =
+          document
+              .querySelectorAll('[data-date]')
+              .map((e) => DateTime.tryParse(e.attributes['data-date'] ?? ''))
+              .whereType<DateTime>()
+              .toList()
+            ..sort();
+      final expired =
+          days.isEmpty ||
+          !(now ?? DateTime.now()).isBefore(
+            BookingPolicy.parisDate(
+              days.last.year,
+              days.last.month,
+              days.last.day + 1,
+            ),
+          );
+      String content(String selector) =>
+          document
+              .querySelector(selector)
+              ?.text
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim() ??
+          '';
+      if (!expired) {
+        sections.add(
+          WebsiteOfferSection.current(
+            sectionLabel: content('.launch-kicker'),
+            badge: content('.launch-status'),
+            headline: content('.launch-num'),
+            subheadline: content('.launch-num-sub'),
+            priceOld: content('.lp-old'),
+            priceNew: content('.lp-new'),
+            ctaLabel: content('.launch-ctas .btn-primary'),
+            footnote: content('.launch-month'),
+            details: content('.launch-fine'),
+            imageUrl: '',
+          ),
+        );
+      } else {
+        sections.add(
+          WebsiteOfferSection.teaser(
+            sectionLabel: 'Offres',
+            headline: content('.idle-title'),
+            description: content('.idle-desc'),
+          ),
+        );
+      }
+    }
+
+    if (sections.isNotEmpty) {
+      // Launch pages have their own layout, dates, and pricing examples.
+    } else if (hasTabbedLayout) {
       final currentSection = _parseCurrentSection(html, pageUrl);
       if (currentSection != null) {
         sections.add(currentSection);
@@ -47,7 +104,8 @@ class WebsiteOffersPageParser {
       }
     }
 
-    final giftCard = _parseGiftCard(html, pageUrl) ??
+    final giftCard =
+        _parseGiftCard(html, pageUrl) ??
         _fallbackGiftCard(normalizedSalonId, pageUrl);
     final conditions = _parseConditions(html, normalizedSalonId);
     final currentTabLabel = _parseTabLabel(html, true);
@@ -81,13 +139,7 @@ class WebsiteOffersPageParser {
     required String pageTitle,
     required String pageDescription,
   }) {
-    switch (salonId) {
-      case 'meylan':
-        return WebsiteOffersPageData.fallbackMeylan(pageUrl);
-      case 'grenoble':
-      default:
-        return WebsiteOffersPageData.fallbackGrenoble(pageUrl);
-    }
+    return WebsiteOffersPageData.unavailable(salonId, pageUrl);
   }
 
   WebsiteOfferSection? _parseCurrentSection(String html, Uri pageUrl) {
@@ -120,7 +172,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Chaque mardi',
+            '',
       ),
       badge: _cleanText(
         _firstGroup(
@@ -130,7 +182,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Mardi · 9h – 13h',
+            '',
       ),
       headline: _cleanText(
         _firstGroup(
@@ -140,7 +192,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Barbe\nofferte',
+            '',
         preserveLineBreaks: true,
       ),
       subheadline: _cleanText(
@@ -151,7 +203,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'avec ta coupe homme, chaque mardi matin au salon de Grenoble.',
+            '',
       ),
       priceOld: _cleanText(
         _firstGroup(
@@ -161,7 +213,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            '30€',
+            '',
       ),
       priceNew: _cleanText(
         _firstGroup(
@@ -171,7 +223,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            '20€',
+            '',
       ),
       ctaLabel: _cleanText(
         _firstGroup(
@@ -181,7 +233,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Réserver mon mardi',
+            '',
       ),
       footnote: _cleanText(
         _firstGroup(
@@ -191,7 +243,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Salon Grenoble · centre-ville',
+            '',
       ),
       details: _cleanText(
         _firstGroup(
@@ -212,7 +264,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            '../../assets/images/salons/grenoble/chaise-grenoble.jpg?v=3',
+            '',
       ),
     );
   }
@@ -228,9 +280,10 @@ class WebsiteOffersPageParser {
     );
     if (sectionHtml == null) return null;
 
-    final alertConfig = _parseAlertConfig(sectionHtml);
-    final countdownTarget = _parseCountdownTarget(sectionHtml) ??
-        DateTime(2026, 7, 11, 0, 0, 0);
+    // The live site's event configuration is in a page-level script after the
+    // panel, not inside it. Never replace missing configuration with old data.
+    final alertConfig = _parseAlertConfig(html);
+    final countdownTarget = _parseCountdownTarget(html);
 
     return WebsiteOfferSection.upcoming(
       sectionLabel: _cleanText(
@@ -241,7 +294,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Bientôt',
+            '',
       ),
       badge: _cleanText(
         _firstGroup(
@@ -251,7 +304,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Événement',
+            '',
       ),
       headline: _cleanText(
         _firstGroup(
@@ -261,7 +314,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            '2',
+            '',
       ),
       subheadline: _cleanText(
         _firstGroup(
@@ -271,7 +324,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'ANS',
+            '',
       ),
       description: _cleanText(
         _firstGroup(
@@ -281,7 +334,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Quelque chose se prépare',
+            '',
       ),
       ctaLabel: _cleanText(
         _firstGroup(
@@ -291,7 +344,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Être alerté',
+            '',
       ),
       details: _cleanText(
         _firstGroup(
@@ -301,19 +354,10 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Détails révélés bientôt',
+            '',
       ),
       countdownTarget: countdownTarget,
-      alertConfig: alertConfig ??
-          const WebsiteAlertConfig(
-            apiBaseUrl:
-                'https://fortunate-benevolence-production-7df2.up.railway.app/api',
-            eventName: '2ans_grenoble',
-            salonId: 'grenoble',
-            successMessage: 'Vous serez alerté !',
-            buttonLabel: 'Être alerté',
-            emailPlaceholder: 'Votre email',
-          ),
+      alertConfig: alertConfig,
       imageUrl: _resolveRelativeUrl(
         pageUrl,
         _firstGroup(
@@ -323,7 +367,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            '../../assets/images/salons/grenoble/salon-grenoble.jpg?v=3',
+            '',
       ),
     );
   }
@@ -344,7 +388,7 @@ class WebsiteOffersPageParser {
               caseSensitive: false,
             ),
           ) ??
-          'Restez connectés',
+          '',
     );
     final description = _cleanText(
       _firstGroup(
@@ -354,7 +398,7 @@ class WebsiteOffersPageParser {
               caseSensitive: false,
             ),
           ) ??
-          'Des surprises et des événements exclusifs arrivent bientôt chez BarberClub Meylan. Suivez-nous pour ne rien rater.',
+          '',
     );
 
     return WebsiteOfferSection.teaser(
@@ -384,7 +428,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Toute l\'année',
+            '',
       ),
       watermark: _cleanText(
         _firstGroup(
@@ -394,7 +438,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'BarberClub',
+            '',
       ),
       label: _cleanText(
         _firstGroup(
@@ -404,7 +448,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Carte Cadeau',
+            '',
       ),
       title: _cleanText(
         _firstGroup(
@@ -414,7 +458,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Offrez l\'expérience',
+            '',
       ),
       price: _cleanText(
         _firstGroup(
@@ -424,7 +468,7 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Dès 20€',
+            '',
       ),
       description: _cleanText(
         _firstGroup(
@@ -434,28 +478,25 @@ class WebsiteOffersPageParser {
                 caseSensitive: false,
               ),
             ) ??
-            'Montant libre, valable 1 an dans nos deux salons.',
+            '',
       ),
       linkLabel: 'Réserver',
       linkUrl: _resolveRelativeUrl(
         pageUrl,
         _firstGroup(
               giftHtml,
-              RegExp(r'<a href="([^"]+)" class="gift-card"', caseSensitive: false),
+              RegExp(
+                r'<a href="([^"]+)" class="gift-card"',
+                caseSensitive: false,
+              ),
             ) ??
-            'reserver.html',
+            '',
       ),
     );
   }
 
   WebsiteGiftCardData _fallbackGiftCard(String salonId, Uri pageUrl) {
-    switch (salonId) {
-      case 'meylan':
-        return WebsiteOffersPageData.fallbackMeylan(pageUrl).giftCard;
-      case 'grenoble':
-      default:
-        return WebsiteOffersPageData.fallbackGrenoble(pageUrl).giftCard;
-    }
+    return WebsiteOffersPageData.unavailable(salonId, pageUrl).giftCard;
   }
 
   List<String> _parseConditions(String html, String salonId) {
@@ -470,17 +511,7 @@ class WebsiteOffersPageParser {
 
     if (conditions.isNotEmpty) return conditions;
 
-    switch (salonId) {
-      case 'meylan':
-        return WebsiteOffersPageData.fallbackMeylan(
-          Uri.parse('https://barberclub-grenoble.fr/pages/meylan/offres.html'),
-        ).conditions;
-      case 'grenoble':
-      default:
-        return WebsiteOffersPageData.fallbackGrenoble(
-          Uri.parse('https://barberclub-grenoble.fr/pages/grenoble/offres.html'),
-        ).conditions;
-    }
+    return const [];
   }
 
   WebsiteAlertConfig? _parseAlertConfig(String sectionHtml) {
@@ -519,7 +550,8 @@ class WebsiteOffersPageParser {
           ) ??
           'Être alerté',
     );
-    final emailPlaceholder = _firstGroup(
+    final emailPlaceholder =
+        _firstGroup(
           sectionHtml,
           RegExp(
             r'<input type="email" id="alertEmail" class="alert-input" placeholder="([^"]+)"',
@@ -585,13 +617,7 @@ class WebsiteOffersPageParser {
   }
 
   String _defaultTitle(String salonId) {
-    switch (salonId) {
-      case 'meylan':
-        return 'Offres & Événements | BarberClub Meylan';
-      case 'grenoble':
-      default:
-        return 'Offres & Événements | BarberClub Grenoble';
-    }
+    return 'Offres & Événements';
   }
 
   String _resolveRelativeUrl(Uri pageUrl, String url) {

@@ -216,7 +216,7 @@ class ReservationBooking {
           json['serviceName'] as String? ??
           '',
       salonId: json['salon_id'] as String? ?? json['salonId'] as String? ?? '',
-      date: json['date'] as String? ?? '',
+      date: (json['date'] as String? ?? '').split('T').first,
       startTime:
           json['start_time'] as String? ?? json['startTime'] as String? ?? '',
       endTime: json['end_time'] as String? ?? json['endTime'] as String? ?? '',

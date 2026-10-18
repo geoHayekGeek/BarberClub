@@ -65,7 +65,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         // is not. Bouncing them home in that case is a dead end with no way
         // to recover, so honour the request.
         final wantsLogin = state.uri.queryParameters['redirect'] != null;
-        if ((loc == '/login' || loc == '/signup') && !wantsLogin) return '/home';
+        if ((loc == '/login' || loc == '/signup') && !wantsLogin)
+          return '/home';
         if (loc.startsWith('/admin')) return '/home';
       } else {
         if (loc.startsWith('/admin')) return '/login';
@@ -230,6 +231,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                               : null;
                           return BarberDetailScreen(
                             barberId: id,
+                            salonId: state.pathParameters['salonId'] ?? '',
                             salonName: salonName,
                           );
                         },

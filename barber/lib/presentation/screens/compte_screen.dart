@@ -21,7 +21,7 @@ import '../../domain/repositories/reservation_repository.dart';
 import '../providers/auth_providers.dart';
 import '../providers/reservation_auth_providers.dart';
 import '../providers/reservation_providers.dart';
-import '../providers/salon_providers.dart';
+import '../../core/config/booking_policy.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class CompteScreen extends ConsumerStatefulWidget {
@@ -380,11 +380,11 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
   }
 
   bool _canModifyBooking(ReservationBooking booking) {
-    final bookingDate = DateTime.tryParse(
-      '${booking.date}T${booking.startTime}',
+    return BookingPolicy.canModify(
+      date: booking.date,
+      startTime: booking.startTime,
+      status: booking.status,
     );
-    if (bookingDate == null) return false;
-    return bookingDate.difference(DateTime.now()) >= const Duration(hours: 12);
   }
 
   Uri _buildManageBookingUri(ReservationBooking booking) {
@@ -3042,13 +3042,8 @@ class _CompteScreenShell extends ConsumerWidget {
         reservationState.status == ReservationSessionStatus.authenticated &&
         reservationUser != null;
 
-    final selectedReservationSalonId = ref.watch(
-      selectedReservationSalonIdForRdvProvider,
-    );
-    final salonFilter = selectedReservationSalonId?.trim();
-    final bookingsSalonId = salonFilter != null && salonFilter.isNotEmpty
-        ? salonFilter
-        : null;
+    // An account belongs to the client, not to the last salon they browsed.
+    const String? bookingsSalonId = null;
 
     final bookingsAsync = hasReservationSession
         ? ref.watch(reservationClientBookingsProvider(bookingsSalonId))
@@ -4335,11 +4330,11 @@ class _CompteScreenShell extends ConsumerWidget {
   }
 
   bool _canModifyBooking(ReservationBooking booking) {
-    final bookingDate = DateTime.tryParse(
-      '${booking.date}T${booking.startTime}',
+    return BookingPolicy.canModify(
+      date: booking.date,
+      startTime: booking.startTime,
+      status: booking.status,
     );
-    if (bookingDate == null) return false;
-    return bookingDate.difference(DateTime.now()) >= const Duration(hours: 12);
   }
 
   Future<ReservationBooking> _resolveBookingForReschedule(

@@ -8,7 +8,7 @@ import '../constants/barber_ui_constants.dart';
 import '../providers/barber_providers.dart';
 
 /// Nos Barbers tab entry:
-/// show Meylan + Grenoble barbers directly in horizontal carousels.
+/// Show each published salon's team. Salons are discovered from the website.
 class SalonBarberSelectionScreen extends ConsumerWidget {
   const SalonBarberSelectionScreen({super.key});
 
@@ -39,12 +39,23 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
               );
             }
 
-            final grouped = _groupBarbersBySalon(barbers);
+            final salonNames = <String, String>{};
+            final grouped = <String, List<Barber>>{};
+            for (final barber in barbers) {
+              for (final salon in barber.salons) {
+                salonNames[salon.id] = salon.city.isNotEmpty
+                    ? salon.city
+                    : salon.name;
+                (grouped[salon.id] ??= []).add(barber);
+              }
+            }
             final bottomPadding =
                 MediaQuery.of(context).viewPadding.bottom + 120;
 
             return CustomScrollView(
-              physics: const BouncingScrollPhysics(),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -75,29 +86,17 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: _BarberCarouselSection(
-                    title: 'MEYLAN',
-                    barbers: grouped.meylan,
-                    onTapBarber: (barber) => _openBarberDetails(
-                      context,
-                      barber,
-                      _SalonBucket.meylan,
+                for (final group in grouped.entries) ...[
+                  SliverToBoxAdapter(
+                    child: _BarberCarouselSection(
+                      title: salonNames[group.key]!.toUpperCase(),
+                      barbers: group.value,
+                      onTapBarber: (barber) =>
+                          _openBarberDetails(context, barber, group.key),
                     ),
                   ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                SliverToBoxAdapter(
-                  child: _BarberCarouselSection(
-                    title: 'GRENOBLE',
-                    barbers: grouped.grenoble,
-                    onTapBarber: (barber) => _openBarberDetails(
-                      context,
-                      barber,
-                      _SalonBucket.grenoble,
-                    ),
-                  ),
-                ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                ],
                 SliverToBoxAdapter(child: SizedBox(height: bottomPadding)),
               ],
             );
@@ -138,19 +137,11 @@ class SalonBarberSelectionScreen extends ConsumerWidget {
     );
   }
 
-  void _openBarberDetails(
-    BuildContext context,
-    Barber barber,
-    _SalonBucket bucket,
-  ) {
-    final targetSalon = _pickSalonForBucket(barber, bucket);
-    final salonId = targetSalon?.id.isNotEmpty == true
-        ? targetSalon!.id
-        : (barber.salons.isNotEmpty ? barber.salons.first.id : null) ??
-              (bucket == _SalonBucket.meylan ? 'meylan' : 'grenoble');
-    final salonName = targetSalon?.name.isNotEmpty == true
-        ? targetSalon!.name
-        : (bucket == _SalonBucket.meylan ? 'Meylan' : 'Grenoble');
+  void _openBarberDetails(BuildContext context, Barber barber, String salonId) {
+    final targetSalon = barber.salons.firstWhere(
+      (salon) => salon.id == salonId,
+    );
+    final salonName = targetSalon.name;
     final encodedName = Uri.encodeComponent(salonName);
     context.push(
       '/coiffeurs/salon/$salonId/barber/${barber.id}?name=$encodedName',
@@ -377,60 +368,3 @@ class _BarberCarouselCardState extends State<_BarberCarouselCard> {
     );
   }
 }
-
-_GroupedBarbers _groupBarbersBySalon(List<Barber> barbers) {
-  final meylan = <Barber>[];
-  final grenoble = <Barber>[];
-
-  for (final barber in barbers) {
-    final hasMeylan = barber.salons.any(_isMeylanSalon);
-    final hasGrenoble = barber.salons.any(_isGrenobleSalon);
-
-    if (hasMeylan) {
-      meylan.add(barber);
-    }
-    if (hasGrenoble) {
-      grenoble.add(barber);
-    }
-
-    if (!hasMeylan && !hasGrenoble) {
-      grenoble.add(barber);
-    }
-  }
-
-  return _GroupedBarbers(meylan: meylan, grenoble: grenoble);
-}
-
-BarberSalon? _pickSalonForBucket(Barber barber, _SalonBucket bucket) {
-  for (final salon in barber.salons) {
-    final isMatch = bucket == _SalonBucket.meylan
-        ? _isMeylanSalon(salon)
-        : _isGrenobleSalon(salon);
-    if (isMatch) {
-      return salon;
-    }
-  }
-  if (barber.salons.isNotEmpty) {
-    return barber.salons.first;
-  }
-  return null;
-}
-
-bool _isMeylanSalon(BarberSalon salon) {
-  final value = '${salon.name} ${salon.city}'.toLowerCase();
-  return value.contains('meylan') || value.contains('corenc');
-}
-
-bool _isGrenobleSalon(BarberSalon salon) {
-  final value = '${salon.name} ${salon.city}'.toLowerCase();
-  return value.contains('grenoble');
-}
-
-class _GroupedBarbers {
-  const _GroupedBarbers({required this.meylan, required this.grenoble});
-
-  final List<Barber> meylan;
-  final List<Barber> grenoble;
-}
-
-enum _SalonBucket { meylan, grenoble }

@@ -1,7 +1,6 @@
 /// Barber (coiffeur) model.
 /// fromJson supports backend response; field names match API.
 class Barber {
-
   const Barber({
     required this.id,
     required this.firstName,
@@ -15,28 +14,42 @@ class Barber {
     required this.specialties,
     required this.images,
     this.videoUrl,
+    this.galleryVideoUrls = const [],
     required this.salons,
   });
 
   /// Maps backend JSON. Backend returns: id, name, role, age, origin, imageUrl, salon, bio?, videoUrl?, gallery?.
   factory Barber.fromJson(Map<String, dynamic> json) {
-    final specialties = (json['interests'] as List<dynamic>?)
+    final specialties =
+        (json['interests'] as List<dynamic>?)
             ?.map((e) => e as String)
             .toList() ??
-        (json['specialties'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+        (json['specialties'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
         [];
-    String displayName = json['name'] as String? ??
+    String displayName =
+        json['name'] as String? ??
         json['displayName'] as String? ??
         json['display_name'] as String? ??
         (json['firstName'] as String?) ??
         '';
     final parts = displayName.split(' ');
-    final firstName = json['firstName'] as String? ?? json['first_name'] as String? ?? (parts.isNotEmpty ? parts.first : '');
-    final lastName = json['lastName'] as String? ?? json['last_name'] as String? ?? (parts.length > 1 ? parts.sublist(1).join(' ') : '');
+    final firstName =
+        json['firstName'] as String? ??
+        json['first_name'] as String? ??
+        (parts.isNotEmpty ? parts.first : '');
+    final lastName =
+        json['lastName'] as String? ??
+        json['last_name'] as String? ??
+        (parts.length > 1 ? parts.sublist(1).join(' ') : '');
     if (displayName.isEmpty) displayName = firstName;
 
-    List<String> images = (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [];
-    final imageUrl = json['imageUrl'] as String? ?? json['image_url'] as String?;
+    List<String> images =
+        (json['images'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+        [];
+    final imageUrl =
+        json['imageUrl'] as String? ?? json['image_url'] as String?;
     if (imageUrl != null && imageUrl.isNotEmpty && images.isEmpty) {
       images = [imageUrl];
     }
@@ -50,9 +63,11 @@ class Barber {
       }
     }
 
-    List<BarberSalon> salonsList = (json['salons'] as List<dynamic>?)
-        ?.map((e) => BarberSalon.fromJson(e as Map<String, dynamic>))
-        .toList() ?? [];
+    List<BarberSalon> salonsList =
+        (json['salons'] as List<dynamic>?)
+            ?.map((e) => BarberSalon.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [];
     final salonObj = json['salon'] as Map<String, dynamic>?;
     if (salonObj != null && salonsList.isEmpty) {
       salonsList = [
@@ -60,12 +75,15 @@ class Barber {
           id: salonObj['id'] as String? ?? '',
           name: salonObj['name'] as String? ?? '',
           city: salonObj['city'] as String? ?? '',
-          timifyUrl: salonObj['timifyUrl'] as String? ?? salonObj['timify_url'] as String?,
+          timifyUrl:
+              salonObj['timifyUrl'] as String? ??
+              salonObj['timify_url'] as String?,
         ),
       ];
     }
 
-    final level = json['role'] as String? ?? json['level'] as String? ?? 'senior';
+    final level =
+        json['role'] as String? ?? json['level'] as String? ?? 'senior';
 
     return Barber(
       id: json['id'] as String? ?? '',
@@ -73,7 +91,8 @@ class Barber {
       lastName: lastName,
       displayName: displayName,
       bio: json['bio'] as String? ?? '',
-      experienceYears: json['experienceYears'] as int? ?? json['experience_years'] as int?,
+      experienceYears:
+          json['experienceYears'] as int? ?? json['experience_years'] as int?,
       age: json['age'] as int?,
       origin: json['origin'] as String?,
       level: level,
@@ -95,6 +114,7 @@ class Barber {
   final List<String> specialties;
   final List<String> images;
   final String? videoUrl;
+  final List<String> galleryVideoUrls;
   final List<BarberSalon> salons;
 
   /// First image as main profile image; rest as gallery.
@@ -120,8 +140,7 @@ class Barber {
   }
 }
 
-class BarberSalon { 
-
+class BarberSalon {
   const BarberSalon({
     required this.id,
     required this.name,
@@ -134,7 +153,9 @@ class BarberSalon {
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       city: json['city'] as String? ?? '',
-      timifyUrl: json['timifyUrl'] as String? ?? json['timify_url'] as String?, // <--- MAPPED HERE
+      timifyUrl:
+          json['timifyUrl'] as String? ??
+          json['timify_url'] as String?, // <--- MAPPED HERE
     );
   }
   final String id;
@@ -142,5 +163,10 @@ class BarberSalon {
   final String city;
   final String? timifyUrl;
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'city': city,'timifyUrl': timifyUrl,};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'city': city,
+    'timifyUrl': timifyUrl,
+  };
 }

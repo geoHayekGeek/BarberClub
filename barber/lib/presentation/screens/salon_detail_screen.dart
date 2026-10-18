@@ -296,6 +296,65 @@ class _SalonDetailContent extends StatelessWidget {
                   _SalonPrestationsSection(salonId: salon.id),
                   const SizedBox(height: 24),
                   _buildGallerySection(context),
+                  if (salon.story.isNotEmpty)
+                    _SalonInfoCard(
+                      icon: Icons.auto_stories_outlined,
+                      title: 'NOTRE HISTOIRE',
+                      child: Text(
+                        salon.story,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  if (salon.questions.isNotEmpty)
+                    _SalonInfoCard(
+                      icon: Icons.help_outline,
+                      title: 'QUESTIONS FRÉQUENTES',
+                      child: Column(
+                        children: [
+                          for (final question in salon.questions)
+                            ExpansionTile(
+                              tilePadding: EdgeInsets.zero,
+                              title: Text(
+                                question.question,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: Text(
+                                    question.answer,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (salon.socialLinks.isNotEmpty)
+                    _SalonInfoCard(
+                      icon: Icons.public,
+                      title: 'SUIVEZ-NOUS',
+                      child: Wrap(
+                        spacing: 12,
+                        children: [
+                          for (final link in salon.socialLinks.entries)
+                            TextButton(
+                              onPressed: () => launchUrl(
+                                Uri.parse(link.value),
+                                mode: LaunchMode.externalApplication,
+                              ),
+                              child: Text(link.key),
+                            ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -449,6 +508,7 @@ class _SalonDetailContent extends StatelessWidget {
     );
   }
 }
+
 class _SalonPrestationsSection extends ConsumerWidget {
   final String salonId;
 
@@ -459,10 +519,10 @@ class _SalonPrestationsSection extends ConsumerWidget {
     final async = ref.watch(prestationsListProvider(salonId));
     return async.when(
       data: (offers) {
-        
         // --- 1. TRIER LA LISTE ICI ---
         // On crée une copie de la liste et on la trie selon l'orderIndex
-        final sortedOffers = List.of(offers)..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+        final sortedOffers = List.of(offers)
+          ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -502,7 +562,7 @@ class _SalonPrestationsSection extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // --- 2. UTILISER "sortedOffers" AU LIEU DE "offers" ---
               if (sortedOffers.isEmpty)
                 Padding(
@@ -758,42 +818,49 @@ class _HorairesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...rows.map(
-            (row) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      row.day,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.95),
-                        fontSize: 15,
+          if (openingHoursStructured == null || openingHoursStructured!.isEmpty)
+            Text(
+              openingHours.isEmpty ? 'Horaires non communiqués.' : openingHours,
+              style: const TextStyle(color: Colors.white70, height: 1.5),
+            ),
+          if (openingHoursStructured != null &&
+              openingHoursStructured!.isNotEmpty)
+            ...rows.map(
+              (row) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        row.day,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.95),
+                          fontSize: 15,
+                        ),
                       ),
-                    ),
-                    Text(
-                      row.hours,
-                      style: TextStyle(
-                        color: row.isOpen ? Colors.green : Colors.red,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                      Text(
+                        row.hours,
+                        style: TextStyle(
+                          color: row.isOpen ? Colors.green : Colors.red,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

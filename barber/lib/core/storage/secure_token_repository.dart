@@ -106,9 +106,12 @@ class SecureTokenRepository
       return;
     }
 
-    final tokens = await _readReservationBookingCancelTokens();
-    tokens[normalizedBookingId] = normalizedCancelToken;
-    await _writeReservationBookingCancelTokens(tokens);
+    // A key per booking avoids lost updates when several appointments hydrate
+    // concurrently. Rewriting a shared JSON map with Future.wait was racy.
+    await _storage.write(
+      key: '${_reservationBookingCancelTokensKey}_$normalizedBookingId',
+      value: normalizedCancelToken,
+    );
   }
 
   @override
@@ -118,8 +121,20 @@ class SecureTokenRepository
       return null;
     }
 
+    final current = await _storage.read(
+      key: '${_reservationBookingCancelTokensKey}_$normalizedBookingId',
+    );
+    if (current != null && current.trim().isNotEmpty) return current.trim();
+
+    // Migrate earlier installs lazily without deleting their old cache.
     final tokens = await _readReservationBookingCancelTokens();
     final token = tokens[normalizedBookingId]?.trim();
+    if (token != null && token.isNotEmpty) {
+      await saveReservationBookingCancelToken(
+        bookingId: normalizedBookingId,
+        cancelToken: token,
+      );
+    }
     return token == null || token.isEmpty ? null : token;
   }
 
@@ -141,19 +156,5 @@ class SecureTokenRepository
     }
 
     return <String, String>{};
-  }
-
-  Future<void> _writeReservationBookingCancelTokens(
-    Map<String, String> tokens,
-  ) async {
-    if (tokens.isEmpty) {
-      await _storage.delete(key: _reservationBookingCancelTokensKey);
-      return;
-    }
-
-    await _storage.write(
-      key: _reservationBookingCancelTokensKey,
-      value: jsonEncode(tokens),
-    );
   }
 }

@@ -16,20 +16,25 @@ class Salon {
     this.openingHoursStructured,
     this.timifyUrl,
     this.phone,
+    this.story = '',
+    this.questions = const [],
+    this.socialLinks = const {},
   });
 
   /// Backend may use camelCase, snake_case, or single "description"; all supported.
   /// Backend v2 returns imageUrl + gallery instead of images, and openingHours as object; we normalize.
   factory Salon.fromJson(Map<String, dynamic> json) {
-    final description = json['description'] as String? ??
+    final description =
+        json['description'] as String? ??
         json['descriptionShort'] as String? ??
         json['description_short'] as String? ??
         '';
-    final longDesc = json['descriptionLong'] as String? ??
+    final longDesc =
+        json['descriptionLong'] as String? ??
         json['description_long'] as String? ??
         description;
-    final websiteId = json['websiteId'] as String? ??
-        json['website_id'] as String?;
+    final websiteId =
+        json['websiteId'] as String? ?? json['website_id'] as String?;
 
     List<String> imagesList = const [];
     if (json['images'] is List) {
@@ -39,7 +44,8 @@ class Salon {
           .toList();
     } else if (json['imageUrl'] != null || json['gallery'] is List) {
       final hero = json['imageUrl'] as String? ?? json['image_url'] as String?;
-      final gallery = (json['gallery'] as List<dynamic>?)
+      final gallery =
+          (json['gallery'] as List<dynamic>?)
               ?.map((e) => e is String ? e : e?.toString() ?? '')
               .where((s) => s.isNotEmpty)
               .toList() ??
@@ -58,7 +64,9 @@ class Salon {
     if (openingHoursStr.isEmpty && rawHours is String) {
       openingHoursStr = rawHours;
     }
-    final Map<String, dynamic>? structured = (rawHours is Map<String, dynamic>) ? rawHours : null;
+    final Map<String, dynamic>? structured = (rawHours is Map<String, dynamic>)
+        ? rawHours
+        : null;
 
     return Salon(
       id: json['id'] as String? ?? '',
@@ -67,14 +75,16 @@ class Salon {
       city: json['city'] as String? ?? '',
       descriptionShort: description,
       descriptionLong: longDesc,
-      location: json['location'] as String?, 
+      location: json['location'] as String?,
       address: json['address'] as String? ?? '',
       images: imagesList,
       openingHours: openingHoursStr,
       openingHoursStructured: structured,
       services:
-          (json['services'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-              [],
+          (json['services'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
       timifyUrl: json['timifyUrl'] as String? ?? json['timify_url'] as String?,
       phone: json['phone'] as String?,
     );
@@ -90,11 +100,15 @@ class Salon {
   final String address;
   final List<String> images;
   final String openingHours;
+
   /// Structured hours from API (monday: { open, close, closed }, ...). Used for display when present.
   final Map<String, dynamic>? openingHoursStructured;
   final List<String> services;
   final String? timifyUrl;
   final String? phone;
+  final String story;
+  final List<SalonQuestion> questions;
+  final Map<String, String> socialLinks;
 
   /// First image URL for hero/cover; null if none.
   String? get imageUrl => images.isNotEmpty ? images.first : null;
@@ -111,10 +125,12 @@ class Salon {
     final normalizedCity = city.trim().toLowerCase();
     if (normalizedCity.contains('grenoble')) return 'grenoble';
     if (normalizedCity.contains('meylan')) return 'meylan';
+    if (normalizedCity.contains('voiron')) return 'voiron';
 
     final normalizedName = name.trim().toLowerCase();
     if (normalizedName.contains('grenoble')) return 'grenoble';
     if (normalizedName.contains('meylan')) return 'meylan';
+    if (normalizedName.contains('voiron')) return 'voiron';
 
     return id;
   }
@@ -131,10 +147,17 @@ class Salon {
       'address': address,
       'images': images,
       'openingHours': openingHours,
-      if (openingHoursStructured != null) 'openingHoursStructured': openingHoursStructured,
+      if (openingHoursStructured != null)
+        'openingHoursStructured': openingHoursStructured,
       'services': services,
       'timifyUrl': timifyUrl,
       'phone': phone,
     };
   }
+}
+
+class SalonQuestion {
+  const SalonQuestion({required this.question, required this.answer});
+  final String question;
+  final String answer;
 }

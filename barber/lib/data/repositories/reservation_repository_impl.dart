@@ -260,11 +260,7 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
     try {
       final requestOptions = await _buildReservationRequestOptions();
-      await _dio.post(
-        '/waitlist',
-        data: requestBody,
-        options: requestOptions,
-      );
+      await _dio.post('/waitlist', data: requestBody, options: requestOptions);
     } on DioException catch (error) {
       if (error.response?.statusCode == 401) {
         final refreshed = await _authRepository.refreshSession();
@@ -303,7 +299,7 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
-        return _hydrateClientBookingsPage(
+        return await _hydrateClientBookingsPage(
           ReservationClientBookingsPage.fromJson(data),
         );
       }
@@ -325,7 +321,7 @@ class ReservationRepositoryImpl implements ReservationRepository {
 
           final retryData = retryResponse.data;
           if (retryData is Map<String, dynamic>) {
-            return _hydrateClientBookingsPage(
+            return await _hydrateClientBookingsPage(
               ReservationClientBookingsPage.fromJson(retryData),
             );
           }
@@ -379,7 +375,11 @@ class ReservationRepositoryImpl implements ReservationRepository {
     }
 
     try {
-      await _dio.post('/bookings/$bookingId/cancel', data: body);
+      await _dio.post(
+        '/bookings/$bookingId/cancel',
+        data: body,
+        options: await _buildReservationRequestOptions(),
+      );
     } on DioException catch (error) {
       if (error.response?.statusCode == 401) {
         final refreshed = await _authRepository.refreshSession();
@@ -494,7 +494,21 @@ class ReservationRepositoryImpl implements ReservationRepository {
     final cachedToken = await _tokenRepository.getReservationBookingCancelToken(
       bookingId,
     );
-    final resolvedToken = cachedToken?.trim() ?? '';
+    var resolvedToken = cachedToken?.trim() ?? '';
+    // Bookings made on the website or another device may not have a local
+    // token. Recover this booking's own credentials from the signed-in list.
+    if (resolvedToken.isEmpty) {
+      final accessToken = await _tokenRepository.getReservationAccessToken();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        final page = await getClientBookings();
+        for (final booking in page.allBookings) {
+          if (booking.id == bookingId) {
+            resolvedToken = booking.cancelToken.trim();
+            break;
+          }
+        }
+      }
+    }
     if (resolvedToken.isEmpty) {
       throw const ApiError(
         code: 'UNKNOWN_ERROR',

@@ -56,7 +56,9 @@ class PrestationItem extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Text(
-            '${offer.price}€',
+            offer.priceCents == null
+                ? '${offer.price}€'
+                : '${(offer.priceCents! / 100).toStringAsFixed(offer.priceCents! % 100 == 0 ? 0 : 2).replaceAll('.', ',')} €',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,

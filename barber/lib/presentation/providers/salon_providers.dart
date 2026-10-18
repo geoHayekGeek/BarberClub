@@ -1,24 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/repositories/salon_repository_impl.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/salon.dart';
 import '../../domain/repositories/salon_repository.dart';
-import 'auth_providers.dart';
+import 'website_catalog_provider.dart';
 
 /// Salon repository provider.
 final salonRepositoryProvider = Provider<SalonRepository>((ref) {
-  final dioClient = ref.watch(dioClientProvider);
-  return SalonRepositoryImpl(dioClient: dioClient);
+  return ref.watch(websiteCatalogProvider);
 });
 
-/// Selected salon ID in the app database (UUID).
-/// The RDV screen resolves the reservation backend slug separately.
+/// Selected published salon ID (website slug, not a Railway admin UUID).
 final selectedSalonIdForRdvProvider = StateProvider<String?>((ref) => null);
 
+/// Name from a published profile; resolved against this salon's live booking IDs.
+final selectedBarberNameForRdvProvider = StateProvider<String?>((ref) => null);
+
 /// Selected salon slug used by the website reservation backend.
-/// Resolves the app salon UUID to its public website identifier (e.g. meylan).
+/// Resolves the published salon to its reservation identifier (e.g. meylan).
 final selectedReservationSalonIdForRdvProvider = Provider<String?>((ref) {
   final selectedSalonId = ref.watch(selectedSalonIdForRdvProvider);
   if (selectedSalonId == null || selectedSalonId.trim().isEmpty) {
@@ -46,8 +46,10 @@ final salonsListProvider = FutureProvider.autoDispose<List<Salon>>((ref) async {
 });
 
 /// Salon detail by id. Cached per id; refetch on refresh.
-final salonDetailProvider =
-    FutureProvider.autoDispose.family<Salon, String>((ref, id) async {
+final salonDetailProvider = FutureProvider.autoDispose.family<Salon, String>((
+  ref,
+  id,
+) async {
   final repository = ref.watch(salonRepositoryProvider);
   return repository.getSalonById(id);
 });

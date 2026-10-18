@@ -6,11 +6,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/website_offers_page_data.dart';
 import '../providers/website_offers_providers.dart';
+import '../providers/salon_providers.dart';
 
 class OffersListScreen extends ConsumerStatefulWidget {
   const OffersListScreen({super.key});
@@ -29,24 +31,6 @@ class _OffersListScreenState extends ConsumerState<OffersListScreen> {
       return;
     }
     context.go('/home');
-  }
-
-  WebsiteOffersPageData _fallbackPage(String salonSlug) {
-    final normalizedSalonSlug = salonSlug.trim().toLowerCase();
-    final pageUrl = Uri.parse(
-      '${AppConfig.publicSiteBaseUrl}/pages/$normalizedSalonSlug/offres.html',
-    );
-    switch (normalizedSalonSlug) {
-      case 'meylan':
-        return WebsiteOffersPageData.fallbackMeylan(pageUrl);
-      case 'grenoble':
-      default:
-        return WebsiteOffersPageData.fallbackGrenoble(pageUrl);
-    }
-  }
-
-  List<WebsiteOffersPageData> _fallbackPages() {
-    return [_fallbackPage('grenoble'), _fallbackPage('meylan')];
   }
 
   List<String> _mergedConditions(List<WebsiteOffersPageData> pages) {
@@ -71,9 +55,31 @@ class _OffersListScreenState extends ConsumerState<OffersListScreen> {
     final offersAsync = ref.watch(websiteOffersPagesProvider);
     final pages = offersAsync.maybeWhen(
       data: (data) => data,
-      orElse: _fallbackPages,
+      orElse: () => <WebsiteOffersPageData>[],
     );
-    final sharedGiftCard = pages.first.giftCard;
+    if (pages.isEmpty) {
+      return Scaffold(
+        backgroundColor: _pageBackground,
+        body: SafeArea(
+          child: Center(
+            child: offersAsync.isLoading
+                ? const CircularProgressIndicator()
+                : TextButton(
+                    onPressed: () => ref.invalidate(websiteOffersPagesProvider),
+                    child: const Text(
+                      'Impossible de charger les offres. Réessayer',
+                    ),
+                  ),
+          ),
+        ),
+      );
+    }
+    final sharedGiftCard = pages
+        .map((p) => p.giftCard)
+        .firstWhere(
+          (gift) => gift.title.isNotEmpty,
+          orElse: () => pages.first.giftCard,
+        );
     final sharedConditions = _mergedConditions(pages);
 
     return Scaffold(
@@ -103,17 +109,24 @@ class _OffersListScreenState extends ConsumerState<OffersListScreen> {
                         _SalonOffersBlock(
                           key: ValueKey(pages[index].salonId),
                           page: pages[index],
-                          onReserveTap: () => context.go('/rdv'),
+                          onReserveTap: () {
+                            ref
+                                .read(selectedSalonIdForRdvProvider.notifier)
+                                .state = pages[index]
+                                .salonId;
+                            context.go('/rdv');
+                          },
                         ),
                         if (index < pages.length - 1)
                           const SizedBox(height: 40),
                       ],
                       const SizedBox(height: 40),
-                      _SharedOffersFooter(
-                        giftCard: sharedGiftCard,
-                        conditions: sharedConditions,
-                        onGiftTap: () => context.go('/rdv'),
-                      ),
+                      if (sharedGiftCard.title.isNotEmpty)
+                        _SharedOffersFooter(
+                          giftCard: sharedGiftCard,
+                          conditions: sharedConditions,
+                          onGiftTap: () => context.go('/rdv'),
+                        ),
                     ],
                   ),
                 ),
@@ -372,6 +385,19 @@ class _SalonOffersBlockState extends State<_SalonOffersBlock> {
   @override
   Widget build(BuildContext context) {
     final page = widget.page;
+    if (page.sections.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionLabel(text: _salonLabel(page.salonId)),
+          TextButton(
+            onPressed: () =>
+                launchUrl(page.pageUrl, mode: LaunchMode.externalApplication),
+            child: const Text('Consulter les offres sur le site'),
+          ),
+        ],
+      );
+    }
     final selectedSection = page.hasTabs
         ? _selectedSection(page)
         : page.sections.first;
@@ -403,6 +429,11 @@ class _SalonOffersBlockState extends State<_SalonOffersBlock> {
                     key: const ValueKey('upcoming'),
                     section: selectedSection,
                   ),
+          ),
+        ] else if (selectedSection.isCurrent) ...[
+          _CurrentOffersSection(
+            section: selectedSection,
+            onReserveTap: widget.onReserveTap,
           ),
         ] else ...[
           _TeaserOffersSection(section: selectedSection),
@@ -612,9 +643,8 @@ class _UpcomingOffersSectionState
                   ),
                 ),
                 const SizedBox(height: 22),
-                _CountdownGrid(
-                  target: section.countdownTarget ?? DateTime.now(),
-                ),
+                if (section.countdownTarget != null)
+                  _CountdownGrid(target: section.countdownTarget!),
                 const SizedBox(height: 22),
                 if (config != null) ...[
                   if (_submitted)

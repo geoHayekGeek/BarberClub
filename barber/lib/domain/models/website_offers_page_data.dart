@@ -71,8 +71,8 @@ class WebsiteOfferSection {
     required String description,
     required String ctaLabel,
     required String details,
-    required DateTime countdownTarget,
-    required WebsiteAlertConfig alertConfig,
+    DateTime? countdownTarget,
+    WebsiteAlertConfig? alertConfig,
     required String imageUrl,
   }) {
     return WebsiteOfferSection._(
@@ -158,6 +158,26 @@ class WebsiteOffersPageData {
     this.upcomingTabLabel,
   });
 
+  factory WebsiteOffersPageData.unavailable(String salonId, Uri pageUrl) =>
+      WebsiteOffersPageData(
+        salonId: salonId,
+        pageUrl: pageUrl,
+        pageTitle: 'Offres',
+        pageDescription: '',
+        sections: const [],
+        conditions: const [],
+        giftCard: const WebsiteGiftCardData(
+          sectionLabel: '',
+          watermark: '',
+          label: '',
+          title: '',
+          price: '',
+          description: '',
+          linkLabel: '',
+          linkUrl: '',
+        ),
+      );
+
   factory WebsiteOffersPageData.fallbackGrenoble(Uri pageUrl) {
     final currentImage = pageUrl.resolve(
       '../../assets/images/salons/grenoble/chaise-grenoble.jpg?v=3',
@@ -179,7 +199,8 @@ class WebsiteOffersPageData {
           sectionLabel: 'Chaque mardi',
           badge: 'Mardi · 9h – 13h',
           headline: 'Barbe\nofferte',
-          subheadline: 'avec ta coupe homme, chaque mardi matin au salon de Grenoble.',
+          subheadline:
+              'avec ta coupe homme, chaque mardi matin au salon de Grenoble.',
           priceOld: '30€',
           priceNew: '20€',
           ctaLabel: 'Réserver mon mardi',
