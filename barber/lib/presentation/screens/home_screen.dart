@@ -68,11 +68,6 @@ class HomeScreen extends ConsumerWidget {
                     );
                   }
 
-                  final featured = salons.take(2).toList(growable: false);
-                  final remaining = salons.length > 2
-                      ? salons.sublist(2)
-                      : <Salon>[];
-
                   return Padding(
                     padding: EdgeInsets.fromLTRB(
                       0,
@@ -112,45 +107,11 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        _HeroSalonsSplit(
-                          salons: featured,
+                        _SalonPanels(
+                          salons: salons,
                           onTapSalon: (salon) =>
                               context.push('/salon/${salon.id}'),
                         ),
-                        if (remaining.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Text(
-                              'AUTRES ADRESSES',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    fontSize: 18,
-                                    letterSpacing: 1.2,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < remaining.length; i++) ...[
-                                  _SalonPreviewCard(
-                                    salon: remaining[i],
-                                    onTap: () => context.push(
-                                      '/salon/${remaining[i].id}',
-                                    ),
-                                  ),
-                                  if (i < remaining.length - 1)
-                                    const SizedBox(height: 12),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 2),
                       ],
                     ),
@@ -323,102 +284,49 @@ class _HeroPrimaryButton extends StatelessWidget {
   }
 }
 
-class _HeroSalonsSplit extends StatelessWidget {
+class _SalonPanels extends StatelessWidget {
   final List<Salon> salons;
   final ValueChanged<Salon> onTapSalon;
 
-  const _HeroSalonsSplit({required this.salons, required this.onTapSalon});
+  const _SalonPanels({required this.salons, required this.onTapSalon});
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final squareSide = constraints.maxWidth;
-        if (salons.isEmpty) {
-          return SizedBox(
-            height: squareSide * 2 + 5,
-            child: const _HeroLoadingSection(),
-          );
-        }
-
-        final topSalon = salons.first;
-        final bottomSalon = salons.length > 1 ? salons[1] : null;
-        final separatorHeight = bottomSalon != null ? 5.0 : 0.0;
-        final totalHeight =
-            squareSide * (bottomSalon != null ? 2 : 1) + separatorHeight;
-
-        return SizedBox(
-          height: totalHeight,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(color: Colors.black),
-              Column(
-                children: [
-                  SizedBox(
-                    height: squareSide,
-                    child: _HeroSalonPanel(
-                      salon: topSalon,
-                      onTap: () => onTapSalon(topSalon),
-                    ),
-                  ),
-                  if (bottomSalon != null) const GlowingSeparator(),
-                  SizedBox(
-                    height: squareSide,
-                    child: bottomSalon != null
-                        ? _HeroSalonPanel(
-                            salon: bottomSalon,
-                            onTap: () => onTapSalon(bottomSalon),
-                            contentBottomInset: 96,
-                          )
-                        : _HeroFallbackPanel(onTap: () => onTapSalon(topSalon)),
-                  ),
-                ],
+        return Column(
+          children: [
+            for (var i = 0; i < salons.length; i++) ...[
+              if (i > 0) const GlowingSeparator(),
+              SizedBox(
+                height: squareSide,
+                child: _HeroSalonPanel(
+                  key: ValueKey('home-salon-${salons[i].id}'),
+                  salon: salons[i],
+                  onTap: () => onTapSalon(salons[i]),
+                ),
               ),
             ],
-          ),
+          ],
         );
       },
     );
   }
 }
 
-class _HeroLoadingSection extends StatelessWidget {
-  const _HeroLoadingSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          'assets/images/barber_background.jpg',
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (_, __, ___) =>
-              Container(color: const Color(0xFF111111)),
-        ),
-        Container(color: Colors.black.withOpacity(0.72)),
-      ],
-    );
-  }
-}
-
 class _HeroSalonPanel extends StatelessWidget {
+  const _HeroSalonPanel({required this.salon, required this.onTap, super.key});
+
   final Salon salon;
   final VoidCallback onTap;
-  final double contentBottomInset;
-
-  const _HeroSalonPanel({
-    required this.salon,
-    required this.onTap,
-    this.contentBottomInset = 26,
-  });
 
   @override
   Widget build(BuildContext context) {
     final imageUrl = AppConfig.resolveImageUrl(salon.imageUrl);
+    final subtitle = salon.reservationSalonId == 'voiron'
+        ? 'Barbershop premium à Voiron'
+        : salon.location ?? '';
 
     return Material(
       color: Colors.transparent,
@@ -447,7 +355,7 @@ class _HeroSalonPanel extends StatelessWidget {
             Positioned(
               left: 24,
               right: 24,
-              bottom: contentBottomInset,
+              bottom: 26,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -465,7 +373,7 @@ class _HeroSalonPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    salon.location?.toUpperCase() ?? '',
+                    subtitle.toUpperCase(),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.white70,
                       letterSpacing: 1.8,
@@ -477,113 +385,6 @@ class _HeroSalonPanel extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroFallbackPanel extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _HeroFallbackPanel({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF080808),
-      child: InkWell(
-        onTap: onTap,
-        child: Center(
-          child: Opacity(
-            opacity: 0.7,
-            child: Image.asset(
-              'assets/images/barber_club_full_logo.png',
-              width: MediaQuery.of(context).size.width * 0.72,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SalonPreviewCard extends StatelessWidget {
-  final Salon salon;
-  final VoidCallback onTap;
-
-  const _SalonPreviewCard({required this.salon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = AppConfig.resolveImageUrl(salon.imageUrl);
-
-    return SizedBox(
-      height: 220,
-      child: Material(
-        color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(22),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _SalonImageBackground(imageUrl: imageUrl),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.12),
-                        Colors.black.withOpacity(0.34),
-                        Colors.black.withOpacity(0.82),
-                      ],
-                      stops: const [0.0, 0.45, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 18,
-                right: 18,
-                bottom: 18,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      salon.name.toUpperCase(),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      salon.address,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        height: 1.35,
-                        letterSpacing: 0.5,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 14),
-                    const _GlassCta(label: 'Plus d\'infos'),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
