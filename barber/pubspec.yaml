@@ -1,7 +1,7 @@
 name: barber
 description: "Barber Club - Flutter App"
 publish_to: 'none'
-version: 1.4.2+10
+version: 1.4.3+11
 
 environment:
   sdk: ^3.10.7
@@ -57,6 +57,8 @@ dependencies:
   image_picker: ^1.1.2
   image_cropper: ^12.2.1
   flutter_image_compress: ^2.4.0
+  # The generated Android plugin registrant references this in release builds.
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -68,7 +70,6 @@ dev_dependencies:
   build_runner: ^2.4.7
   freezed: ^2.4.7
   json_serializable: ^6.7.1
-  flutter_native_splash: ^2.4.7
 
 flutter_native_splash:
   color: "#000000"

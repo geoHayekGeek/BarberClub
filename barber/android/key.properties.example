@@ -1,0 +1,7 @@
+# Copy to key.properties locally. Never commit the real file or the private keystore.
+# Existing Play apps must use their registered upload key, not a newly invented key.
+# Forward slashes work on Windows; this path is resolved from android/app/.
+storeFile=C:/path/to/barberclub-upload.jks
+storePassword=REPLACE_LOCALLY
+keyAlias=upload
+keyPassword=REPLACE_LOCALLY
