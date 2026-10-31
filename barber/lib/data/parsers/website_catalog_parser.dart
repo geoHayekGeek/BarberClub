@@ -9,16 +9,31 @@ import '../../domain/models/salon.dart';
 class WebsiteCatalogParser {
   const WebsiteCatalogParser();
 
-  List<String> salonIds(String html) {
+  List<String> salonIds(String html, {Uri? pageUrl}) {
     final document = html_parser.parse(html);
     return document
-        .querySelectorAll('a[data-salon]')
+        .querySelectorAll('a[href]')
         .map((node) {
-          final path = Uri.tryParse(
-            node.attributes['href'] ?? '',
-          )?.pathSegments;
-          final index = path?.indexOf('pages') ?? -1;
-          return index >= 0 && path!.length > index + 1 ? path[index + 1] : '';
+          final href = Uri.tryParse(node.attributes['href']?.trim() ?? '');
+          if (href == null ||
+              (href.hasScheme && !['http', 'https'].contains(href.scheme))) {
+            return '';
+          }
+          final resolved = pageUrl?.resolveUri(href) ?? href;
+          if (pageUrl != null && resolved.origin != pageUrl.origin) return '';
+          // Both the original data-salon cards and the current .carte links
+          // point to /pages/<slug>/ (or its salon page). Do not discover
+          // arbitrary pages, barber profiles, or off-site links as salons.
+          final path = resolved.pathSegments
+              .where((p) => p.isNotEmpty)
+              .toList();
+          if (path.length < 2 || path[0] != 'pages') return '';
+          if (path.length != 2 &&
+              !(path.length == 3 &&
+                  ['salon', 'salon.html', 'index.html'].contains(path[2]))) {
+            return '';
+          }
+          return path[1];
         })
         .where((id) => RegExp(r'^[a-z0-9-]+$').hasMatch(id))
         .toSet()
@@ -58,10 +73,12 @@ class WebsiteCatalogParser {
       final label = _text(
         card.querySelector('.contact-card-label'),
       ).toLowerCase();
-      if (label == 'adresse')
+      if (label == 'adresse') {
         address = _text(card.querySelector('.contact-card-value'));
-      if (label == 'téléphone')
+      }
+      if (label == 'téléphone') {
         phone = _text(card.querySelector('.contact-card-value'));
+      }
     }
     const dayKeys = [
       'sunday',
@@ -141,8 +158,9 @@ class WebsiteCatalogParser {
   }) {
     final doc = html_parser.parse(html);
     final cards = doc.querySelectorAll('a.barber-card');
-    if (cards.isEmpty)
+    if (cards.isEmpty) {
       throw const FormatException('The website team page has changed.');
+    }
     return cards
         .map((card) {
           final name = _text(card.querySelector('.barber-name'));
@@ -202,16 +220,18 @@ class WebsiteCatalogParser {
       lastName: summary.lastName,
       displayName: summary.displayName,
       bio: bio,
-      level: _text(doc.querySelector('.profile-role')),
+      level: _text(doc.querySelector('.profile-role')).isEmpty
+          ? summary.level
+          : _text(doc.querySelector('.profile-role')),
       specialties: const [],
       // The versioned team portrait takes precedence over unversioned profile images.
-      images: [
+      images: {
         ...summary.images,
         ...doc
             .querySelectorAll('.gallery-item img')
             .map((e) => _asset(pageUrl, e.attributes['src']))
             .whereType<String>(),
-      ],
+      }.toList(),
       videoUrl: heroVideo,
       galleryVideoUrls: doc
           .querySelectorAll('.gallery-item video source')
@@ -232,8 +252,9 @@ class WebsiteCatalogParser {
   }
 
   String? _asset(Uri pageUrl, String? value) {
-    if (value == null || value.trim().isEmpty || value.startsWith('#'))
+    if (value == null || value.trim().isEmpty || value.startsWith('#')) {
       return null;
+    }
     final url = pageUrl.resolve(value.trim());
     return url.scheme == 'https' || url.scheme == 'http'
         ? url.toString()

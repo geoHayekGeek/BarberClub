@@ -104,6 +104,7 @@ void main() {
 
     final page = parser.parse(
       salonId: 'grenoble',
+      now: DateTime.utc(2026, 6, 1),
       pageUrl: Uri.parse(
         'https://barberclub-grenoble.fr/pages/grenoble/offres.html',
       ),
@@ -123,7 +124,10 @@ void main() {
       page.currentSection?.imageUrl,
       'https://barberclub-grenoble.fr/assets/images/salons/grenoble/chaise-grenoble.jpg?v=3',
     );
-    expect(page.upcomingSection?.countdownTarget, DateTime(2026, 7, 11, 0, 0));
+    expect(
+      page.upcomingSection?.countdownTarget?.toUtc(),
+      DateTime.utc(2026, 7, 10, 22),
+    );
     expect(
       page.upcomingSection?.alertConfig?.apiBaseUrl,
       'https://fortunate-benevolence-production-7df2.up.railway.app/api',

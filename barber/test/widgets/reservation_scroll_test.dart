@@ -25,6 +25,8 @@ const _salon = Salon(
 );
 
 class _Bookings extends Fake implements ReservationRepository {
+  _Bookings({this.thirdBarberName = 'Barber 3'});
+  final String thirdBarberName;
   String? loadedSalon;
   @override
   Future<List<ReservationBarber>> getBarbers({required String salonId}) async {
@@ -33,7 +35,7 @@ class _Bookings extends Fake implements ReservationRepository {
       for (var i = 1; i <= 12; i++)
         ReservationBarber.fromJson({
           'id': 'barber-$i',
-          'name': 'Barber $i',
+          'name': i == 3 ? thirdBarberName : 'Barber $i',
           'role': 'Barbier',
         }),
     ];
@@ -100,31 +102,41 @@ void main() {
     },
   );
 
-  testWidgets('a barber chosen on a profile preloads their booking services', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          salonsListProvider.overrideWith((ref) async => [_salon]),
-          selectedSalonIdForRdvProvider.overrideWith((ref) => 'voiron'),
-          selectedBarberNameForRdvProvider.overrideWith((ref) => 'Barber 3'),
-          reservationRepositoryProvider.overrideWithValue(_Bookings()),
-          websiteCatalogProvider.overrideWithValue(_Catalogue()),
-        ],
-        child: const MaterialApp(home: RdvScreen()),
-      ),
+  for (final alias in {
+    'Barber 3': 'Barber 3',
+    'Clément': 'Clem',
+    'Julien': 'Ju',
+    'Alexandre': 'Alex',
+  }.entries) {
+    testWidgets(
+      'profile ${alias.key} preloads booking services for ${alias.value}',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              salonsListProvider.overrideWith((ref) async => [_salon]),
+              selectedSalonIdForRdvProvider.overrideWith((ref) => 'voiron'),
+              selectedBarberNameForRdvProvider.overrideWith((ref) => alias.key),
+              reservationRepositoryProvider.overrideWithValue(
+                _Bookings(thirdBarberName: alias.value),
+              ),
+              websiteCatalogProvider.overrideWithValue(_Catalogue()),
+            ],
+            child: const MaterialApp(home: RdvScreen()),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('J’ai lu et j’accepte ces conditions'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('RÉSERVER MON CRÉNEAU'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('CONTINUER'));
+        await tester.pumpAndSettle();
+        expect(find.text('Coupe Homme'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('J’ai lu et j’accepte ces conditions'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('RÉSERVER MON CRÉNEAU'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('CONTINUER'));
-    await tester.pumpAndSettle();
-    expect(find.text('Coupe Homme'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  }
 
   for (final scale in [1.0, 1.5]) {
     testWidgets(

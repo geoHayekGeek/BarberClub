@@ -3,9 +3,12 @@
 class AppConfig {
   AppConfig._();
 
-  static const String _defaultApiBaseUrl = 'https://barberclub-production-d46a.up.railway.app';
-  static const String _defaultReservationApiBaseUrl = 'https://api.barberclub-grenoble.fr/api';
-  static const String _defaultPublicSiteBaseUrl = 'https://barberclub-grenoble.fr';
+  static const String _defaultApiBaseUrl =
+      'https://barberclub-production-d46a.up.railway.app';
+  static const String _defaultReservationApiBaseUrl =
+      'https://api.barberclub-grenoble.fr/api';
+  static const String _defaultPublicSiteBaseUrl =
+      'https://barberclub-grenoble.fr';
 
   /// API base URL from --dart-define or default
   static String get apiBaseUrl {
@@ -23,7 +26,7 @@ class AppConfig {
       'RESERVATION_API_BASE_URL',
       defaultValue: _defaultReservationApiBaseUrl,
     );
-    
+
     final normalized = fromDefine.trim();
     return normalized.isEmpty ? _defaultReservationApiBaseUrl : normalized;
   }
@@ -48,21 +51,45 @@ class AppConfig {
   /// Returns null if [url] is null or empty.
   /// Appends ?v=1 to relative URLs to bust stale cache (e.g. from 404 before backend had images).
   static String? resolveImageUrl(String? url) {
-    if (url == null || url.isEmpty) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    final base = apiBaseUrl.endsWith('/') ? apiBaseUrl : '$apiBaseUrl/';
-    final path = url.startsWith('/') ? url.substring(1) : url;
-    return '$base$path?v=1';
+    return _resolveAsset(apiBaseUrl, url);
   }
 
   /// Resolves a website asset URL from the public site domain.
   static String? resolvePublicAssetUrl(String? url) {
+    return _resolveAsset(publicSiteBaseUrl, url);
+  }
+
+  static String? _resolveAsset(String baseUrl, String? value) {
+    final url = value?.trim();
     if (url == null || url.isEmpty) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    final base = publicSiteBaseUrl.endsWith('/')
-        ? publicSiteBaseUrl
-        : '$publicSiteBaseUrl/';
-    final path = url.startsWith('/') ? url.substring(1) : url;
-    return '$base$path?v=1';
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    if (uri.hasScheme) {
+      return ['http', 'https', 'data'].contains(uri.scheme)
+          ? uri.toString()
+          : null;
+    }
+    final base = Uri.parse(baseUrl.endsWith('/') ? baseUrl : '$baseUrl/');
+    final resolved = base.resolveUri(uri);
+    if (uri.hasAuthority) return resolved.toString();
+    return resolved
+        .replace(queryParameters: {'v': '1', ...resolved.queryParameters})
+        .toString();
+  }
+
+  /// Reservation portraits are shorthand paths within the public image folder.
+  static String? resolveReservationBarberPhotoUrl(String? value) {
+    final url = value?.trim();
+    if (url == null || url.isEmpty) return null;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    if (uri.hasScheme || uri.hasAuthority) return resolvePublicAssetUrl(url);
+    final path = uri.path.replaceFirst(RegExp(r'^/+'), '');
+    final assetPath = path.startsWith('assets/images/')
+        ? path
+        : path.startsWith('images/')
+        ? 'assets/$path'
+        : 'assets/images/$path';
+    return resolvePublicAssetUrl(uri.replace(path: '/$assetPath').toString());
   }
 }

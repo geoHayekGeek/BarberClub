@@ -15,6 +15,7 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
     Dio? dio,
     Uri? siteUrl,
     WebsiteCatalogParser? parser,
+    DateTime Function()? now,
   }) : _dio =
            dio ??
            Dio(
@@ -25,12 +26,16 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
              ),
            ),
        _siteUrl = siteUrl ?? Uri.parse('${AppConfig.publicSiteBaseUrl}/'),
-       _parser = parser ?? const WebsiteCatalogParser();
+       _parser = parser ?? const WebsiteCatalogParser(),
+       _now = now ?? DateTime.now;
 
   final Dio _dio;
   final Uri _siteUrl;
   final WebsiteCatalogParser _parser;
+  final DateTime Function() _now;
   final Map<String, ({DateTime expires, Future<String> response})> _pages = {};
+  List<Salon> _lastSalons = const [];
+  final Map<String, List<WebsiteBarberEntry>> _lastTeams = {};
 
   Future<String> _page(Uri uri) async {
     if (uri.origin != _siteUrl.origin) {
@@ -38,17 +43,18 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
     }
     final key = uri.toString();
     final cached = _pages[key];
-    if (cached != null && cached.expires.isAfter(DateTime.now()))
+    if (cached != null && cached.expires.isAfter(_now())) {
       return cached.response;
+    }
     final response = _download(uri);
     _pages[key] = (
-      expires: DateTime.now().add(const Duration(minutes: 5)),
+      expires: _now().add(const Duration(minutes: 5)),
       response: response,
     );
     try {
       return await response;
     } catch (_) {
-      _pages.remove(key);
+      if (identical(_pages[key]?.response, response)) _pages.remove(key);
       rethrow;
     }
   }
@@ -60,8 +66,9 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
         options: Options(responseType: ResponseType.plain),
       );
       final html = response.data;
-      if (html == null || !html.contains('<html'))
+      if (html == null || !html.contains('<html')) {
         throw const FormatException('Empty website page.');
+      }
       return html;
     } on DioException {
       throw const ApiError(
@@ -74,23 +81,68 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
 
   @override
   Future<List<Salon>> getSalons() async {
-    final ids = _parser.salonIds(await _page(_siteUrl));
-    if (ids.isEmpty) throw const FormatException('No published salons found.');
-    return Future.wait(ids.map(getSalonById));
+    try {
+      final ids = _parser.salonIds(await _page(_siteUrl), pageUrl: _siteUrl);
+      if (ids.isEmpty) {
+        _pages.remove(_siteUrl.toString());
+        throw const FormatException('No published salons found.');
+      }
+      final previous = {for (final salon in _lastSalons) salon.id: salon};
+      Object? firstError;
+      final salons = await Future.wait(
+        ids.map((id) async {
+          try {
+            return await getSalonById(id);
+          } catch (error) {
+            firstError ??= error;
+            return previous[id];
+          }
+        }),
+      );
+      final available = salons.whereType<Salon>().toList(growable: false);
+      if (available.isEmpty) {
+        throw firstError ?? const FormatException('No salon pages available.');
+      }
+      _lastSalons = available;
+      return available;
+    } catch (_) {
+      // A temporary outage or one changed page must not remove content that
+      // this repository has already read successfully from the website.
+      if (_lastSalons.isNotEmpty) return _lastSalons;
+      rethrow;
+    }
   }
 
   @override
   Future<Salon> getSalonById(String id) async {
-    if (!RegExp(r'^[a-z0-9-]+$').hasMatch(id))
+    if (!RegExp(r'^[a-z0-9-]+$').hasMatch(id)) {
       throw const FormatException('Invalid salon.');
+    }
     // Keep .html while resolving relative assets: the website redirects to extensionless URLs.
     final uri = _siteUrl.resolve('pages/$id/salon.html');
-    return _parser.salon(id: id, pageUrl: uri, html: await _page(uri));
+    try {
+      return _parser.salon(id: id, pageUrl: uri, html: await _page(uri));
+    } on FormatException {
+      _pages.remove(uri.toString());
+      rethrow;
+    }
   }
 
   Future<List<WebsiteBarberEntry>> _team(Salon salon) async {
     final uri = _siteUrl.resolve('pages/${salon.id}/barbers.html');
-    return _parser.barbers(salon: salon, pageUrl: uri, html: await _page(uri));
+    try {
+      final team = _parser.barbers(
+        salon: salon,
+        pageUrl: uri,
+        html: await _page(uri),
+      );
+      _lastTeams[salon.id] = team;
+      return team;
+    } catch (_) {
+      _pages.remove(uri.toString());
+      if (_lastTeams.containsKey(salon.id)) return _lastTeams[salon.id]!;
+      rethrow;
+    }
   }
 
   @override
@@ -98,7 +150,20 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
     final salons = salonId == null
         ? await getSalons()
         : [await getSalonById(salonId)];
-    final teams = await Future.wait(salons.map(_team));
+    Object? firstError;
+    final teams = await Future.wait(
+      salons.map((salon) async {
+        try {
+          return await _team(salon);
+        } catch (error) {
+          firstError ??= error;
+          return <WebsiteBarberEntry>[];
+        }
+      }),
+    );
+    if (teams.every((team) => team.isEmpty) && firstError != null) {
+      throw firstError!;
+    }
     return teams
         .expand((entries) => entries.map((entry) => entry.barber))
         .toList();
@@ -112,11 +177,15 @@ class WebsiteCatalogRepository implements SalonRepository, BarberRepository {
       if (entry.barber.id != id) continue;
       final uri = entry.profileUrl;
       if (uri == null) return entry.barber;
-      return _parser.barberDetail(
-        summary: entry.barber,
-        pageUrl: uri,
-        html: await _page(uri),
-      );
+      try {
+        return _parser.barberDetail(
+          summary: entry.barber,
+          pageUrl: uri,
+          html: await _page(uri),
+        );
+      } on ApiError {
+        return entry.barber;
+      }
     }
     throw const ApiError(code: 'NOT_FOUND', message: 'Coiffeur introuvable.');
   }

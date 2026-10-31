@@ -106,9 +106,14 @@ class AuthController extends StateNotifier<AuthState> {
   final TokenRepository _tokenRepository;
   final FcmService _fcmService;
   final ReservationAuthRepository _reservationAuthRepository;
+  int _sessionRevision = 0;
+
+  bool _isCurrentSession(int revision) =>
+      mounted && revision == _sessionRevision;
 
   /// Bootstrap session: check if user is already logged in
   Future<void> bootstrapSession() async {
+    final revision = ++_sessionRevision;
     state = state.copyWith(status: AuthStatus.authenticating);
 
     User? appUser;
@@ -118,11 +123,14 @@ class AuthController extends StateNotifier<AuthState> {
         appUser = await _authRepository.getCurrentUser();
       }
     } catch (e) {
+      if (!_isCurrentSession(revision)) return;
       // Only a definitive rejection means the tokens are invalid. A network
       // or server failure must not sign the user out.
       final status = e is DioException ? e.response?.statusCode : null;
       final rejected =
-          status == 401 || status == 403 || (e is ApiError && e.code == 'UNAUTHORIZED');
+          status == 401 ||
+          status == 403 ||
+          (e is ApiError && e.code == 'UNAUTHORIZED');
       if (rejected) {
         await _tokenRepository.clearTokens();
       } else {
@@ -130,6 +138,7 @@ class AuthController extends StateNotifier<AuthState> {
       }
     }
 
+    if (!_isCurrentSession(revision)) return;
     // Reuse the reservation controller's bootstrap rather than calling
     // restoreSession() again here. Two independent restores raced on the
     // rotating refresh token and could leave the reservation session dead
@@ -144,6 +153,7 @@ class AuthController extends StateNotifier<AuthState> {
       debugPrint('[auth] reservation restore failed: $e');
     }
 
+    if (!_isCurrentSession(revision)) return;
     if (appUser != null) {
       state = AuthState(
         status: AuthStatus.authenticated,
@@ -172,6 +182,7 @@ class AuthController extends StateNotifier<AuthState> {
     String? email,
     String? phoneNumber,
   }) async {
+    final revision = ++_sessionRevision;
     state = state.copyWith(
       status: AuthStatus.authenticating,
       errorMessage: null,
@@ -184,7 +195,9 @@ class AuthController extends StateNotifier<AuthState> {
           email: email.trim(),
           password: password,
         );
+        if (!_isCurrentSession(revision)) return;
         await _handleReservationAuthenticated(
+          revision: revision,
           reservationSession: reservationSession,
           email: email.trim(),
           password: password,
@@ -197,11 +210,13 @@ class AuthController extends StateNotifier<AuthState> {
         phoneNumber: phoneNumber,
         password: password,
       );
+      if (!_isCurrentSession(revision)) return;
 
       await _tokenRepository.saveAccessToken(loginResult.response.accessToken);
       await _tokenRepository.saveRefreshToken(
         loginResult.response.refreshToken,
       );
+      if (!_isCurrentSession(revision)) return;
 
       _ref
           .read(reservationSessionProvider.notifier)
@@ -216,6 +231,7 @@ class AuthController extends StateNotifier<AuthState> {
       );
       await _registerPushTokenBestEffort();
     } catch (e) {
+      if (!_isCurrentSession(revision)) return;
       await _rollbackAppLogin();
       await _ref.read(reservationSessionProvider.notifier).clearSession();
       final errorMessage = e is ApiError
@@ -233,6 +249,7 @@ class AuthController extends StateNotifier<AuthState> {
     required String firstName,
     required String lastName,
   }) async {
+    final revision = ++_sessionRevision;
     state = state.copyWith(
       status: AuthStatus.authenticating,
       errorMessage: null,
@@ -248,10 +265,12 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
         fullName: '$firstName $lastName'.trim(),
       );
+      if (!_isCurrentSession(revision)) return;
 
       // Save tokens securely
       await _tokenRepository.saveAccessToken(response.accessToken);
       await _tokenRepository.saveRefreshToken(response.refreshToken);
+      if (!_isCurrentSession(revision)) return;
 
       // Sync the new user to the Reservation System
       try {
@@ -263,6 +282,7 @@ class AuthController extends StateNotifier<AuthState> {
               firstName: firstName,
               lastName: lastName,
             );
+        if (!_isCurrentSession(revision)) return;
         _ref
             .read(reservationSessionProvider.notifier)
             .setSession(reservationSession);
@@ -274,6 +294,7 @@ class AuthController extends StateNotifier<AuthState> {
           ),
         );
       } catch (_) {
+        if (!_isCurrentSession(revision)) return;
         // If reservation sync fails, the user is still safely created in the app
         state = AuthState(
           status: AuthStatus.authenticated,
@@ -283,8 +304,11 @@ class AuthController extends StateNotifier<AuthState> {
 
       await _registerPushTokenBestEffort();
     } catch (error) {
+      if (!_isCurrentSession(revision)) return;
       // 3. If the Main DB rejects the signup (e.g. Email exists), STOP completely.
-      await _rollbackAppRegistration(password: password);
+      // A failed signup must never delete an account using tokens left over
+      // from a previous customer. Keep any created account available for retry.
+      await _tokenRepository.clearTokens();
       await _ref.read(reservationSessionProvider.notifier).clearSession();
 
       String errorMessage = 'Une erreur est survenue lors de l\'inscription.';
@@ -307,10 +331,15 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> _handleReservationAuthenticated({
+    required int revision,
     required ReservationSession reservationSession,
     required String email,
     required String password,
   }) async {
+    // A reservation login must not expose a previous customer's Railway data
+    // while the new account's app session is being established.
+    await _tokenRepository.clearTokens();
+    if (!_isCurrentSession(revision)) return;
     _ref
         .read(reservationSessionProvider.notifier)
         .setSession(reservationSession);
@@ -321,6 +350,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     unawaited(
       _syncAppSessionBestEffort(
+        revision: revision,
         email: email,
         password: password,
         reservationSession: reservationSession,
@@ -329,6 +359,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> _syncAppSessionBestEffort({
+    required int revision,
     required String email,
     required String password,
     required ReservationSession reservationSession,
@@ -338,8 +369,10 @@ class AuthController extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
+      if (!_isCurrentSession(revision)) return;
       await _tokenRepository.saveAccessToken(response.accessToken);
       await _tokenRepository.saveRefreshToken(response.refreshToken);
+      if (!_isCurrentSession(revision)) return;
       state = AuthState(
         status: AuthStatus.authenticated,
         user: _mergeReservationProfile(response.user, reservationSession.user),
@@ -354,6 +387,7 @@ class AuthController extends StateNotifier<AuthState> {
       return;
     }
 
+    if (!_isCurrentSession(revision)) return;
     try {
       final response = await _authRepository.register(
         email: reservationSession.user.email,
@@ -363,8 +397,10 @@ class AuthController extends StateNotifier<AuthState> {
             ? null
             : reservationSession.user.fullName,
       );
+      if (!_isCurrentSession(revision)) return;
       await _tokenRepository.saveAccessToken(response.accessToken);
       await _tokenRepository.saveRefreshToken(response.refreshToken);
+      if (!_isCurrentSession(revision)) return;
       state = AuthState(
         status: AuthStatus.authenticated,
         user: _mergeReservationProfile(response.user, reservationSession.user),
@@ -475,16 +511,6 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> _rollbackAppRegistration({required String password}) async {
-    try {
-      await _authRepository.deleteAccount(password: password);
-    } catch (_) {
-      // Ignore rollback errors and clear the local session below.
-    } finally {
-      await _tokenRepository.clearTokens();
-    }
-  }
-
   /// Forgot password
   Future<void> forgotPassword(String email) async {
     state = state.copyWith(
@@ -558,16 +584,20 @@ class AuthController extends StateNotifier<AuthState> {
       );
 
       User effectiveUser = updatedUser;
-      final reservationController = _ref.read(reservationSessionProvider.notifier);
+      final reservationController = _ref.read(
+        reservationSessionProvider.notifier,
+      );
       final reservationState = _ref.read(reservationSessionProvider);
       final currentReservationUser = reservationState.user;
       final hasEmailChange = email != null && email.trim().isNotEmpty;
-      final hasPhoneChange = phoneNumber != null && phoneNumber.trim().isNotEmpty;
+      final hasPhoneChange =
+          phoneNumber != null && phoneNumber.trim().isNotEmpty;
 
       final nameParts = _splitFullName(updatedUser.fullName);
       if (currentReservationUser != null &&
           (nameParts != null || hasEmailChange || hasPhoneChange)) {
-        ReservationClientProfile reservationUserToApply = currentReservationUser;
+        ReservationClientProfile reservationUserToApply =
+            currentReservationUser;
 
         if (nameParts != null || hasEmailChange) {
           try {
@@ -586,7 +616,8 @@ class AuthController extends StateNotifier<AuthState> {
                   ? updatedUser.email
                   : updatedReservationUser.email,
               createdAt:
-                  updatedReservationUser.createdAt ?? currentReservationUser.createdAt,
+                  updatedReservationUser.createdAt ??
+                  currentReservationUser.createdAt,
             );
           } catch (_) {
             reservationUserToApply = ReservationClientProfile(
@@ -594,7 +625,9 @@ class AuthController extends StateNotifier<AuthState> {
               firstName: nameParts?.$1 ?? currentReservationUser.firstName,
               lastName: nameParts?.$2 ?? currentReservationUser.lastName,
               phone: updatedUser.phoneNumber,
-              email: hasEmailChange ? updatedUser.email : currentReservationUser.email,
+              email: hasEmailChange
+                  ? updatedUser.email
+                  : currentReservationUser.email,
               createdAt: currentReservationUser.createdAt,
             );
           }
@@ -696,6 +729,7 @@ class AuthController extends StateNotifier<AuthState> {
 
   /// Logout
   Future<void> logout() async {
+    ++_sessionRevision;
     try {
       await _ref.read(reservationSessionProvider.notifier).logout();
       final refreshToken = await _tokenRepository.getRefreshToken();
@@ -712,6 +746,7 @@ class AuthController extends StateNotifier<AuthState> {
 
   /// Delete authenticated account permanently then clear local session.
   Future<void> deleteAccount({required String password}) async {
+    ++_sessionRevision;
     await _authRepository.deleteAccount(password: password);
     await _ref.read(reservationSessionProvider.notifier).clearSession();
     await _tokenRepository.clearTokens();

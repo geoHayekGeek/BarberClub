@@ -12,8 +12,14 @@ class BookingPolicy {
     return tz.getLocation('Europe/Paris');
   }
 
-  static DateTime parisDate(int year, int month, int day) =>
-      tz.TZDateTime(_paris, year, month, day);
+  static DateTime parisDate(
+    int year,
+    int month,
+    int day, {
+    int hour = 0,
+    int minute = 0,
+    int second = 0,
+  }) => tz.TZDateTime(_paris, year, month, day, hour, minute, second);
 
   static bool canModify({
     required String date,

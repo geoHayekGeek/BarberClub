@@ -1,14 +1,14 @@
-import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../config/app_config.dart';
 import '../storage/token_repository.dart';
 
-/// Global navigation key for refresh interceptor
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-/// Dio client with authentication interceptors
+/// App tokens never substitute for reservation tokens. Refresh at most once for
+/// a protected request and share the refresh across concurrent 401 responses.
 class DioClient {
   DioClient({required TokenRepository tokenRepository, Dio? dio})
     : _tokenRepository = tokenRepository,
@@ -35,134 +35,125 @@ class DioClient {
 
   final TokenRepository _tokenRepository;
   final Dio _dio;
+  Future<bool>? _refreshInFlight;
+  static const _retried = 'barberclub.authRetried';
 
-  // Refresh token lock to prevent parallel refresh calls
-  bool _isRefreshing = false;
-  final List<Completer<bool>> _refreshQueue = [];
+  bool _isSessionEndpoint(String path) => const {
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/refresh',
+    '/api/v1/auth/logout',
+    '/api/v1/auth/forgot-password',
+    '/api/v1/auth/reset-password',
+  }.contains(Uri.parse(path).path);
 
   void _setupInterceptors() {
-    // Auth interceptor: attach access token to requests
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          try {
-            final accessToken = await _tokenRepository.getAccessToken();
-            if (accessToken != null && accessToken.isNotEmpty) {
-              options.headers['Authorization'] = 'Bearer $accessToken';
+          if (!_isSessionEndpoint(options.path)) {
+            try {
+              final access = await _tokenRepository.getAccessToken();
+              if (access != null && access.isNotEmpty) {
+                options.headers['Authorization'] = 'Bearer $access';
+              }
+            } catch (_) {
+              // Public reads can still succeed while secure storage is unavailable.
             }
-          } catch (error) {
-            debugPrint('[DioClient] Skipping auth header: $error');
           }
           handler.next(options);
         },
         onError: (error, handler) async {
-          // Handle 401 errors with refresh token flow
-          if (error.response?.statusCode == 401) {
-            final requestOptions = error.requestOptions;
-
-            // Skip refresh for refresh endpoint itself
-            if (requestOptions.path == AppConfig.refreshTokenPath) {
-              await _tokenRepository.clearTokens();
-              _navigateToLogin();
-              return handler.next(error);
-            }
-
-            // Try to refresh token
-            try {
-              final refreshed = await _refreshToken();
-              if (refreshed) {
-                // Retry original request with new token
-                final accessToken = await _tokenRepository.getAccessToken();
-                if (accessToken != null) {
-                  requestOptions.headers['Authorization'] =
-                      'Bearer $accessToken';
-                  final response = await _dio.fetch(requestOptions);
-                  return handler.resolve(response);
-                }
-              }
-            } catch (e) {
-              // Refresh failed, clear tokens and navigate to login
-              await _tokenRepository.clearTokens();
-              _navigateToLogin();
-              return handler.next(error);
-            }
+          final request = error.requestOptions;
+          final failedAuthorization = request.headers['Authorization'];
+          if (error.response?.statusCode != 401 ||
+              _isSessionEndpoint(request.path) ||
+              request.extra[_retried] == true ||
+              failedAuthorization == null) {
+            handler.next(error);
+            return;
           }
 
+          try {
+            final current = await _tokenRepository.getAccessToken();
+            // A different request may already have refreshed this expired token.
+            final alreadyRotated =
+                current != null &&
+                current.isNotEmpty &&
+                failedAuthorization != 'Bearer $current';
+            if (alreadyRotated || await _refreshToken()) {
+              final access = await _tokenRepository.getAccessToken();
+              if (access != null && access.isNotEmpty) {
+                request.extra[_retried] = true;
+                request.headers['Authorization'] = 'Bearer $access';
+                try {
+                  final response = await _dio.fetch<dynamic>(request);
+                  handler.resolve(response);
+                } on DioException catch (retryError) {
+                  // Surface the terminal failure, not another refresh loop.
+                  handler.next(retryError);
+                }
+                return;
+              }
+            }
+          } catch (_) {
+            // Temporary network/storage failures do not invalidate credentials.
+          }
           handler.next(error);
         },
       ),
     );
   }
 
-  /// Refresh access token using refresh token
-  Future<bool> _refreshToken() async {
-    // If already refreshing, wait for the ongoing refresh
-    if (_isRefreshing) {
-      final completer = Completer<bool>();
-      _refreshQueue.add(completer);
-      return await completer.future;
-    }
-
-    _isRefreshing = true;
-
-    try {
-      final refreshToken = await _tokenRepository.getRefreshToken();
-      if (refreshToken == null) {
-        _isRefreshing = false;
-        _resolveQueue(false);
-        return false;
-      }
-
-      final response = await _dio.post(
-        AppConfig.refreshTokenPath,
-        data: {'refreshToken': refreshToken},
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
-        final newAccessToken = data['accessToken'] as String?;
-        final newRefreshToken = data['refreshToken'] as String?;
-
-        if (newAccessToken != null && newRefreshToken != null) {
-          await _tokenRepository.saveAccessToken(newAccessToken);
-          await _tokenRepository.saveRefreshToken(newRefreshToken);
-
-          _isRefreshing = false;
-          _resolveQueue(true);
-          return true;
-        }
-      }
-
-      _isRefreshing = false;
-      _resolveQueue(false);
-      return false;
-    } catch (e) {
-      // Refresh failed
-      _isRefreshing = false;
-      _resolveQueue(false);
-      return false;
-    }
+  Future<bool> _refreshToken() {
+    final pending = _refreshInFlight;
+    if (pending != null) return pending;
+    final future = _refreshOnce();
+    _refreshInFlight = future.whenComplete(() => _refreshInFlight = null);
+    return _refreshInFlight!;
   }
 
-  void _resolveQueue(bool success) {
-    for (final completer in _refreshQueue) {
-      completer.complete(success);
+  Future<bool> _refreshOnce() async {
+    final refresh = await _tokenRepository.getRefreshToken();
+    if (refresh == null || refresh.isEmpty) return false;
+    try {
+      final response = await _dio.post<dynamic>(
+        AppConfig.refreshTokenPath,
+        data: {'refreshToken': refresh},
+      );
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return false;
+      final access = data['accessToken'];
+      final nextRefresh = data['refreshToken'];
+      if (access is! String ||
+          access.isEmpty ||
+          nextRefresh is! String ||
+          nextRefresh.isEmpty) {
+        return false;
+      }
+      // Do not restore an old session after logout or a different sign-in.
+      if (await _tokenRepository.getRefreshToken() != refresh) return false;
+      await _tokenRepository.saveAccessToken(access);
+      await _tokenRepository.saveRefreshToken(nextRefresh);
+      return true;
+    } on DioException catch (error) {
+      if ((error.response?.statusCode == 401 ||
+              error.response?.statusCode == 403) &&
+          await _tokenRepository.getRefreshToken() == refresh) {
+        await _tokenRepository.clearTokens();
+        _navigateToLogin();
+      }
+      return false;
     }
-    _refreshQueue.clear();
   }
 
   void _navigateToLogin() {
-    // Use GoRouter if available, otherwise use Navigator
     final context = navigatorKey.currentContext;
-    if (context != null) {
-      try {
-        context.go('/login');
-      } catch (e) {
-        // Fallback if GoRouter not available
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/login', (route) => false);
-      }
+    if (context == null) return;
+    try {
+      context.go('/login');
+    } catch (_) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
     }
   }
 

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/config/app_config.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/website_offers_page_data.dart';
 import '../providers/website_offers_providers.dart';
@@ -356,19 +355,16 @@ class _SalonOffersBlock extends StatefulWidget {
 class _SalonOffersBlockState extends State<_SalonOffersBlock> {
   _OffersTab _selectedTab = _OffersTab.current;
 
-  WebsiteOfferSection _selectedSection(WebsiteOffersPageData page) {
+  List<WebsiteOfferSection> _selectedSections(WebsiteOffersPageData page) {
+    if (!page.hasTabs) return page.sections;
     final wantedType = switch (_selectedTab) {
       _OffersTab.current => WebsiteOfferSectionType.current,
       _OffersTab.upcoming => WebsiteOfferSectionType.upcoming,
     };
 
-    for (final section in page.sections) {
-      if (section.type == wantedType) {
-        return section;
-      }
-    }
-
-    return page.sections.first;
+    return page.sections
+        .where((section) => section.type == wantedType)
+        .toList();
   }
 
   String _salonLabel(String salonId) {
@@ -378,7 +374,7 @@ class _SalonOffersBlockState extends State<_SalonOffersBlock> {
       case 'grenoble':
         return 'BARBERCLUB GRENOBLE';
       default:
-        return salonId.toUpperCase();
+        return 'BARBERCLUB ${salonId.toUpperCase()}';
     }
   }
 
@@ -398,9 +394,7 @@ class _SalonOffersBlockState extends State<_SalonOffersBlock> {
         ],
       );
     }
-    final selectedSection = page.hasTabs
-        ? _selectedSection(page)
-        : page.sections.first;
+    final sections = _selectedSections(page);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -419,35 +413,39 @@ class _SalonOffersBlockState extends State<_SalonOffersBlock> {
             duration: const Duration(milliseconds: 250),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
-            child: selectedSection.isCurrent
-                ? _CurrentOffersSection(
-                    key: const ValueKey('current'),
-                    section: selectedSection,
-                    onReserveTap: widget.onReserveTap,
-                  )
-                : _UpcomingOffersSection(
-                    key: const ValueKey('upcoming'),
-                    section: selectedSection,
-                  ),
-          ),
-        ] else if (selectedSection.isCurrent) ...[
-          _CurrentOffersSection(
-            section: selectedSection,
-            onReserveTap: widget.onReserveTap,
+            child: _sectionList(sections, key: ValueKey(_selectedTab)),
           ),
         ] else ...[
-          _TeaserOffersSection(section: selectedSection),
+          _sectionList(sections),
         ],
       ],
     );
   }
+
+  Widget _sectionList(List<WebsiteOfferSection> sections, {Key? key}) => Column(
+    key: key,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var index = 0; index < sections.length; index++) ...[
+        if (index > 0) const SizedBox(height: 24),
+        if (sections[index].isCurrent)
+          _CurrentOffersSection(
+            section: sections[index],
+            onReserveTap: widget.onReserveTap,
+          )
+        else if (sections[index].isUpcoming)
+          _UpcomingOffersSection(section: sections[index])
+        else
+          _TeaserOffersSection(section: sections[index]),
+      ],
+    ],
+  );
 }
 
 class _CurrentOffersSection extends StatelessWidget {
   const _CurrentOffersSection({
     required this.section,
     required this.onReserveTap,
-    super.key,
   });
 
   final WebsiteOfferSection section;
@@ -468,7 +466,7 @@ class _CurrentOffersSection extends StatelessWidget {
 }
 
 class _UpcomingOffersSection extends ConsumerStatefulWidget {
-  const _UpcomingOffersSection({required this.section, super.key});
+  const _UpcomingOffersSection({required this.section});
 
   final WebsiteOfferSection section;
 
@@ -754,8 +752,11 @@ class _CurrentPromoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final oldPrice = section.priceOld ?? '';
+    final newPrice = section.priceNew ?? '';
     return _PromoSurface(
       height: 530,
+      expandForContent: true,
       background: _SectionBackground(
         imageUrl: section.imageUrl,
         fallbackAsset: 'assets/images/barber_background.jpg',
@@ -771,10 +772,8 @@ class _CurrentPromoCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _CardPill(
-              icon: Icons.circle,
-              text: section.badge ?? 'Mardi · 9h – 13h',
-            ),
+            if ((section.badge ?? '').isNotEmpty)
+              _CardPill(icon: Icons.circle, text: section.badge!),
             const Spacer(),
             Text(
               section.headline.toUpperCase(),
@@ -788,90 +787,89 @@ class _CurrentPromoCard extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              section.subheadline ?? '',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14.5,
-                height: 1.45,
-                color: Colors.white.withValues(alpha: 0.62),
+            if ((section.subheadline ?? '').isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                section.subheadline!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  height: 1.45,
+                  color: Colors.white.withValues(alpha: 0.62),
+                ),
               ),
-            ),
-            const SizedBox(height: 22),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  section.priceOld ?? '30€',
-                  style: TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: Colors.white.withValues(alpha: 0.38),
-                    decoration: TextDecoration.lineThrough,
-                    decorationColor: Colors.white.withValues(alpha: 0.28),
-                    decorationThickness: 2,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 18,
-                  color: Colors.white.withValues(alpha: 0.26),
-                ),
-                const SizedBox(width: 14),
-                Text(
-                  section.priceNew ?? '20€',
-                  style: const TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+            ],
+            if (oldPrice.isNotEmpty || newPrice.isNotEmpty) ...[
+              const SizedBox(height: 22),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 14,
+                children: [
+                  if (oldPrice.isNotEmpty)
+                    Text(
+                      oldPrice,
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withValues(alpha: 0.38),
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  if (oldPrice.isNotEmpty && newPrice.isNotEmpty)
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: Colors.white38,
+                    ),
+                  if (newPrice.isNotEmpty)
+                    Text(
+                      newPrice,
+                      style: const TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 22),
             _GlassButton(
-              label: (section.ctaLabel ?? 'Réserver mon mardi').toUpperCase(),
+              label:
+                  ((section.ctaLabel ?? '').isEmpty
+                          ? 'Réserver'
+                          : section.ctaLabel!)
+                      .toUpperCase(),
               icon: Icons.arrow_forward_rounded,
               onTap: onReserveTap,
             ),
             const Spacer(),
-            Text(
-              (section.footnote ?? 'Salon Grenoble · centre-ville')
-                  .toUpperCase(),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2.25,
-                color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0xAA000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+            if ((section.footnote ?? '').isNotEmpty) ...[
+              Text(
+                section.footnote!.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.25,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              section.details ??
-                  'Valable uniquement sur réservation en ligne d\'une prestation Coupe + Barbe, le mardi de 9h à 13h.\n'
-                      'Les forfaits Coupe ne peuvent pas être transformés en Coupe + Barbe sur place.\n'
-                      'Non cumulable avec d\'autres offres.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11.5,
-                height: 1.45,
-                color: Colors.white.withValues(alpha: 0.30),
+              const SizedBox(height: 10),
+            ],
+            if ((section.details ?? '').isNotEmpty)
+              Text(
+                section.details!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.45,
+                  color: Colors.white.withValues(alpha: 0.45),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -1365,6 +1363,7 @@ class _PromoSurface extends StatelessWidget {
     this.background,
     this.overlay,
     this.onTap,
+    this.expandForContent = false,
   });
 
   final double height;
@@ -1372,11 +1371,13 @@ class _PromoSurface extends StatelessWidget {
   final Widget? background;
   final Gradient? overlay;
   final VoidCallback? onTap;
+  final bool expandForContent;
 
   @override
   Widget build(BuildContext context) {
     final card = Container(
-      height: height,
+      height: expandForContent ? null : height,
+      constraints: expandForContent ? BoxConstraints(minHeight: height) : null,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
@@ -1445,7 +1446,13 @@ class _PromoSurface extends StatelessWidget {
               ),
             ),
           ),
-          Positioned.fill(child: child),
+          if (expandForContent)
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: height),
+              child: IntrinsicHeight(child: child),
+            )
+          else
+            Positioned.fill(child: child),
         ],
       ),
     );
@@ -1510,14 +1517,17 @@ class _CardPill extends StatelessWidget {
           children: [
             Icon(icon, size: 7, color: Colors.white.withValues(alpha: 0.9)),
             const SizedBox(width: 10),
-            Text(
-              text,
-              style: TextStyle(
-                fontFamily: 'Orbitron',
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2.2,
-                color: Colors.white.withValues(alpha: 0.78),
+            Flexible(
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.2,
+                  color: Colors.white.withValues(alpha: 0.78),
+                ),
               ),
             ),
           ],
@@ -1555,15 +1565,17 @@ class _GlassButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Orbitron',
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2.2,
-                  color: Colors.white,
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),

@@ -66,6 +66,8 @@ final upcomingOffersProvider = FutureProvider.autoDispose<List<ClientOffer>>((
 final myOffersProvider = FutureProvider.autoDispose<List<MyOfferItem>>((
   ref,
 ) async {
+  final auth = ref.watch(authStateProvider);
+  if (auth.status != AuthStatus.authenticated) return [];
   try {
     final repository = ref.watch(offerRepositoryProvider);
     return await repository.getMyOffers();
@@ -88,6 +90,8 @@ final activatedOfferIdsProvider = FutureProvider.autoDispose<Set<String>>((
 /// Activation status per offer (pending_scan, activated, used, etc.) for feed button states.
 final activationStatesProvider =
     FutureProvider.autoDispose<Map<String, String>>((ref) async {
+      final auth = ref.watch(authStateProvider);
+      if (auth.status != AuthStatus.authenticated) return {};
       try {
         final repository = ref.watch(offerRepositoryProvider);
         return await repository.getActivationStates();

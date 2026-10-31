@@ -1,7 +1,11 @@
-import '../../domain/models/website_offers_page_data.dart';
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
-import '../../core/config/booking_policy.dart';
 
+import '../../core/config/booking_policy.dart';
+import '../../domain/models/website_offers_page_data.dart';
+
+/// Reads semantic elements rather than depending on attribute order or exact
+/// class strings. Unknown markup never revives a hard-coded, expired offer.
 class WebsiteOffersPageParser {
   const WebsiteOffersPageParser();
 
@@ -11,31 +15,48 @@ class WebsiteOffersPageParser {
     required String html,
     DateTime? now,
   }) {
-    final normalizedSalonId = salonId.trim().toLowerCase();
-    final pageTitle = _cleanText(
-      _firstGroup(
-            html,
-            RegExp(r'<title>([\s\S]*?)</title>', caseSensitive: false),
-          ) ??
-          _defaultTitle(normalizedSalonId),
-    );
-    final pageDescription = _cleanText(
-      _firstGroup(
-            html,
-            RegExp(
-              r'<meta\s+name="description"\s+content="([^"]+)"',
-              caseSensitive: false,
-            ),
-          ) ??
-          '',
-    );
-
-    final hasTabbedLayout = html.contains('id="offerTabs"');
+    final document = html_parser.parse(html);
+    final instant = now ?? DateTime.now();
     final sections = <WebsiteOfferSection>[];
 
-    final document = html_parser.parse(html);
+    for (final campaign in document.querySelectorAll('.hw')) {
+      if (!_visible(campaign)) continue;
+      final accessibleTitle = _text(campaign.querySelector('.hw-sr'));
+      final heading = accessibleTitle.isNotEmpty
+          ? accessibleTitle
+          : _text(campaign.querySelector('.hw-titre'));
+      if (heading.isEmpty) continue;
+      final discount = RegExp(r'^[-−]?\d+\s*%').firstMatch(heading)?.group(0);
+      sections.add(
+        WebsiteOfferSection.current(
+          sectionLabel: _text(campaign.querySelector('.hw-kicker')),
+          badge: _text(campaign.querySelector('.hw-kicker')),
+          headline: discount ?? heading,
+          subheadline: [
+            _text(campaign.querySelector('.hw-titre-vu'), includeHidden: true),
+            _text(
+              campaign.querySelector('.hw-sous-titre'),
+              includeHidden: true,
+            ),
+          ].where((s) => s.isNotEmpty).join(' — '),
+          priceOld: '',
+          priceNew: '',
+          ctaLabel: _text(campaign.querySelector('.hw-cta')),
+          footnote: _text(campaign.querySelector('.hw-salons')),
+          details: [
+            _text(campaign.querySelector('.hw-texte')),
+            _text(campaign.querySelector('.hw-conditions')),
+          ].where((s) => s.isNotEmpty).join('\n\n'),
+          imageUrl: _asset(
+            pageUrl,
+            campaign.querySelector('.hw-media img')?.attributes['src'],
+          ),
+        ),
+      );
+    }
+
     final launch = document.querySelector('.launch-fine');
-    if (launch != null) {
+    if (launch != null && _visible(launch)) {
       final days =
           document
               .querySelectorAll('[data-date]')
@@ -43,673 +64,277 @@ class WebsiteOffersPageParser {
               .whereType<DateTime>()
               .toList()
             ..sort();
-      final expired =
-          days.isEmpty ||
-          !(now ?? DateTime.now()).isBefore(
+      final active =
+          days.isNotEmpty &&
+          instant.isBefore(
             BookingPolicy.parisDate(
               days.last.year,
               days.last.month,
               days.last.day + 1,
             ),
           );
-      String content(String selector) =>
-          document
-              .querySelector(selector)
-              ?.text
-              .replaceAll(RegExp(r'\s+'), ' ')
-              .trim() ??
-          '';
-      if (!expired) {
+      if (active) {
         sections.add(
           WebsiteOfferSection.current(
-            sectionLabel: content('.launch-kicker'),
-            badge: content('.launch-status'),
-            headline: content('.launch-num'),
-            subheadline: content('.launch-num-sub'),
-            priceOld: content('.lp-old'),
-            priceNew: content('.lp-new'),
-            ctaLabel: content('.launch-ctas .btn-primary'),
-            footnote: content('.launch-month'),
-            details: content('.launch-fine'),
+            sectionLabel: _text(document.querySelector('.launch-kicker')),
+            badge: _text(document.querySelector('.launch-status')),
+            headline: _text(document.querySelector('.launch-num')),
+            subheadline: _text(document.querySelector('.launch-num-sub')),
+            priceOld: _text(document.querySelector('.lp-old')),
+            priceNew: _text(document.querySelector('.lp-new')),
+            ctaLabel: _text(
+              document.querySelector('.launch-ctas .btn-primary'),
+            ),
+            footnote: _text(document.querySelector('.launch-month')),
+            details: _text(launch),
             imageUrl: '',
           ),
         );
-      } else {
+      }
+    }
+
+    for (final card in document.querySelectorAll('.mardi-card')) {
+      if (!_visible(card)) continue;
+      final headline = _text(
+        card.querySelector('.mardi-headline'),
+        preserveLines: true,
+      );
+      if (headline.isEmpty) continue;
+      sections.add(
+        WebsiteOfferSection.current(
+          sectionLabel: _text(
+            _ancestor(
+              card,
+              (e) => e.localName == 'section',
+            )?.querySelector('.section-title'),
+          ),
+          badge: _text(card.querySelector('.mardi-badge')),
+          headline: headline,
+          subheadline: _text(card.querySelector('.mardi-sub')),
+          priceOld: _text(card.querySelector('.mardi-price-old')),
+          priceNew: _text(card.querySelector('.mardi-price-new')),
+          ctaLabel: _text(card.querySelector('.mardi-cta')),
+          footnote: _text(card.querySelector('.mardi-foot')),
+          details: _text(card.querySelector('.mardi-conditions')),
+          imageUrl: _asset(
+            pageUrl,
+            card.querySelector('.mardi-bg img')?.attributes['src'],
+          ),
+        ),
+      );
+    }
+
+    final upcoming = document.querySelector('#tab-upcoming');
+    if (upcoming != null) {
+      final headline = _text(upcoming.querySelector('.mystery-number'));
+      final target = _countdownTarget(html);
+      if (headline.isNotEmpty && (target == null || instant.isBefore(target))) {
         sections.add(
-          WebsiteOfferSection.teaser(
-            sectionLabel: 'Offres',
-            headline: content('.idle-title'),
-            description: content('.idle-desc'),
+          WebsiteOfferSection.upcoming(
+            sectionLabel: _text(upcoming.querySelector('.section-title')),
+            badge: _text(upcoming.querySelector('.mystery-badge')),
+            headline: headline,
+            subheadline: _text(upcoming.querySelector('.mystery-ans')),
+            description: _text(upcoming.querySelector('.mystery-tagline')),
+            ctaLabel: _text(upcoming.querySelector('#notifyBtn')),
+            details: _text(upcoming.querySelector('.mystery-note')),
+            countdownTarget: target,
+            alertConfig: _alertConfig(document, html),
+            imageUrl: _asset(
+              pageUrl,
+              upcoming.querySelector('.mystery-bg img')?.attributes['src'],
+            ),
           ),
         );
       }
     }
 
-    if (sections.isNotEmpty) {
-      // Launch pages have their own layout, dates, and pricing examples.
-    } else if (hasTabbedLayout) {
-      final currentSection = _parseCurrentSection(html, pageUrl);
-      if (currentSection != null) {
-        sections.add(currentSection);
+    // An idle card with [hidden] is a future empty state, not a live offer.
+    if (!sections.any((section) => section.isCurrent)) {
+      for (final teaser in document.querySelectorAll('.teaser, .idle-card')) {
+        if (!_visible(teaser)) continue;
+        final title = _text(teaser.querySelector('.teaser-title, .idle-title'));
+        if (title.isEmpty) continue;
+        sections.add(
+          WebsiteOfferSection.teaser(
+            sectionLabel: title,
+            headline: title,
+            description: _text(
+              teaser.querySelector('.teaser-desc, .idle-desc'),
+            ),
+          ),
+        );
       }
-
-      final upcomingSection = _parseUpcomingSection(html, pageUrl);
-      if (upcomingSection != null) {
-        sections.add(upcomingSection);
-      }
-    } else {
-      final teaserSection = _parseTeaserSection(html);
-      if (teaserSection != null) {
-        sections.add(teaserSection);
+      // Older launch pages published idle copy without an enclosing card.
+      final idleTitle = document.querySelector('.idle-title');
+      if (idleTitle != null &&
+          _visible(idleTitle) &&
+          !sections.any((section) => section.isTeaser)) {
+        sections.add(
+          WebsiteOfferSection.teaser(
+            sectionLabel: _text(idleTitle),
+            headline: _text(idleTitle),
+            description: _text(document.querySelector('.idle-desc')),
+          ),
+        );
       }
     }
 
-    final giftCard =
-        _parseGiftCard(html, pageUrl) ??
-        _fallbackGiftCard(normalizedSalonId, pageUrl);
-    final conditions = _parseConditions(html, normalizedSalonId);
-    final currentTabLabel = _parseTabLabel(html, true);
-    final upcomingTabLabel = _parseTabLabel(html, false);
-
-    if (sections.isEmpty) {
-      return _fallbackPage(
-        salonId: normalizedSalonId,
-        pageUrl: pageUrl,
-        pageTitle: pageTitle,
-        pageDescription: pageDescription,
-      );
-    }
+    final gift = document.querySelector('.gift-card');
+    final giftCard = gift != null && _visible(gift)
+        ? WebsiteGiftCardData(
+            sectionLabel: _text(
+              _ancestor(
+                gift,
+                (e) => e.classes.contains('gift-section'),
+              )?.querySelector('.section-title'),
+            ),
+            watermark: _text(gift.querySelector('.gift-watermark')),
+            label: _text(gift.querySelector('.gift-label')),
+            title: _text(gift.querySelector('.gift-title')),
+            price: _text(gift.querySelector('.gift-price')),
+            description: _text(gift.querySelector('.gift-desc')),
+            linkLabel: 'Réserver',
+            linkUrl: _asset(pageUrl, gift.attributes['href']),
+          )
+        : WebsiteOffersPageData.unavailable(salonId, pageUrl).giftCard;
 
     return WebsiteOffersPageData(
-      salonId: normalizedSalonId,
+      salonId: salonId.trim().toLowerCase(),
       pageUrl: pageUrl,
-      pageTitle: pageTitle,
-      pageDescription: pageDescription,
+      pageTitle: _text(document.querySelector('title')),
+      pageDescription:
+          document
+              .querySelector('meta[name="description"]')
+              ?.attributes['content']
+              ?.trim() ??
+          '',
       sections: sections,
       giftCard: giftCard,
-      conditions: conditions,
-      currentTabLabel: currentTabLabel,
-      upcomingTabLabel: upcomingTabLabel,
-    );
-  }
-
-  WebsiteOffersPageData _fallbackPage({
-    required String salonId,
-    required Uri pageUrl,
-    required String pageTitle,
-    required String pageDescription,
-  }) {
-    return WebsiteOffersPageData.unavailable(salonId, pageUrl);
-  }
-
-  WebsiteOfferSection? _parseCurrentSection(String html, Uri pageUrl) {
-    final sectionHtml = _firstGroup(
-      html,
-      RegExp(
-        r'<section class="offer-panel" id="tab-current"[\s\S]*?</section>',
-        caseSensitive: false,
-      ),
-      group: 0,
-    );
-    if (sectionHtml == null) return null;
-
-    final cardHtml = _firstGroup(
-      sectionHtml,
-      RegExp(
-        r'<a href="([^"]+)" class="mardi-card"[\s\S]*?</a>',
-        caseSensitive: false,
-      ),
-      group: 0,
-    );
-    if (cardHtml == null) return null;
-
-    return WebsiteOfferSection.current(
-      sectionLabel: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<h2 class="section-title">([\s\S]*?)</h2>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      badge: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-badge">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      headline: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-headline">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-        preserveLineBreaks: true,
-      ),
-      subheadline: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-sub">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      priceOld: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<s class="mardi-price-old">([\s\S]*?)</s>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      priceNew: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-price-new">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      ctaLabel: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mystery-cta mardi-cta">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      footnote: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-foot">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      details: _cleanText(
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-conditions">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      imageUrl: _resolveRelativeUrl(
-        pageUrl,
-        _firstGroup(
-              cardHtml,
-              RegExp(
-                r'<span class="mardi-bg"[^>]*><img src="([^"]+)"',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
+      conditions: document
+          .querySelectorAll('.cond-text')
+          .where(_visible)
+          .map((e) => _text(e))
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList(),
+      currentTabLabel: _optionalText(document.querySelector('#tabBtnCurrent')),
+      upcomingTabLabel: _optionalText(
+        document.querySelector('#tabBtnUpcoming'),
       ),
     );
   }
 
-  WebsiteOfferSection? _parseUpcomingSection(String html, Uri pageUrl) {
-    final sectionHtml = _firstGroup(
-      html,
-      RegExp(
-        r'<section class="offer-panel" id="tab-upcoming"[\s\S]*?</section>',
-        caseSensitive: false,
-      ),
-      group: 0,
-    );
-    if (sectionHtml == null) return null;
-
-    // The live site's event configuration is in a page-level script after the
-    // panel, not inside it. Never replace missing configuration with old data.
-    final alertConfig = _parseAlertConfig(html);
-    final countdownTarget = _parseCountdownTarget(html);
-
-    return WebsiteOfferSection.upcoming(
-      sectionLabel: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<h2 class="section-title">([\s\S]*?)</h2>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      badge: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<div class="mystery-badge">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      headline: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<div class="mystery-number"[^>]*>([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      subheadline: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<div class="mystery-ans">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      description: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<div class="mystery-tagline">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      ctaLabel: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<button class="mystery-cta" id="notifyBtn" type="button">([\s\S]*?)</button>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      details: _cleanText(
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<div class="mystery-note">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      countdownTarget: countdownTarget,
-      alertConfig: alertConfig,
-      imageUrl: _resolveRelativeUrl(
-        pageUrl,
-        _firstGroup(
-              sectionHtml,
-              RegExp(
-                r'<div class="mystery-bg">\s*<img src="([^"]+)"',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-    );
-  }
-
-  WebsiteOfferSection? _parseTeaserSection(String html) {
-    final teaserHtml = _blockBetween(
-      html,
-      '<div class="teaser rv"',
-      '<div class="gift-section',
-    );
-    if (teaserHtml == null) return null;
-
-    final title = _cleanText(
-      _firstGroup(
-            teaserHtml,
-            RegExp(
-              r'<div class="teaser-title">([\s\S]*?)</div>',
-              caseSensitive: false,
-            ),
-          ) ??
-          '',
-    );
-    final description = _cleanText(
-      _firstGroup(
-            teaserHtml,
-            RegExp(
-              r'<div class="teaser-desc">([\s\S]*?)</div>',
-              caseSensitive: false,
-            ),
-          ) ??
-          '',
-    );
-
-    return WebsiteOfferSection.teaser(
-      sectionLabel: title,
-      headline: title,
-      description: description,
-    );
-  }
-
-  WebsiteGiftCardData? _parseGiftCard(String html, Uri pageUrl) {
-    final giftHtml = _firstGroup(
-      html,
-      RegExp(
-        r'<a href="([^"]+)" class="gift-card"[\s\S]*?</a>',
-        caseSensitive: false,
-      ),
-      group: 0,
-    );
-    if (giftHtml == null) return null;
-
-    return WebsiteGiftCardData(
-      sectionLabel: _cleanText(
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<h2 class="section-title">([\s\S]*?)</h2>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      watermark: _cleanText(
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<span class="gift-watermark">([\s\S]*?)</span>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      label: _cleanText(
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<div class="gift-label">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      title: _cleanText(
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<div class="gift-title">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      price: _cleanText(
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<div class="gift-price">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      description: _cleanText(
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<div class="gift-desc">([\s\S]*?)</div>',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-      linkLabel: 'Réserver',
-      linkUrl: _resolveRelativeUrl(
-        pageUrl,
-        _firstGroup(
-              giftHtml,
-              RegExp(
-                r'<a href="([^"]+)" class="gift-card"',
-                caseSensitive: false,
-              ),
-            ) ??
-            '',
-      ),
-    );
-  }
-
-  WebsiteGiftCardData _fallbackGiftCard(String salonId, Uri pageUrl) {
-    return WebsiteOffersPageData.unavailable(salonId, pageUrl).giftCard;
-  }
-
-  List<String> _parseConditions(String html, String salonId) {
-    final matches = RegExp(
-      r'<div class="cond-text">([\s\S]*?)</div>',
-      caseSensitive: false,
-    ).allMatches(html);
-    final conditions = matches
-        .map((match) => _cleanText(match.group(1) ?? ''))
-        .where((text) => text.isNotEmpty)
-        .toList();
-
-    if (conditions.isNotEmpty) return conditions;
-
-    return const [];
-  }
-
-  WebsiteAlertConfig? _parseAlertConfig(String sectionHtml) {
-    final apiBaseUrl = _firstGroup(
-      sectionHtml,
-      RegExp(
-        r"const API_BASE = window\.location\.hostname === 'localhost'[\s\S]*?:\s*'([^']+)'",
-        caseSensitive: false,
-      ),
-    );
-    final eventName = _firstGroup(
-      sectionHtml,
-      RegExp(r"event_name:\s*'([^']+)'", caseSensitive: false),
-    );
-    final salonId = _firstGroup(
-      sectionHtml,
-      RegExp(r"salon_id:\s*'([^']+)'", caseSensitive: false),
-    );
-    final successMessage = _cleanText(
-      _firstGroup(
-            sectionHtml,
-            RegExp(
-              r'<div class="alert-success"[^>]*>([\s\S]*?)</div>',
-              caseSensitive: false,
-            ),
-          ) ??
-          'Vous serez alerté !',
-    );
-    final buttonLabel = _cleanText(
-      _firstGroup(
-            sectionHtml,
-            RegExp(
-              r'<button class="mystery-cta" id="notifyBtn" type="button">([\s\S]*?)</button>',
-              caseSensitive: false,
-            ),
-          ) ??
-          'Être alerté',
-    );
-    final emailPlaceholder =
-        _firstGroup(
-          sectionHtml,
-          RegExp(
-            r'<input type="email" id="alertEmail" class="alert-input" placeholder="([^"]+)"',
-            caseSensitive: false,
-          ),
-        ) ??
-        'Votre email';
-
-    if (apiBaseUrl == null || eventName == null || salonId == null) {
-      return null;
+  Element? _ancestor(Element element, bool Function(Element) matches) {
+    for (
+      Element? current = element.parent;
+      current != null;
+      current = current.parent
+    ) {
+      if (matches(current)) return current;
     }
-
-    return WebsiteAlertConfig(
-      apiBaseUrl: apiBaseUrl,
-      eventName: eventName,
-      salonId: salonId,
-      successMessage: successMessage,
-      buttonLabel: buttonLabel,
-      emailPlaceholder: emailPlaceholder,
-    );
+    return null;
   }
 
-  DateTime? _parseCountdownTarget(String sectionHtml) {
-    final match = RegExp(
-      r'const TARGET = new Date\((\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)\.getTime\(\);',
-      caseSensitive: false,
-    ).firstMatch(sectionHtml);
-    if (match == null) return null;
-
-    final year = int.tryParse(match.group(1) ?? '');
-    final monthIndex = int.tryParse(match.group(2) ?? '');
-    final day = int.tryParse(match.group(3) ?? '');
-    final hour = int.tryParse(match.group(4) ?? '');
-    final minute = int.tryParse(match.group(5) ?? '');
-    final second = int.tryParse(match.group(6) ?? '');
-
-    if (year == null ||
-        monthIndex == null ||
-        day == null ||
-        hour == null ||
-        minute == null ||
-        second == null) {
-      return null;
+  bool _visible(Element element) {
+    for (
+      Element? current = element;
+      current != null;
+      current = current.parent
+    ) {
+      // Hidden tab panels remain valid published content; other hidden cards
+      // (notably expired campaigns and placeholder empty states) do not.
+      if (current.classes.contains('offer-panel')) continue;
+      if (current.attributes.containsKey('hidden')) return false;
+      if (RegExp(
+        r'display\s*:\s*none',
+        caseSensitive: false,
+      ).hasMatch(current.attributes['style'] ?? '')) {
+        return false;
+      }
     }
-
-    return DateTime(year, monthIndex + 1, day, hour, minute, second);
+    return true;
   }
 
-  String? _parseTabLabel(String html, bool current) {
-    final regex = current
-        ? RegExp(
-            r'<button class="offer-tab active"[^>]*>([\s\S]*?)</button>',
-            caseSensitive: false,
-          )
-        : RegExp(
-            r'<button class="offer-tab"(?! active)[^>]*>([\s\S]*?)</button>',
-            caseSensitive: false,
-          );
-    final raw = _firstGroup(html, regex);
-    if (raw == null) return null;
-    final text = _cleanText(raw);
+  String? _optionalText(Element? element) {
+    final text = _text(element);
     return text.isEmpty ? null : text;
   }
 
-  String _defaultTitle(String salonId) {
-    return 'Offres & Événements';
-  }
-
-  String _resolveRelativeUrl(Uri pageUrl, String url) {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty) return '';
-    final parsed = Uri.tryParse(trimmed);
-    if (parsed != null && parsed.hasScheme) return parsed.toString();
-    return pageUrl.resolve(trimmed).toString();
-  }
-
-  String? _firstGroup(String input, RegExp pattern, {int group = 1}) {
-    final match = pattern.firstMatch(input);
-    if (match == null) return null;
-    if (group == 0) return match.group(0);
-    return match.group(group);
-  }
-
-  String? _blockBetween(String input, String startMarker, String endMarker) {
-    final start = input.indexOf(startMarker);
-    if (start == -1) return null;
-    final end = input.indexOf(endMarker, start + startMarker.length);
-    final finish = end == -1 ? input.length : end;
-    return input.substring(start, finish);
-  }
-
-  String _cleanText(String html, {bool preserveLineBreaks = false}) {
-    var text = html
-        .replaceAll(RegExp(r'<\s*br\s*/?\s*>', caseSensitive: false), '\n')
-        .replaceAll(RegExp(r'<[^>]+>', caseSensitive: false), '');
-    text = _decodeHtmlEntities(text);
-
-    if (preserveLineBreaks) {
-      text = text
-          .replaceAll(RegExp(r'[ \t\r\f\v]+'), ' ')
-          .replaceAll(RegExp(r'\n[ \t\r\f\v]+'), '\n')
-          .replaceAll(RegExp(r'[ \t\r\f\v]+\n'), '\n');
-      return text.trim();
+  String _text(
+    Element? element, {
+    bool preserveLines = false,
+    bool includeHidden = false,
+  }) {
+    if (element == null) return '';
+    final clone = element.clone(true);
+    for (final node in clone.querySelectorAll(
+      includeHidden
+          ? 'svg, script, style'
+          : 'svg, script, style, [aria-hidden="true"]',
+    )) {
+      node.remove();
     }
-
-    return text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    for (final br in clone.querySelectorAll('br')) {
+      br.replaceWith(Text(preserveLines ? '\n' : ' '));
+    }
+    return preserveLines
+        ? clone.text.replaceAll(RegExp(r'[^\S\n]+'), ' ').trim()
+        : clone.text.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  String _decodeHtmlEntities(String input) {
-    const replacements = {
-      '&nbsp;': ' ',
-      '&amp;': '&',
-      '&quot;': '"',
-      '&apos;': '\'',
-      '&#39;': '\'',
-      '&lt;': '<',
-      '&gt;': '>',
-      '&ndash;': '–',
-      '&mdash;': '—',
-      '&rsquo;': '’',
-      '&lsquo;': '‘',
-      '&laquo;': '«',
-      '&raquo;': '»',
-      '&eacute;': 'é',
-      '&Eacute;': 'É',
-      '&egrave;': 'è',
-      '&Egrave;': 'È',
-      '&ecirc;': 'ê',
-      '&Ecirc;': 'Ê',
-      '&agrave;': 'à',
-      '&Agrave;': 'À',
-      '&ccedil;': 'ç',
-      '&Ccedil;': 'Ç',
-      '&ocirc;': 'ô',
-      '&Ocirc;': 'Ô',
-      '&ucirc;': 'û',
-      '&Ucirc;': 'Û',
-      '&icirc;': 'î',
-      '&Icirc;': 'Î',
-      '&auml;': 'ä',
-      '&Auml;': 'Ä',
-      '&ouml;': 'ö',
-      '&Ouml;': 'Ö',
-      '&uuml;': 'ü',
-      '&Uuml;': 'Ü',
-    };
+  String _asset(Uri pageUrl, String? value) {
+    if (value == null || value.trim().isEmpty) return '';
+    final uri = pageUrl.resolve(value.trim());
+    return ['https', 'http'].contains(uri.scheme) ? uri.toString() : '';
+  }
 
-    var output = input;
-    replacements.forEach((entity, value) {
-      output = output.replaceAll(entity, value);
-    });
+  WebsiteAlertConfig? _alertConfig(Document document, String html) {
+    final base = RegExp(
+      r"""const API_BASE\s*=\s*window\.location\.hostname\s*===\s*['"]localhost['"][\s\S]*?:\s*['"]([^'"]+)['"]""",
+    ).firstMatch(html)?.group(1);
+    String? config(String key) => RegExp(
+      '["\x27]?$key["\x27]?\\s*:\\s*["\x27]([^"\x27]+)["\x27]',
+    ).firstMatch(html)?.group(1);
+    final event = config('event_name');
+    final salon = config('salon_id');
+    final uri = base == null ? null : Uri.tryParse(base);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        event == null ||
+        salon == null) {
+      return null;
+    }
+    return WebsiteAlertConfig(
+      apiBaseUrl: base!,
+      eventName: event,
+      salonId: salon,
+      successMessage:
+          _optionalText(document.querySelector('.alert-success')) ??
+          'Vous serez alerté !',
+      buttonLabel:
+          _optionalText(document.querySelector('#notifyBtn')) ?? 'Être alerté',
+      emailPlaceholder:
+          document.querySelector('#alertEmail')?.attributes['placeholder'] ??
+          'Votre email',
+    );
+  }
 
-    output = output.replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
-      final codePoint = int.tryParse(match.group(1) ?? '');
-      if (codePoint == null) return match.group(0) ?? '';
-      return String.fromCharCode(codePoint);
-    });
-
-    return output;
+  DateTime? _countdownTarget(String html) {
+    final match = RegExp(
+      r'const TARGET\s*=\s*new Date\((\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)',
+    ).firstMatch(html);
+    if (match == null) return null;
+    final values = [for (var i = 1; i <= 6; i++) int.parse(match.group(i)!)];
+    return BookingPolicy.parisDate(
+      values[0],
+      values[1] + 1,
+      values[2],
+      hour: values[3],
+      minute: values[4],
+      second: values[5],
+    );
   }
 }

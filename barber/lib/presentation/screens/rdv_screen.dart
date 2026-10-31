@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/config/barber_identity.dart';
 import '../../core/ui/app_snackbar.dart';
 import '../../domain/models/api_error.dart';
 import '../../domain/models/reservation_models.dart';
@@ -1054,16 +1055,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
   /// `/barbers/nathan.png`), but on barberclub-grenoble.fr those live under
   /// `/assets/images/...` — the bare path 404s to the SPA's HTML shell.
   String? _resolveBarberPhotoUrl(String? rawPath) {
-    if (rawPath == null) return null;
-    final trimmed = rawPath.trim();
-    if (trimmed.isEmpty) return null;
-    if (trimmed.startsWith('data:') ||
-        trimmed.startsWith('http://') ||
-        trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-    final relative = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
-    return AppConfig.resolvePublicAssetUrl('/assets/images/$relative');
+    return AppConfig.resolveReservationBarberPhotoUrl(rawPath);
   }
 
   _BarberOption _mapBarber(ReservationBarber barber, {String? photoUrl}) {
@@ -1171,8 +1163,9 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
           .catchError((_) => <Barber>[]);
       String? publishedPhoto(ReservationBarber barber) {
         for (final profile in publishedTeam) {
-          if (profile.displayName.toLowerCase() == barber.name.toLowerCase())
+          if (BarberIdentity.matches(profile.displayName, barber.name)) {
             return profile.image;
+          }
         }
         return _resolveBarberPhotoUrl(barber.photoUrl);
       }
@@ -1208,7 +1201,7 @@ class _RdvScreenState extends ConsumerState<RdvScreen> {
             ?.toLowerCase();
         if (preferred != null) {
           for (final option in _barbers) {
-            if (option.name.toLowerCase() == preferred) {
+            if (BarberIdentity.matches(option.name, preferred)) {
               _selectedBarber = option;
               break;
             }
