@@ -12,6 +12,7 @@ import { getWebsiteClient } from '../db/websiteClient';
 import { logger } from '../utils/logger';
 import { validatePhoneNumber } from '../modules/auth/utils/phone';
 import { isBcryptHash } from '../modules/auth/utils/password';
+import { assertAppProfileAvailable, assertMatchingTargets, assertUnclaimedSyncIdentity, claimSyncLink, UserSyncConflict } from '../modules/auth/syncGuards';
 
 const INTERVAL_MS = 10 * 60 * 1000;
 
@@ -443,18 +444,23 @@ async function resolveWebsiteClientTarget(
   profile: CanonicalProfile,
   currentWebsiteClient: WebsiteClientRow | null
 ): Promise<WebsiteClientRow | null> {
-  const excludeWebsiteClientId = currentWebsiteClient?.id ?? null;
-  const phoneCandidate = await findWebsiteClientByPhone(websiteClientDb, profile.phone, excludeWebsiteClientId);
-  if (phoneCandidate) {
-    return phoneCandidate;
-  }
+  // Never move an existing pair to a different row just because an email or
+  // phone now also matches another customer.
+  if (currentWebsiteClient) return currentWebsiteClient;
+  const phoneCandidate = await findWebsiteClientByPhone(websiteClientDb, profile.phone);
+  const emailCandidate = await findWebsiteClientByEmail(websiteClientDb, profile.email);
+  assertMatchingTargets(phoneCandidate?.id, emailCandidate?.id);
+  return phoneCandidate ?? emailCandidate;
+}
 
-  const emailCandidate = await findWebsiteClientByEmail(websiteClientDb, profile.email, excludeWebsiteClientId);
-  if (emailCandidate) {
-    return emailCandidate;
-  }
-
-  return currentWebsiteClient;
+async function assertWebsiteProfileAvailable(
+  websiteClientDb: WebsiteClientDb, websiteClientId: string, profile: CanonicalProfile,
+): Promise<void> {
+  const [phone, email] = await Promise.all([
+    findWebsiteClientByPhone(websiteClientDb, profile.phone, websiteClientId),
+    findWebsiteClientByEmail(websiteClientDb, profile.email, websiteClientId),
+  ]);
+  if (phone || email) throw new UserSyncConflict('website profile identity is shared with another client');
 }
 
 async function updateWebsiteClientProfile(
@@ -475,9 +481,10 @@ async function updateWebsiteClientProfile(
       source: context.source,
       phoneConflictId: phoneConflict?.id ?? null,
       emailConflictId: emailConflict?.id ?? null,
-      phone: mergedProfile.phone,
-      email: mergedProfile.email,
     });
+    // Do not copy passwords/names into one account while skipping its
+    // conflicting identifiers. Leave the entire conflicting pair untouched.
+    throw new UserSyncConflict('website profile has conflicting unique fields');
   }
 
   const updateFields: Prisma.Sql[] = [
@@ -549,16 +556,9 @@ async function resolveAppUserTarget(profile: CanonicalProfile, currentAppUser: A
   }
 
   const phoneCandidate = await findAppUserByPhone(profile.phone);
-  if (phoneCandidate) {
-    return phoneCandidate;
-  }
-
   const emailCandidate = await findAppUserByEmail(profile.email);
-  if (emailCandidate) {
-    return emailCandidate;
-  }
-
-  return null;
+  assertMatchingTargets(phoneCandidate?.id, emailCandidate?.id);
+  return phoneCandidate ?? emailCandidate;
 }
 
 async function persistLinkState(params: {
@@ -569,6 +569,7 @@ async function persistLinkState(params: {
   lastSyncedFrom?: UserSyncSource | null;
 }): Promise<void> {
   const { appUserId, websiteClientId, appSnapshot, websiteSnapshot, lastSyncedFrom } = params;
+  if (websiteClientId) await claimSyncLink(appUserId, websiteClientId);
 
   await prisma.userSyncLink.upsert({
     where: { appUserId },
@@ -602,6 +603,7 @@ async function syncAppUserToWebsite(
   const targetWebsiteClient = await resolveWebsiteClientTarget(websiteClientDb, mergedProfile, websiteClient);
 
   if (!targetWebsiteClient) {
+    await assertUnclaimedSyncIdentity({ appUserId: appUser.id });
     const created = await websiteClientDb.$queryRaw<WebsiteClientRow[]>(Prisma.sql`
       INSERT INTO clients (first_name, last_name, phone, email, password_hash, has_account, deleted_at)
       VALUES (
@@ -627,6 +629,8 @@ async function syncAppUserToWebsite(
     return createdClient.id;
   }
 
+  await assertWebsiteProfileAvailable(websiteClientDb, targetWebsiteClient.id, mergedProfile);
+  await claimSyncLink(appUser.id, targetWebsiteClient.id);
   await updateWebsiteClientProfile(websiteClientDb, targetWebsiteClient.id, mergedProfile, {
     appUserId: appUser.id,
     source: 'sync',
@@ -655,6 +659,7 @@ async function syncWebsiteClientToApp(
       return;
     }
 
+    await assertUnclaimedSyncIdentity({ websiteClientId: websiteClient.id });
     const created = await prisma.user.create({
       data: {
         email: mergedProfile.email,
@@ -679,6 +684,8 @@ async function syncWebsiteClientToApp(
     return;
   }
 
+  await assertAppProfileAvailable(targetAppUser.id, mergedProfile);
+  await claimSyncLink(targetAppUser.id, websiteClient.id);
   await prisma.user.update({
     where: { id: targetAppUser.id },
     data: {
@@ -728,6 +735,11 @@ async function reconcilePair(
       : link.lastSyncedFrom ?? UserSyncSource.APP;
 
   try {
+    const websiteDb = getWebsiteClient();
+    if (!websiteDb) return null;
+    await assertAppProfileAvailable(appUser.id, mergedProfile);
+    await assertWebsiteProfileAvailable(websiteDb, websiteClient.id, mergedProfile);
+    await claimSyncLink(appUser.id, websiteClient.id);
     await prisma.user.update({
       where: { id: appUser.id },
       data: {
@@ -865,16 +877,8 @@ export async function runUserSyncOnce(): Promise<void> {
       ).filter((client) => client.deleted_at == null);
       const emailMatches = (websiteClientsByEmail.get(normalizeEmail(appUser.email)) ?? [])
         .filter((client) => !matchedWebsiteClientIds.has(client.id) && client.deleted_at == null);
-      const allPhoneMatches = collectIndexedValues(
-        websiteClientsByPhone,
-        phoneMatchKeys(appUser.phoneNumber),
-        new Set<string>()
-      ).filter((client) => client.deleted_at == null);
-      const allEmailMatches = (websiteClientsByEmail.get(normalizeEmail(appUser.email)) ?? [])
-        .filter((client) => client.deleted_at == null);
       const candidates = uniqueById([...phoneMatches, ...emailMatches]);
-      const fallbackCandidates = uniqueById([...allPhoneMatches, ...allEmailMatches]);
-      return selectBestWebsiteClient(candidates) ?? selectBestWebsiteClient(fallbackCandidates);
+      return selectBestWebsiteClient(candidates);
     };
 
     const matchAppForWebsite = (websiteClient: WebsiteClientRow): AppUserRow | null => {
@@ -885,15 +889,8 @@ export async function runUserSyncOnce(): Promise<void> {
       );
       const emailMatches = (appUsersByEmail.get(normalizeEmail(websiteClient.email)) ?? [])
         .filter((user) => !matchedAppUserIds.has(user.id));
-      const allPhoneMatches = collectIndexedValues(
-        appUsersByPhone,
-        phoneMatchKeys(websiteClient.phone),
-        new Set<string>()
-      );
-      const allEmailMatches = appUsersByEmail.get(normalizeEmail(websiteClient.email)) ?? [];
       const candidates = uniqueById([...phoneMatches, ...emailMatches]);
-      const fallbackCandidates = uniqueById([...allPhoneMatches, ...allEmailMatches]);
-      return selectBestAppUser(candidates) ?? selectBestAppUser(fallbackCandidates);
+      return selectBestAppUser(candidates);
     };
 
     // Reconcile already linked users first.

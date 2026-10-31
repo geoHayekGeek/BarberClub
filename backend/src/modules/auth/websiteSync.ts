@@ -12,6 +12,7 @@ import { getWebsiteClient } from '../../db/websiteClient';
 import { AppError, ErrorCode } from '../../utils/errors';
 import { isBcryptHash } from './utils/password';
 import { validatePhoneNumber } from './utils/phone';
+import { assertMatchingTargets, assertUnclaimedSyncIdentity, claimSyncLink, UserSyncConflict } from './syncGuards';
 
 type AppUserRow = {
   id: string;
@@ -155,6 +156,7 @@ async function upsertSyncLink(
   websiteClientId: string,
   profileSnapshot: string
 ): Promise<void> {
+  await claimSyncLink(appUserId, websiteClientId);
   await prisma.userSyncLink.upsert({
     where: { appUserId },
     create: {
@@ -219,19 +221,16 @@ export async function syncAppUserToWebsiteNow(appUserId: string): Promise<string
       syncLink.websiteClientId
     );
   }
-  if (!websiteClient) {
-    websiteClient = await findWebsiteClientByPhone(
-      websiteClientDb,
-      appProfile.phone,
-      syncLink?.websiteClientId
-    );
+  if (!websiteClient && syncLink?.websiteClientId) {
+    throw new UserSyncConflict('linked website client is missing');
   }
   if (!websiteClient) {
-    websiteClient = await findWebsiteClientByEmail(
-      websiteClientDb,
-      appProfile.email,
-      syncLink?.websiteClientId
-    );
+    const [phoneMatch, emailMatch] = await Promise.all([
+      findWebsiteClientByPhone(websiteClientDb, appProfile.phone),
+      findWebsiteClientByEmail(websiteClientDb, appProfile.email),
+    ]);
+    assertMatchingTargets(phoneMatch?.id, emailMatch?.id);
+    websiteClient = phoneMatch ?? emailMatch;
   }
 
   const websitePasswordHash = resolveWebsitePasswordHash(
@@ -254,6 +253,14 @@ export async function syncAppUserToWebsiteNow(appUserId: string): Promise<string
   const websitePasswordValue = appUser.isActive ? activePasswordHash : null;
 
   if (websiteClient) {
+    const [phoneConflict, emailConflict] = await Promise.all([
+      findWebsiteClientByPhone(websiteClientDb, appProfile.phone, websiteClient.id),
+      findWebsiteClientByEmail(websiteClientDb, appProfile.email, websiteClient.id),
+    ]);
+    if (phoneConflict || emailConflict) {
+      throw new UserSyncConflict('website profile identity belongs to another client');
+    }
+    await claimSyncLink(appUser.id, websiteClient.id);
     await websiteClientDb.$executeRaw(Prisma.sql`
       UPDATE clients
       SET first_name = ${appProfile.firstName},
@@ -266,6 +273,7 @@ export async function syncAppUserToWebsiteNow(appUserId: string): Promise<string
       WHERE id = CAST(${websiteClient.id} AS UUID)
     `);
   } else {
+    await assertUnclaimedSyncIdentity({ appUserId: appUser.id });
     const created = await websiteClientDb.$queryRaw<WebsiteClientRow[]>(Prisma.sql`
       INSERT INTO clients (
         first_name,

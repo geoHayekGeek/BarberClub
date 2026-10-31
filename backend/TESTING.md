@@ -1,5 +1,16 @@
 # Testing Guide
 
+## Database-free unit tests
+
+Run `npm run test:unit` after installing dependencies and generating Prisma.
+These tests mock both database clients and Firebase; no database URL is needed
+and no production records are read or changed. They cover sync-link ownership,
+conflicting profile identities, checks before customer/password updates, and
+loyalty enrollment filtering and lookup caching. Use `npm run build` to check
+the production TypeScript build as well.
+
+The integration suite below still requires its dedicated test database.
+
 ## Setup
   
 Before running tests, ensure:

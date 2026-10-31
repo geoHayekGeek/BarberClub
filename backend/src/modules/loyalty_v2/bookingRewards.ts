@@ -524,6 +524,15 @@ export async function runBookingLoyaltyRewardSync(params?: {
         `)
       : [];
   const websiteClientById = new Map(websiteClients.map((client) => [client.id, client]));
+  // A client can have hundreds of past bookings. Resolve its app identity once
+  // per run, including misses, instead of repeating the same database lookups.
+  const appUserByClient = new Map<string, Awaited<ReturnType<typeof findAppUserForWebsiteClient>>>();
+  const appUserForClient = async (client: WebsiteClientRow) => {
+    if (!appUserByClient.has(client.id)) {
+      appUserByClient.set(client.id, await findAppUserForWebsiteClient(client));
+    }
+    return appUserByClient.get(client.id) ?? null;
+  };
 
   // Collapse services booked as several slots for one visit (e.g. Meches),
   // so a single paid appointment cannot earn double points and double rank
@@ -536,11 +545,12 @@ export async function runBookingLoyaltyRewardSync(params?: {
   let alreadyRewarded = 0;
   let countedZeroPointAppointments = 0;
   let extraSlotsSkipped = 0;
+  let skippedBeforeEnrollment = 0;
 
   for (const booking of bookings) {
     if (extraSlotBookingIds.has(booking.id)) {
       extraSlotsSkipped += 1;
-      logger.info('LOYALTY_BOOKING skipped_extra_slot_of_same_visit', {
+      logger.debug('LOYALTY_BOOKING skipped_extra_slot_of_same_visit', {
         websiteBookingId: booking.id,
         websiteClientId: booking.client_id,
         serviceName: booking.service_name,
@@ -575,14 +585,15 @@ export async function runBookingLoyaltyRewardSync(params?: {
     }
 
     if (existingGrant) {
-      const appUser = await findAppUserForWebsiteClient(websiteClientRow);
+      const appUser = await appUserForClient(websiteClientRow);
       if (!appUser) {
         pendingAppUser += 1;
         continue;
       }
 
       if (!isBookingEligibleForAppLoyalty(booking.created_at, appUser.appFirstLoginAt)) {
-        logger.info('LOYALTY_BOOKING skipped_orphan_before_app_enrollment', {
+        skippedBeforeEnrollment += 1;
+        logger.debug('LOYALTY_BOOKING skipped_orphan_before_app_enrollment', {
           websiteBookingId: booking.id,
           appUserId: appUser.id,
           bookingCreatedAt: booking.created_at,
@@ -610,14 +621,15 @@ export async function runBookingLoyaltyRewardSync(params?: {
       continue;
     }
 
-    const appUser = await findAppUserForWebsiteClient(websiteClientRow);
+    const appUser = await appUserForClient(websiteClientRow);
     if (!appUser) {
       pendingAppUser += 1;
       continue;
     }
 
     if (!isBookingEligibleForAppLoyalty(booking.created_at, appUser.appFirstLoginAt)) {
-      logger.info('LOYALTY_BOOKING skipped_before_app_enrollment', {
+      skippedBeforeEnrollment += 1;
+      logger.debug('LOYALTY_BOOKING skipped_before_app_enrollment', {
         websiteBookingId: booking.id,
         appUserId: appUser.id,
         bookingCreatedAt: booking.created_at,
@@ -652,5 +664,6 @@ export async function runBookingLoyaltyRewardSync(params?: {
     alreadyRewarded,
     countedZeroPointAppointments,
     extraSlotsSkipped,
+    skippedBeforeEnrollment,
   });
 }
