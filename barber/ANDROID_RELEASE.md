@@ -11,7 +11,22 @@ Package ID remains `fr.barberclubgrenoble.app`. Version name and code come from 
 - 24 live content checks, 16 primary image URL checks and 15 post-deployment API/login checks passed. No live appointment was created, cancelled or rescheduled for testing.
 - Bundletool, release signature, package/version/SDK, expected ABIs and static 16 KB ZIP/ELF alignment checks passed. Physical 16 KB-device testing remains unperformed.
 - The Pixel 8 emulator runs the same release code, generated from this AAB and signed with the existing Android debug key to preserve its installed app data. This emulator APK is not the Play upload artifact.
-- Play Console upload/review status for version 14 is being checked in the authenticated release session; do not infer publication from a successful local build.
+- Play Console accepted version 14 under `barberclotbey@gmail.com` on 1 November 2026. The production release was saved and **Send changes for review** was confirmed. Publishing overview shows **Changes in review**, with automated quick checks still running. It is not yet confirmed available on Google Play.
+- The release retains 100% rollout to all existing targeted countries. Managed publishing remains off, so publication follows successful checks/review and approval automatically.
+- Play validation reported no blocking errors, no loss of supported devices, and one warning about a missing R8/ProGuard deobfuscation file. This build disables R8/ProGuard, so it has no mapping file to upload; native debug symbols are attached. The older production dashboard also flags DEX optimization for a February 2027 deadline; that future build-optimization work remains separate from this accepted upload.
+
+Console: [Publishing overview](https://play.google.com/console/u/0/developers/7353190185683448066/app/4973602462302117554/publishing).
+
+## French Play release notes
+
+```text
+<fr-FR>
+Correction du chargement des salons, des barbiers et des offres.
+Mise à jour des photos et amélioration de la réservation à Voiron.
+Amélioration de la connexion, du défilement et de l’affichage sur petits écrans.
+Corrections de stabilité et de la gestion des rendez-vous.
+</fr-FR>
+```
 
 ## Historical upload-key recovery — 19 October 2026
 

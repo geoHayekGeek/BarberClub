@@ -1,6 +1,6 @@
 # Replacement Play upload key — 19 October 2026
 
-The user authorized generating a replacement because the original upload key was lost. The replacement signed release `1.4.3+11`, which Play accepted in the later Console session, confirming the reset was active. The current release `1.4.6+14` uses this same key. This document retains the recovery procedure; no further reset or new key generation is needed for routine uploads.
+The user authorized generating a replacement because the original upload key was lost. The replacement signed release `1.4.3+11`, which Play accepted in the later Console session, confirming the reset was active. Play also accepted `1.4.6+14` with this same key on 1 November 2026, and its production review was submitted. This document retains the recovery procedure; no further reset or new key generation is needed for routine uploads.
 
 ## Files
 
