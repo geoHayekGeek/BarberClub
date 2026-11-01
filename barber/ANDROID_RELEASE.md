@@ -1,10 +1,27 @@
-# Android release 1.4.3 (11)
+# Android release 1.4.6 (14)
 
-Package ID remains `fr.barberclubgrenoble.app`. The user confirmed version code 11 is the next unused Play upload code. Version name and code come from `pubspec.yaml`; do not maintain a second version in Gradle.
+Package ID remains `fr.barberclubgrenoble.app`. Version name and code come from `pubspec.yaml`; do not maintain a second version in Gradle. The latest source release on `origin/main` was `1.4.5+13`, so this release uses `1.4.6+14`.
 
-## Prepared artifact — 19 October 2026
+## Current verified bundle — 1 November 2026
 
-`build/releases/BarberClub-1.4.3-11-UNSIGNED.aab` — 75,581,179 bytes (72.1 MiB). **Not upload-ready: the existing Play upload private key is missing.**
+`build/releases/BarberClub-1.4.6-14.aab` is the signed Play upload artifact (75,673,297 bytes), SHA-256 `d2bb1d219ce930f1a04edf29e09a990f604047ca1bb2e3ce359f41be4dcf8d81`.
+
+- Source fixes are pushed to `main` in `742dbc5` and `05d498a`; Railway reports successful deployments and its final health check returned HTTP 200/status `ok`.
+- 73 Flutter tests and 21 database-free backend unit tests passed. The backend TypeScript build passed. Focused Dart analysis is clean; full-project analysis has no errors and retains older lint/warning findings.
+- 24 live content checks, 16 primary image URL checks and 15 post-deployment API/login checks passed. No live appointment was created, cancelled or rescheduled for testing.
+- Bundletool, release signature, package/version/SDK, expected ABIs and static 16 KB ZIP/ELF alignment checks passed. Physical 16 KB-device testing remains unperformed.
+- The Pixel 8 emulator runs the same release code, generated from this AAB and signed with the existing Android debug key to preserve its installed app data. This emulator APK is not the Play upload artifact.
+- Play Console upload/review status for version 14 is being checked in the authenticated release session; do not infer publication from a successful local build.
+
+## Historical upload-key recovery — 19 October 2026
+
+The user confirmed the original upload key was lost and authorized generating a replacement. The signed bundle is now `build/releases/BarberClub-1.4.3-11-PENDING-KEY-RESET.aab` (75,632,755 bytes), SHA-256 `793dea06e76aa638d3ea1aedef32af2e675425bcff6bd2b1c2ca1a648579e9ac`.
+
+The bundle's signature is valid and its signer matches the new public PEM. Registration was pending when this artifact was created. In the later Play Console session, Play accepted version 11 signed by this replacement key, confirming that the upload-key reset was active. See `UPLOAD_KEY_RESET.md` for fingerprints and private backup locations. Never upload the private keystore or recovery configuration.
+
+## Earlier unsigned handoff — retained for reference
+
+`build/releases/BarberClub-1.4.3-11-UNSIGNED.aab` — 75,581,179 bytes (72.1 MiB). **Not upload-ready: this older handoff remains unsigned. Use the signed replacement bundle after the reset, not this file.**
 
 SHA-256: `1ecfd3086a4a23d50f8101d328726bf1742f9435b926741d87c51bbafd26d868`.
 
@@ -17,21 +34,21 @@ Verified from the actual bundle with official bundletool 1.18.3 (download SHA-25
 - Signature absent, as intended. The default artifact verifier rejects this unsigned file unless explicitly given `-AllowUnsigned`.
 - 44 Flutter tests passed after the splash dependency correction. Android debug-signing validation passed; normal release validation correctly rejects the configured debug key.
 
-The standard build output `build/app/outputs/bundle/release/app-release.aab` contains the same unsigned bundle. Do not upload either file until it has been signed with the upload key registered in Play Console. No new signing key was generated and nothing was uploaded.
+The standard build output `build/app/outputs/bundle/release/app-release.aab` now contains signed version 1.4.6 (14), not either historical version 11 handoff.
 
 ## Signing status
 
-The local `android/key.properties` currently points to Android's debug key. No BarberClub upload keystore was found in the accessible user profile or Git signing-file history. Unrelated OneDrive/internal tool keystores are not app upload keys and were not opened.
+The original key was not found locally. The local `android/key.properties` now points to the newly generated, user-authorized replacement upload key in `C:/Users/GeorgioHayek/.android/barberclub-upload-2026-10-19/`. It is ignored by Git and its file access is restricted. The previous debug configuration is backed up in that private folder.
 
 **An unsigned bundle is not ready for Play upload.** A normal release build now rejects missing/debug signing credentials instead of producing a misleading debug-signed release. Debug/emulator builds still work without release credentials.
 
-To complete signing, put the existing Play upload keystore on this machine and configure its path, alias and passwords in the ignored `android/key.properties` file. Use `android/key.properties.example` as a template; enter passwords locally, not in chat or tracked files. Match the keystore certificate fingerprint against the Upload key certificate in Play Console's App integrity/App signing page. Build guards cannot verify that Play has registered a particular non-debug key.
+Signing is complete locally and Play previously accepted this replacement upload key. Match the replacement certificate fingerprint in `UPLOAD_KEY_RESET.md` against Play's Upload key certificate when investigating signing problems. Build guards cannot verify Play's current certificate registration. Keep all passwords local and do not place them in chat or tracked files.
 
-If the existing upload key is lost and the app uses Play App Signing, the account owner can request an upload-key reset in Play Console. Do not generate or register a replacement without the owner's direction. The public certificate downloadable from Play is not the private key and cannot sign a bundle.
+The original lost key was replaced through the upload-key reset workflow. A public certificate downloadable from Play is not the private key and cannot sign a bundle. Do not rerun key generation for routine releases.
 
 ## Build
 
-From `barber/`, with the correct existing upload credentials configured:
+From `barber/`, with the accepted replacement upload credentials already configured locally:
 
 ```powershell
 flutter pub get
