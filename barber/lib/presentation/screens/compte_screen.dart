@@ -33,6 +33,7 @@ class CompteScreen extends ConsumerStatefulWidget {
 
 class _CompteScreenState extends ConsumerState<CompteScreen> {
   final ImagePicker _imagePicker = ImagePicker();
+  final Set<String> _verifiedRescheduledBookings = {};
   bool _isUploadingAvatar = false;
   static const int _maxAvatarBytes = 3 * 1024 * 1024;
 
@@ -581,6 +582,10 @@ class _CompteScreenState extends ConsumerState<CompteScreen> {
   @override
   Widget build(BuildContext context) {
     return _CompteScreenShell(
+      verifiedRescheduledBookings: _verifiedRescheduledBookings,
+      onBookingRescheduled: (id) {
+        if (mounted) setState(() => _verifiedRescheduledBookings.add(id));
+      },
       onChangeAvatar: _changeAvatar,
       onEditProfile: () =>
           _showEditProfileSheet(context, ref, ref.read(authStateProvider).user),
@@ -1983,10 +1988,14 @@ class _RescheduleBookingSheetV2 extends StatefulWidget {
   const _RescheduleBookingSheetV2({
     required this.booking,
     required this.repository,
+    required this.salonFilter,
+    required this.onBookingChanged,
   });
 
   final ReservationBooking booking;
   final ReservationRepository repository;
+  final String? salonFilter;
+  final ValueChanged<bool> onBookingChanged;
 
   @override
   State<_RescheduleBookingSheetV2> createState() =>
@@ -2024,6 +2033,9 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
   late final DateTime _maxMonth;
   late DateTime _currentMonth;
 
+  late ReservationBooking _booking;
+  bool _checkingBooking = true;
+  String? _bookingError;
   DateTime? _selectedDate;
   List<ReservationSlot> _slots = const [];
   Map<String, ReservationMonthAvailability> _monthAvailability = const {};
@@ -2031,7 +2043,8 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
   bool _loadingSlots = false;
   bool _loadingMonthAvailability = false;
   bool _submitting = false;
-  String? _errorMessage;
+  String? _slotsError;
+  String? _submitError;
   String? _monthErrorMessage;
   int _loadSlotsRequestVersion = 0;
   int _loadMonthRequestVersion = 0;
@@ -2039,6 +2052,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
   @override
   void initState() {
     super.initState();
+    _booking = widget.booking;
     final now = DateTime.now();
     _today = DateTime(now.year, now.month, now.day);
     _minMonth = DateTime(now.year, now.month);
@@ -2046,14 +2060,90 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
     _currentMonth = DateTime(now.year, now.month);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(_loadMonthAvailability());
+      if (mounted) unawaited(_checkBooking());
     });
   }
 
-  String get _salonId => widget.booking.salonId.trim().isNotEmpty
-      ? widget.booking.salonId.trim()
-      : 'meylan';
+  String get _salonId => _booking.salonId.trim();
+
+  bool get _canModify => BookingPolicy.canModify(
+    date: _booking.date,
+    startTime: _booking.startTime,
+    status: _booking.status,
+  );
+
+  bool get _canSubmit =>
+      !_checkingBooking &&
+      _bookingError == null &&
+      !_booking.rescheduled &&
+      _canModify &&
+      !_submitting &&
+      !_loadingSlots &&
+      _selectedDate != null &&
+      _slots.any((slot) => slot.time == _selectedTime);
+
+  Future<ReservationBooking> _readBooking() async {
+    final latest = await widget.repository.getBookingDetails(
+      bookingId: _booking.id,
+      cancelToken: _booking.cancelToken,
+    );
+    String prefer(String value, String fallback) =>
+        value.trim().isEmpty ? fallback : value;
+
+    return latest.copyWith(
+      id: _booking.id,
+      date: prefer(latest.date, _booking.date),
+      startTime: prefer(latest.startTime, _booking.startTime),
+      endTime: prefer(latest.endTime, _booking.endTime),
+      serviceId: prefer(latest.serviceId, _booking.serviceId),
+      serviceName: prefer(latest.serviceName, _booking.serviceName),
+      barberId: prefer(latest.barberId, _booking.barberId),
+      barberName: prefer(latest.barberName, _booking.barberName),
+      salonId: prefer(
+        latest.salonId,
+        prefer(_booking.salonId, widget.salonFilter?.trim() ?? ''),
+      ),
+      cancelToken: prefer(latest.cancelToken, _booking.cancelToken),
+      rescheduled: _booking.rescheduled || latest.rescheduled,
+    );
+  }
+
+  Future<void> _checkBooking() async {
+    if (_bookingError != null) {
+      setState(() {
+        _checkingBooking = true;
+        _bookingError = null;
+      });
+    }
+    try {
+      final latest = _booking.rescheduled ? _booking : await _readBooking();
+      if (!mounted) return;
+      setState(() {
+        _booking = latest;
+        _checkingBooking = false;
+        if (!latest.rescheduled &&
+            _canModify &&
+            (_salonId.isEmpty ||
+                latest.serviceId.trim().isEmpty ||
+                latest.barberId.trim().isEmpty)) {
+          _bookingError = 'Les détails du rendez-vous sont incomplets.';
+        }
+      });
+      if (_booking.rescheduled || !_canModify) {
+        widget.onBookingChanged(_booking.rescheduled);
+      } else if (_bookingError == null) {
+        unawaited(_loadMonthAvailability());
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _checkingBooking = false;
+        _bookingError = error is ApiError && error.code == 'NETWORK_ERROR'
+            ? 'Vérifiez votre connexion, puis réessayez.'
+            : 'Nous n’avons pas pu vérifier votre rendez-vous. Réessayez dans un instant.';
+      });
+    }
+  }
 
   DateTime _normalizeDate(DateTime date) =>
       DateTime(date.year, date.month, date.day);
@@ -2147,10 +2237,10 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
     try {
       final availability = await widget.repository.getMonthAvailability(
         salonId: _salonId,
-        serviceId: widget.booking.serviceId,
+        serviceId: _booking.serviceId,
         year: month.year,
         month: month.month,
-        barberId: widget.booking.barberId,
+        barberId: _booking.barberId,
         includeAlternatives: true,
       );
 
@@ -2172,7 +2262,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
         _monthAvailability = const {};
         _monthErrorMessage = error is ApiError
             ? error.getFriendlyMessage()
-            : 'Impossible de charger les disponibilites du mois.';
+            : 'Impossible de charger les disponibilités du mois.';
       });
     }
   }
@@ -2185,16 +2275,17 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
 
     setState(() {
       _loadingSlots = true;
-      _errorMessage = null;
+      _slotsError = null;
+      _selectedTime = null;
       _slots = const [];
     });
 
     try {
       final slots = await widget.repository.getAvailability(
         salonId: _salonId,
-        serviceId: widget.booking.serviceId,
+        serviceId: _booking.serviceId,
         date: _dateKey(selectedDate),
-        barberId: widget.booking.barberId,
+        barberId: _booking.barberId,
       );
 
       if (!mounted ||
@@ -2213,14 +2304,15 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
 
       setState(() {
         _loadingSlots = false;
-        _errorMessage = error is ApiError
+        _slotsError = error is ApiError
             ? error.getFriendlyMessage()
-            : 'Impossible de charger les creneaux.';
+            : 'Impossible de charger les créneaux.';
       });
     }
   }
 
   void _goToMonth(int delta) {
+    if (_submitting) return;
     final nextMonth = _normalizeMonth(
       DateTime(_currentMonth.year, _currentMonth.month + delta),
     );
@@ -2244,55 +2336,70 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
 
   void _selectDate(DateTime date) {
     final normalized = _normalizeDate(date);
-    if (normalized.isBefore(_today)) {
+    if (_submitting || normalized.isBefore(_today)) {
       return;
     }
 
-    final sameDate =
-        _selectedDate != null && _isSameDate(_selectedDate!, normalized);
-
     setState(() {
       _selectedDate = normalized;
-      _currentMonth = _normalizeMonth(normalized);
-      if (!sameDate) {
-        _selectedTime = null;
-      }
-      _errorMessage = null;
-      _slots = const [];
-      _loadingSlots = true;
+      _submitError = null;
     });
 
     unawaited(_loadSlots());
   }
 
   Future<void> _confirmReschedule() async {
-    if (_selectedDate == null || _selectedTime == null || _submitting) return;
+    if (!_canSubmit) return;
+    final onBookingChanged = widget.onBookingChanged;
 
     setState(() {
       _submitting = true;
-      _errorMessage = null;
+      _submitError = null;
     });
 
     try {
       await widget.repository.rescheduleBooking(
-        bookingId: widget.booking.id,
-        cancelToken: widget.booking.cancelToken,
+        bookingId: _booking.id,
+        cancelToken: _booking.cancelToken,
         date: _dateKey(_selectedDate!),
         startTime: _selectedTime!,
         salonId: _salonId,
       );
 
-      if (!mounted) return;
+      onBookingChanged(true);
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
 
+      final code = error is ApiError ? error.code : null;
+      if (code == 'VALIDATION_ERROR' || code == 'CONFLICT') {
+        try {
+          final latest = await _readBooking();
+          if (!mounted) return;
+          setState(() {
+            _booking = latest;
+            if (latest.rescheduled || !_canModify) _submitting = false;
+          });
+          if (!_submitting) {
+            onBookingChanged(latest.rescheduled);
+            return;
+          }
+        } catch (_) {
+          // Keep the original submission error if the status check also fails.
+        }
+      }
+      if (!mounted) return;
+
       setState(() {
         _submitting = false;
-        _errorMessage = error is ApiError
-            ? error.getFriendlyMessage()
-            : 'Impossible de deplacer le rendez-vous.';
+        _submitError = switch (code) {
+          'CONFLICT' => 'Les créneaux ont changé. Choisissez un autre horaire.',
+          'NETWORK_ERROR' => 'Vérifiez votre connexion, puis réessayez.',
+          _ => 'Le déplacement n’a pas été confirmé. Réessayez dans un instant.',
+        };
       });
+      if (code == 'CONFLICT') unawaited(_loadSlots());
     }
   }
 
@@ -2321,7 +2428,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
   }
 
   Widget _buildSummaryCard() {
-    final bookingDate = DateTime.tryParse('${widget.booking.date}T00:00:00');
+    final bookingDate = DateTime.tryParse('${_booking.date}T00:00:00');
     return _buildPanelCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2337,7 +2444,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
           ),
           const SizedBox(height: 10),
           Text(
-            widget.booking.serviceName,
+            _booking.serviceName,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -2346,7 +2453,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
           ),
           const SizedBox(height: 4),
           Text(
-            widget.booking.barberName,
+            _booking.barberName,
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
@@ -2358,7 +2465,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
             icon: Icons.calendar_month_outlined,
             label: 'Date',
             value: bookingDate == null
-                ? widget.booking.date
+                ? _booking.date
                 : _formatDateFr(bookingDate),
           ),
           const SizedBox(height: 10),
@@ -2366,19 +2473,8 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
             icon: Icons.schedule_rounded,
             label: 'Horaire',
             value:
-                '${_shortTime(widget.booking.startTime)} - ${_shortTime(widget.booking.endTime)}',
+                '${_shortTime(_booking.startTime)} – ${_shortTime(_booking.endTime)}',
           ),
-          if (widget.booking.rescheduled) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Ce rendez-vous a deja ete decale une fois.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 12,
-                height: 1.35,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -2561,8 +2657,19 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
       );
     }
 
-    if (_errorMessage != null) {
-      return _buildMessageCard(_errorMessage!);
+    if (_slotsError != null) {
+      return _buildPanelCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _slotsError!,
+              style: const TextStyle(color: Colors.white70),
+            ),
+            TextButton(onPressed: _loadSlots, child: const Text('Réessayer')),
+          ],
+        ),
+      );
     }
 
     if (_slots.isEmpty) {
@@ -2576,8 +2683,10 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
         slots: _slots,
         selectedTime: _selectedTime,
         onTap: (slot) {
+          if (_submitting) return;
           setState(() {
             _selectedTime = slot.time;
+            _submitError = null;
           });
         },
       ),
@@ -2615,16 +2724,144 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
     if (_selectedDate == null || _selectedTime == null) {
       return 'Choisissez un créneau pour confirmer.';
     }
-    return 'Créneau sélectionné: ${_shortTime(_selectedTime!)}';
+    return 'Créneau sélectionné · ${_shortTime(_selectedTime!)}';
+  }
+
+  Widget _buildAction({
+    required Widget child,
+    required VoidCallback? onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        disabledBackgroundColor: Colors.white.withValues(alpha: 0.16),
+        disabledForegroundColor: Colors.white.withValues(alpha: 0.35),
+        minimumSize: const Size.fromHeight(50),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildBookingStatus(BuildContext context) {
+    final checking = _checkingBooking;
+    final error = _bookingError;
+    final moved = _booking.rescheduled;
+    final title = checking
+        ? 'Vérification du rendez-vous'
+        : error != null
+        ? 'Vérification indisponible'
+        : moved
+        ? 'Ce rendez-vous a déjà été déplacé'
+        : 'Ce rendez-vous ne peut plus être déplacé';
+    final message = checking
+        ? null
+        : error ??
+              (moved
+                  ? 'Un seul déplacement est autorisé par rendez-vous. Le créneau ci-dessous est conservé.'
+                  : 'Le rendez-vous doit être confirmé et prévu dans au moins 12 heures pour être déplacé.');
+
+    return Material(
+      color: _CompteScreenShell._pageBackground,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: checking
+                      ? const Center(
+                          child: SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.event_busy_outlined,
+                          color: Colors.white,
+                        ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Semantics(
+                header: true,
+                liveRegion: true,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+              if (message != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+              if (!checking) ...[
+                if (moved) ...[
+                  const SizedBox(height: 18),
+                  _buildSummaryCard(),
+                ],
+                const SizedBox(height: 20),
+                _buildAction(
+                  onPressed: error == null
+                      ? () => Navigator.of(context).pop()
+                      : _checkBooking,
+                  child: Text(
+                    error == null ? 'Retour à mes rendez-vous' : 'Réessayer',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                if (error != null)
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Retour à mes rendez-vous'),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isActionDisabled =
-        _loadingSlots ||
-        _submitting ||
-        _selectedDate == null ||
-        _selectedTime == null;
+    if (_checkingBooking ||
+        _bookingError != null ||
+        _booking.rescheduled ||
+        !_canModify) {
+      return _buildBookingStatus(context);
+    }
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final calendarDays = _calendarDays();
 
@@ -2678,6 +2915,11 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildSummaryCard(),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Un seul déplacement est autorisé par rendez-vous.',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Choisir une nouvelle date'),
                       const SizedBox(height: 10),
@@ -2731,7 +2973,7 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
                       const SizedBox(height: 10),
                       _buildSlotsSection(),
                       if (_selectedDate != null &&
-                          _errorMessage == null &&
+                          _slotsError == null &&
                           _slots.isNotEmpty) ...[
                         const SizedBox(height: 14),
                         Text(
@@ -2743,58 +2985,41 @@ class _RescheduleBookingSheetV2State extends State<_RescheduleBookingSheetV2> {
                           ),
                         ),
                       ],
-                      if (widget.booking.rescheduled) ...[
-                        const SizedBox(height: 14),
-                        Text(
-                          'Un seul déplacement est autorisé par rendez-vous.',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.45),
-                            fontSize: 12,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        height: 50,
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: isActionDisabled
-                              ? null
-                              : _confirmReschedule,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: Colors.white.withValues(
-                              alpha: 0.16,
-                            ),
-                            disabledForegroundColor: Colors.white.withValues(
-                              alpha: 0.35,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: _submitting
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.black,
-                                  ),
-                                )
-                              : const Text(
-                                  'Confirmer le nouveau créneau',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                        ),
-                      ),
                     ],
                   ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.white12)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_submitError != null) ...[
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _submitError!,
+                          style: const TextStyle(
+                            color: Color(0xFFFFBAAA),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    _buildAction(
+                      onPressed: _canSubmit ? _confirmReschedule : null,
+                      child: Text(
+                        _submitting
+                            ? 'Déplacement en cours…'
+                            : 'Confirmer le nouveau créneau',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -3010,6 +3235,8 @@ class _RescheduleSlotsGrid extends StatelessWidget {
 
 class _CompteScreenShell extends ConsumerWidget {
   const _CompteScreenShell({
+    required this.verifiedRescheduledBookings,
+    required this.onBookingRescheduled,
     required this.onChangeAvatar,
     required this.onEditProfile,
     required this.onChangePassword,
@@ -3017,6 +3244,8 @@ class _CompteScreenShell extends ConsumerWidget {
     required this.onLogout,
   });
 
+  final Set<String> verifiedRescheduledBookings;
+  final ValueChanged<String> onBookingRescheduled;
   final Future<void> Function() onChangeAvatar;
   final VoidCallback onEditProfile;
   final VoidCallback onChangePassword;
@@ -3025,6 +3254,9 @@ class _CompteScreenShell extends ConsumerWidget {
 
   static const Color _pageBackground = Color(0xFF121212);
   static const Color _cardBackground = Color(0xFF1A1A1A);
+
+  bool _hasBeenRescheduled(ReservationBooking booking) =>
+      booking.rescheduled || verifiedRescheduledBookings.contains(booking.id);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -3467,7 +3699,7 @@ class _CompteScreenShell extends ConsumerWidget {
       booking.barberName.isNotEmpty ? booking.barberName : booking.serviceName,
     );
     final canCancel = _canModifyBooking(booking);
-    final canReschedule = canCancel && !booking.rescheduled;
+    final alreadyRescheduled = _hasBeenRescheduled(booking);
 
     return Container(
       width: double.infinity,
@@ -3480,7 +3712,11 @@ class _CompteScreenShell extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -3508,7 +3744,6 @@ class _CompteScreenShell extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Spacer(),
               _buildStatusBadge(booking.status),
             ],
           ),
@@ -3567,18 +3802,19 @@ class _CompteScreenShell extends ConsumerWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _buildActionButton(
-                label: 'Décaler',
-                icon: Icons.edit_calendar_outlined,
-                onPressed: canReschedule
-                    ? () => _showRescheduleBookingDialog(
-                        context,
-                        ref,
-                        booking,
-                        salonFilter,
-                      )
-                    : null,
-              ),
+              if (!alreadyRescheduled)
+                _buildActionButton(
+                  label: 'Décaler',
+                  icon: Icons.edit_calendar_outlined,
+                  onPressed: canCancel
+                      ? () => _showRescheduleBookingDialog(
+                          context,
+                          ref,
+                          booking,
+                          salonFilter,
+                        )
+                      : null,
+                ),
               _buildActionButton(
                 label: 'Annuler',
                 icon: Icons.close_rounded,
@@ -3593,10 +3829,10 @@ class _CompteScreenShell extends ConsumerWidget {
               ),
             ],
           ),
-          if (booking.rescheduled) ...[
+          if (alreadyRescheduled) ...[
             const SizedBox(height: 10),
             Text(
-              'Ce rendez-vous a déjà été décalé une fois.',
+              'Ce rendez-vous a déjà été déplacé.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 12,
@@ -3620,7 +3856,7 @@ class _CompteScreenShell extends ConsumerWidget {
       booking.barberName.isNotEmpty ? booking.barberName : booking.serviceName,
     );
     final canCancel = !isPast && _canModifyBooking(booking);
-    final canReschedule = canCancel && !booking.rescheduled;
+    final alreadyRescheduled = _hasBeenRescheduled(booking);
 
     return Container(
       width: double.infinity,
@@ -3732,18 +3968,19 @@ class _CompteScreenShell extends ConsumerWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _buildActionButton(
-                        label: 'Décaler',
-                        icon: Icons.edit_calendar_outlined,
-                        onPressed: canReschedule
-                            ? () => _showRescheduleBookingDialog(
-                                context,
-                                ref,
-                                booking,
-                                salonFilter,
-                              )
-                            : null,
-                      ),
+                      if (!alreadyRescheduled)
+                        _buildActionButton(
+                          label: 'Décaler',
+                          icon: Icons.edit_calendar_outlined,
+                          onPressed: canCancel
+                              ? () => _showRescheduleBookingDialog(
+                                  context,
+                                  ref,
+                                  booking,
+                                  salonFilter,
+                                )
+                              : null,
+                        ),
                       _buildActionButton(
                         label: 'Annuler',
                         icon: Icons.close_rounded,
@@ -3758,10 +3995,10 @@ class _CompteScreenShell extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  if (booking.rescheduled) ...[
+                  if (alreadyRescheduled) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Ce rendez-vous a déjà été décalé une fois.',
+                      'Ce rendez-vous a déjà été déplacé.',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 11.5,
@@ -4337,39 +4574,6 @@ class _CompteScreenShell extends ConsumerWidget {
     );
   }
 
-  Future<ReservationBooking> _resolveBookingForReschedule(
-    ReservationBooking booking,
-    String? salonFilter,
-    ReservationRepository repository,
-  ) async {
-    final hasAvailabilityIds =
-        booking.serviceId.trim().isNotEmpty &&
-        booking.barberId.trim().isNotEmpty;
-    final hasSalonId =
-        booking.salonId.trim().isNotEmpty ||
-        (salonFilter?.trim().isNotEmpty == true);
-
-    if (hasAvailabilityIds && hasSalonId) {
-      if (booking.salonId.trim().isNotEmpty) {
-        return booking;
-      }
-      return booking.copyWith(salonId: salonFilter!.trim());
-    }
-
-    final details = await repository.getBookingDetails(
-      bookingId: booking.id,
-      cancelToken: booking.cancelToken,
-    );
-
-    final resolvedSalonId = booking.salonId.trim().isNotEmpty
-        ? booking.salonId.trim()
-        : (salonFilter?.trim().isNotEmpty == true
-              ? salonFilter!.trim()
-              : details.salonId);
-
-    return details.copyWith(salonId: resolvedSalonId);
-  }
-
   Future<void> _showRescheduleBookingDialog(
     BuildContext context,
     WidgetRef ref,
@@ -4385,30 +4589,12 @@ class _CompteScreenShell extends ConsumerWidget {
     }
 
     final repository = ref.read(reservationRepositoryProvider);
-    late final ReservationBooking bookingForReschedule;
-    try {
-      bookingForReschedule = await _resolveBookingForReschedule(
-        booking,
-        salonFilter,
-        repository,
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-
-      final message = error is ApiError
-          ? error.getFriendlyMessage()
-          : 'Impossible de charger les détails du rendez-vous.';
-      AppSnackBar.show(
-        context,
-        message,
-        backgroundColor: Theme.of(context).colorScheme.error,
-        foregroundColor: Colors.white,
-        icon: Icons.error_outline_rounded,
-      );
-      return;
+    void refreshBookings(bool moved) {
+      if (context.mounted) {
+        if (moved) onBookingRescheduled(booking.id);
+        ref.invalidate(reservationClientBookingsProvider(salonFilter));
+      }
     }
-
-    if (!context.mounted) return;
 
     final rescheduled = await showModalBottomSheet<bool>(
       context: context,
@@ -4417,15 +4603,15 @@ class _CompteScreenShell extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (_) {
         return _RescheduleBookingSheetV2(
-          booking: bookingForReschedule,
+          booking: booking,
           repository: repository,
+          salonFilter: salonFilter,
+          onBookingChanged: refreshBookings,
         );
       },
     );
 
-    if (rescheduled == true) {
-      ref.invalidate(reservationClientBookingsProvider(salonFilter));
-      if (!context.mounted) return;
+    if (rescheduled == true && context.mounted) {
       AppSnackBar.show(
         context,
         'Rendez-vous décalé avec succès.',

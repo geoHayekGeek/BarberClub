@@ -10,6 +10,47 @@ class _UnusedAuth extends Fake implements ReservationAuthRepository {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'reads booking details with the cached token for that booking',
+    () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final tokens = SecureTokenRepository();
+      await tokens.saveReservationBookingCancelToken(
+        bookingId: 'later',
+        cancelToken: 'later-token',
+      );
+      final dio = Dio(BaseOptions(baseUrl: 'https://reservation.test'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            expect(request.path, '/bookings/later');
+            expect(request.queryParameters, {'token': 'later-token'});
+            handler.resolve(
+              Response(
+                requestOptions: request,
+                statusCode: 200,
+                data: {
+                  'booking': {'id': 'later', 'rescheduled': true},
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final repository = ReservationRepositoryImpl(
+        tokenRepository: tokens,
+        authRepository: _UnusedAuth(),
+        dio: dio,
+      );
+      final booking = await repository.getBookingDetails(
+        bookingId: 'later',
+        cancelToken: '',
+      );
+      expect(booking.rescheduled, isTrue);
+      expect(booking.cancelToken, 'later-token');
+    },
+  );
+
+  test(
     'cancels a later appointment with its own recovered credentials and salon',
     () async {
       FlutterSecureStorage.setMockInitialValues({

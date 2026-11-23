@@ -336,15 +336,22 @@ class ReservationRepositoryImpl implements ReservationRepository {
     required String bookingId,
     required String cancelToken,
   }) async {
+    final resolvedToken = await _resolveCancelToken(
+      bookingId: bookingId,
+      cancelToken: cancelToken,
+    );
     try {
       final response = await _dio.get(
         '/bookings/$bookingId',
-        queryParameters: {'token': cancelToken},
+        queryParameters: {'token': resolvedToken},
       );
 
       final bookingJson = _extractBookingFromResponse(response.data);
       if (bookingJson != null) {
-        final booking = ReservationBooking.fromJson(bookingJson);
+        var booking = ReservationBooking.fromJson(bookingJson);
+        if (booking.cancelToken.trim().isEmpty) {
+          booking = booking.copyWith(cancelToken: resolvedToken);
+        }
         await _cacheBookingCancelToken(booking);
         return booking;
       }
